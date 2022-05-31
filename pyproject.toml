@@ -21,9 +21,9 @@ target-version = ["py38"]
 profile = "black"
 
 [tool.poetry]
-name = "kafka-operator"
+name = "zookeeper-operator"
 version = "1.0"
-description = "kafka-operator"
+description = "zookeeper-operator"
 authors = [""]
 
 [tool.poetry.dependencies]
