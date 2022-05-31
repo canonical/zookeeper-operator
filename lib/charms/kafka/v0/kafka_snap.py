@@ -49,7 +49,6 @@ class KafkaSnap:
 
             self.kafka = kafka 
             logger.info("sucessfully installed kafka snap")
-            logger.info(self.kafka)
             return MaintenanceStatus("sucessfully installed kafka snap")
 
         except (snap.SnapError, apt.PackageNotFoundError):
