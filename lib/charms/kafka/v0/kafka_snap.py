@@ -11,10 +11,9 @@ config parsing common to both the Kafka and ZooKeeper charms
 import logging
 from typing import Dict, List
 
-from ops.model import StatusBase
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +32,15 @@ class KafkaSnap:
     def __init__(self) -> None:
         self.default_config_path = "/snap/kafka/current/opt/kafka/config/"
         self.snap_config_path = "/var/snap/kafka/common/"
-        self.kafka = snap.SnapCache()["kafka"] 
+        self.kafka = snap.SnapCache()["kafka"]
 
     def install_kafka_snap(self) -> StatusBase:
-        """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set."""
+        """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set.
 
+        Returns:
+            MaintenanceStatus (StatusBase): If snap install was successful
+            BlockedStatus (StatusBase): If snap install failed
+        """
         try:
             apt.update()
             apt.add_package("snapd")
@@ -47,7 +50,7 @@ class KafkaSnap:
             if not kafka.present:
                 kafka.ensure(snap.SnapState.Latest, channel="rock/edge")
 
-            self.kafka = kafka 
+            self.kafka = kafka
             logger.info("sucessfully installed kafka snap")
             return MaintenanceStatus("sucessfully installed kafka snap")
 
@@ -55,11 +58,14 @@ class KafkaSnap:
             return BlockedStatus("failed to install kakfa snap")
 
     def get_kafka_apps(self) -> List:
-        """Grabs apps from the snap property."""
+        """Grabs apps from the snap property.
+
+        Returns:
+            list: The apps declared by the installed snap
+        """
         apps = self.kafka.apps
 
         return apps
-
 
     def start_snap_service(self, snap_service: str) -> StatusBase:
         """Starts snap service process
@@ -79,10 +85,13 @@ class KafkaSnap:
             logger.error(e)
             return BlockedStatus(f"failed starting snap service: {snap_service}")
 
-
     @staticmethod
     def get_properties(path: str) -> Dict[str, str]:
-        """Grabs active config lines from *.properties."""
+        """Grabs active config lines from *.properties.
+
+        Returns:
+            dict: A map of config properties and their values
+        """
         with open(path, "r") as f:
             config = f.readlines()
 
@@ -118,4 +127,4 @@ class KafkaSnap:
             logging.info("no manual config found")
             final_config = default_config
 
-        return "\n".join([f"{k}={v}" for k,v in final_config.items()]) 
+        return "\n".join([f"{k}={v}" for k, v in final_config.items()])

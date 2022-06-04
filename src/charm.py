@@ -42,6 +42,7 @@ class ZooKeeperCharm(CharmBase):
     def _on_install(self, _) -> None:
         """Handler for on_install event."""
         self.unit.status = self.snap.install_kafka_snap()
+        self.unit.status = self.snap.start_snap_service(snap_service="zookeeper")
 
     def _on_leader_elected(self, _) -> None:
         return
@@ -51,11 +52,7 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_config_changed(self, _) -> None:
         """Handler for config_changed event."""
-        self._start_service()
-
-    def _start_service(self) -> None:
-        """Starts a service made available in the snap - `kafka` or `zookeeper`."""
-        self.unit.status = self.snap.start_snap_service(snap_service="zookeeper")
+        return
 
     def _on_get_properties_action(self, event) -> None:
         """Handler for users to copy currently active config for passing to `juju config`."""
