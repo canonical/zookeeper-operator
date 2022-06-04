@@ -1,5 +1,8 @@
-# In Juju 3 this will be eaiser to copy
-get-server-config:
+# In Juju 3 this will be easier to copy
+get-zookeeper-properties:
   description: |
-    Action to retrieve the current server.properties
+    Action to retrieve the current zookeeper.properties
+get-snap-apps:
+  description: |
+    Action to retrieve the available commands within the kafka snap
 

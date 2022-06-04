@@ -1,11 +1,8 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-# For a complete list of supported options, see:
-# https://juju.is/docs/sdk/metadata-reference
-
-name: kafka
-display-name: Kafka
+name: zookeeper
+display-name: Zookeeper 
 summary: |
   ""
 description: |
@@ -16,3 +13,8 @@ maintainers:
 peers:
   cluster:
     interface: cluster
+
+provides:
+  zookeeper:
+    interface: zookeeper
+    limit: 1 

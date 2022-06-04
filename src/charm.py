@@ -2,22 +2,25 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import logging
-import subprocess
+"""Charmed Machine Operator for Apache ZooKeeper."""
 
+import logging
+
+from charms.kafka.v0.kafka_snap import KafkaSnap
 from ops.charm import CharmBase
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
-
-from kafka_helpers import install_packages, merge_config
+from ops.model import Relation
 
 logger = logging.getLogger(__name__)
 
 
-class KafkaCharm(CharmBase):
+class ZooKeeperCharm(CharmBase):
+    """Charmed Operator for ZooKeeper."""
+
     def __init__(self, *args):
         super().__init__(*args)
-        self.name = "kafka"
+        self.name = "zookeeper"
+        self.snap = KafkaSnap()
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(
@@ -25,54 +28,42 @@ class KafkaCharm(CharmBase):
         )
         self.framework.observe(getattr(self.on, "leader_elected"), self._on_leader_elected)
         self.framework.observe(
-            getattr(self.on, "get_server_properties_action"), self._on_get_server_properties_action
+            getattr(self.on, "get_zookeeper_properties_action"), self._on_get_properties_action
         )
+        self.framework.observe(
+            getattr(self.on, "get_snap_apps_action"), self._on_get_snap_apps_action
+        )
+        self.framework.observe(getattr(self.on, "config_changed"), self._on_config_changed)
 
     @property
-    def _relation(self):
+    def _relation(self) -> Relation:
         return self.model.get_relation("cluster")
 
     def _on_install(self, _) -> None:
-        try:
-            self.unit.status = MaintenanceStatus("installing packages")
-            install_packages()
-            self.unit.status = ActiveStatus()
-        except:
-            self.unit.status = BlockedStatus("failed to install packages")
+        """Handler for on_install event."""
+        self.unit.status = self.snap.install_kafka_snap()
+        self.unit.status = self.snap.start_snap_service(snap_service="zookeeper")
 
-    def _on_leader_elected(self, _):
+    def _on_leader_elected(self, _) -> None:
         return
 
-    def _on_cluster_relation_joined(self, _):
+    def _on_cluster_relation_joined(self, _) -> None:
         return
 
     def _on_config_changed(self, _) -> None:
-        self._start_services()
-
-        if not isinstance(self.unit.status, BlockedStatus):
-            self.unit.status = ActiveStatus()
-
-    def _start_services(self) -> None:
+        """Handler for config_changed event."""
         return
 
-    def _run_command(self, cmd: list) -> bool:
-        proc = subprocess.Popen(cmd)
-        for line in iter(getattr(proc.stdout, "readline"), ""):
-            logger.debug(line)
-        proc.wait()
-        return proc.returncode == 0
+    def _on_get_properties_action(self, event) -> None:
+        """Handler for users to copy currently active config for passing to `juju config`."""
+        msg = self.snap.get_merged_properties(property_label="zookeeper")
+        event.set_results({"properties": msg})
 
-    def _on_get_server_properties_action(self, event):
-        """Handler for users to copy currently active config for passing to `juju config`"""
-
-        # TODO: generalise this for arbitrary *.properties
-        default_server_config_path = "/snap/kafka/current/opt/kafka/config/server.properties"
-        snap_server_config_path = "/var/snap/kafka/common/server.properties"
-
-        msg = merge_config(default=default_server_config_path, override=snap_server_config_path)
-
-        event.set_results({"server-properties": msg})
+    def _on_get_snap_apps_action(self, event) -> None:
+        """Handler for users to retrieve the list of available Kafka snap commands."""
+        msg = self.snap.get_kafka_apps()
+        event.set_results({"apps": msg})
 
 
 if __name__ == "__main__":
-    main(KafkaCharm)
+    main(ZooKeeperCharm)

@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-# Copyright 2021 Canonical Ltd.
+# Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 import logging
-from pytest_operator.plugin import OpsTest
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path 
-from kafka import KafkaConsumer, KafkaProducer
+from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
+
 
 @pytest.mark.abort_on_fail
 async def test_build_and_deploy(ops_test: OpsTest):
@@ -22,8 +23,3 @@ async def test_build_and_deploy(ops_test: OpsTest):
     await ops_test.model.set_config({"update-status-hook-interval": "10s"})
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
     assert ops_test.model.applications[APP_NAME].units[0].workload_status == "active"
-    await ops_test.model.set_config({"update-status-hook-interval": "60m"})
-
-@pytest.mark.abort_on_fail
-async def test_producer_can(ops_test: OpsTest):
-    
