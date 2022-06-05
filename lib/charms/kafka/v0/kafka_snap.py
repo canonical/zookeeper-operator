@@ -138,3 +138,7 @@ class KafkaSnap:
             final_config = default_config
 
         return "\n".join([f"{k}={v}" for k, v in final_config.items()])
+
+    def update_zookeeper_dynamic_config(self):
+        return
+

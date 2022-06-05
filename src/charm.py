@@ -22,18 +22,18 @@ CHARM_KEY = "zookeeper"
 class ZooKeeperCharm(CharmBase):
     """Charmed Operator for ZooKeeper."""
 
-    # on = ZooKeeperClusterEvents()
+    on = ZooKeeperClusterEvents()
 
     def __init__(self, *args):
         super().__init__(*args)
         self.name = CHARM_KEY
-        # self.zookeeper_provides = ZooKeeperProvides(self)
-        # self.cluster = ZooKeeperCluster(self)
+        self.zookeeper_provides = ZooKeeperProvides(self)
+        self.cluster = ZooKeeperCluster(self)
         self.snap = KafkaSnap()
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
 
-        # self.framework.observe(getattr(self.on, "restart"), self._on_restart)
+        self.framework.observe(getattr(self.on, "update_units"), self._on_update_units)
 
         self.framework.observe(
             getattr(self.on, "get_{}_properties_action".format(CHARM_KEY)),
@@ -50,6 +50,9 @@ class ZooKeeperCharm(CharmBase):
             properties=self.config["zookeeper-properties"], property_label="zookeeper"
         )
         self.unit.status = self.snap.start_snap_service(snap_service=CHARM_KEY)
+
+    def _on_update_units(self, _):
+        return
 
     def _on_cluster_relation_created(self, _) -> None:
         return
