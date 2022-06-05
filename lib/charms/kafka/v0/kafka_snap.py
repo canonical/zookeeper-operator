@@ -28,10 +28,14 @@ LIBAPI = 0
 LIBPATCH = 4
 
 
+DEFAULT_CONFIG_PATH = "/snap/kafka/current/opt/kafka/config/"
+SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
+
+
 class KafkaSnap:
     def __init__(self) -> None:
-        self.default_config_path = "/snap/kafka/current/opt/kafka/config/"
-        self.snap_config_path = "/var/snap/kafka/common/"
+        self.default_config_path = DEFAULT_CONFIG_PATH
+        self.snap_config_path = SNAP_CONFIG_PATH
         self.kafka = snap.SnapCache()["kafka"]
 
     def install_kafka_snap(self) -> StatusBase:
@@ -84,6 +88,12 @@ class KafkaSnap:
         except snap.SnapError as e:
             logger.error(e)
             return BlockedStatus(f"failed starting snap service: {snap_service}")
+
+    def set_properties(self, properties: str, property_label: str) -> StatusBase:
+        path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
+        with open(path, "w") as f:
+            f.write(properties)
+        return MaintenanceStatus(f"config successfully written to {path}")
 
     @staticmethod
     def get_properties(path: str) -> Dict[str, str]:
