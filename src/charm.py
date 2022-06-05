@@ -11,7 +11,7 @@ from charms.kafka.v0.zookeeper_provides import ZooKeeperProvides
 from ops.charm import CharmBase
 from ops.main import main
 
-from cluster import ZooKeeperCluster, ZooKeeperClusterEvents
+from cluster import UnitsChangedEvent, UpdateServersEvent, ZooKeeperCluster, ZooKeeperClusterEvents
 
 logger = logging.getLogger(__name__)
 
@@ -27,21 +27,31 @@ class ZooKeeperCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.name = CHARM_KEY
-        self.zookeeper_provides = ZooKeeperProvides(self)
+        # self.zookeeper_provides = ZooKeeperProvides(self)
         self.cluster = ZooKeeperCluster(self)
         self.snap = KafkaSnap()
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
 
-        self.framework.observe(getattr(self.on, "update_units"), self._on_update_units)
+        self.framework.observe(getattr(self.on, "units_changed"), self._on_units_changed)
+        self.framework.observe(getattr(self.on, "update_servers"), self._on_update_servers)
 
         self.framework.observe(
-            getattr(self.on, "get_{}_properties_action".format(CHARM_KEY)),
+            getattr(self.on, f"get_{CHARM_KEY}_properties_action"),
             self._on_get_properties_action,
         )
         self.framework.observe(
             getattr(self.on, "get_snap_apps_action"), self._on_get_snap_apps_action
         )
+
+    def _on_units_changed(self, event: UnitsChangedEvent):
+        logger.info("***********************************")
+        logger.info(f"UnitsChangedEvent detected - {vars(event)}")
+        logger.info("***********************************")
+        self.cluster.on_units_changed(event=event)
+
+    def _on_update_servers(self, event: UpdateServersEvent):
+        return
 
     def _on_install(self, _) -> None:
         """Handler for on_install event."""
@@ -50,9 +60,6 @@ class ZooKeeperCharm(CharmBase):
             properties=self.config["zookeeper-properties"], property_label="zookeeper"
         )
         self.unit.status = self.snap.start_snap_service(snap_service=CHARM_KEY)
-
-    def _on_update_units(self, _):
-        return
 
     def _on_cluster_relation_created(self, _) -> None:
         return

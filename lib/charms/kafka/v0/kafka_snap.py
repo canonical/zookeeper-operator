@@ -141,4 +141,3 @@ class KafkaSnap:
 
     def update_zookeeper_dynamic_config(self):
         return
-
