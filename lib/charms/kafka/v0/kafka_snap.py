@@ -14,6 +14,7 @@ from typing import Dict, List
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase
+from kazoo.client import KazooClient as kc
 
 logger = logging.getLogger(__name__)
 
@@ -139,5 +140,4 @@ class KafkaSnap:
 
         return "\n".join([f"{k}={v}" for k, v in final_config.items()])
 
-    def update_zookeeper_dynamic_config(self):
-        return
+    def update_servers(self):
