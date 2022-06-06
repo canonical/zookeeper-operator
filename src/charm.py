@@ -51,6 +51,9 @@ class ZooKeeperCharm(CharmBase):
         self.cluster.on_units_changed(event=event)
 
     def _on_update_servers(self, event: UpdateServersEvent):
+        logger.info("***********************************")
+        logger.info(f"UpdateServersEvent detected - {vars(event)}")
+        logger.info("***********************************")
         return
 
     def _on_install(self, _) -> None:

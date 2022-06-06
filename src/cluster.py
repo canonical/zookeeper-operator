@@ -32,21 +32,27 @@ def leader_check(func: Callable) -> Any:
 
 
 class UnitsChangedEvent(RelationEvent):
-    def __init__(self, handle, relation, unit, host, app=None):
+    def __init__(self, handle, relation, unit, departing_unit=None, app=None):
         super().__init__(handle, relation, app=app, unit=unit)
-        self.host = host
+        self._departing_unit = departing_unit
+
+    @property
+    def departing_unit(self):
+        if not self._departing_unit:
+            return None
+        return getattr(self.framework, "model").get_unit(self._departing_unit.name)
 
     def snapshot(self):
-        snapshot = {"host": self.host}
+        snapshot = {}
         if self.app:
             snapshot["app_name"] = self.app.name
         if self.unit:
             snapshot["unit_name"] = self.unit.name
+        if self._departing_unit:
+            snapshot["departing_unit_name"] = getattr(self._departing_unit, "name")
         return snapshot
 
     def restore(self, snapshot):
-        self.host = snapshot["host"]
-        
         app_name = snapshot.get('app_name')
         if app_name:
             self.app = getattr(self.framework, "model").get_app(app_name)
@@ -56,8 +62,13 @@ class UnitsChangedEvent(RelationEvent):
         unit_name = snapshot.get('unit_name')
         if unit_name:
             self.unit = getattr(self.framework, "model").get_unit(unit_name)
+
+        departing_unit_name = snapshot.get('departing_unit_name')
+        if departing_unit_name:
+            self._departing_unit = getattr(self.framework, "model").get_unit(departing_unit_name)
         else:
-            self.unit = None
+            self._departing_unit = None
+
 
 class UpdateServersEvent(EventBase):
     def __init__(self, handle, msg):
@@ -89,17 +100,20 @@ class ZooKeeperCluster(Object):
         self.client_port = client_port
         self.server_port = server_port
         self.election_port = election_port
-        self.relation: Relation = self.charm.model.get_relation(CLUSTER_KEY)
 
-        # self.framework.observe(
-        #     getattr(charm.on, "cluster_relation_joined"), self._on_cluster_relation_updated
-        # )
-        # self.framework.observe(
-        #     getattr(charm.on, "cluster_relation_departed"), self._on_cluster_relation_updated
-        # )
         self.framework.observe(
             getattr(charm.on, "cluster_relation_created"), self._on_cluster_relation_updated
         )
+        self.framework.observe(
+            getattr(charm.on, "cluster_relation_joined"), self._on_cluster_relation_updated
+        )
+        self.framework.observe(
+            getattr(charm.on, "cluster_relation_departed"), self._on_cluster_relation_updated
+        )
+
+    @property
+    def relation(self):
+        return self.charm.model.get_relation(CLUSTER_KEY)
 
     def _on_cluster_relation_updated(self, event: RelationEvent):
         # this event will be emitted once and only once on each unit after install
@@ -107,28 +121,25 @@ class ZooKeeperCluster(Object):
         getattr(self.charm.on, "units_changed").emit(
             relation=event.relation,
             unit=self.charm.unit,
-            host=event.relation.data[self.charm.unit]["private-address"],
-            app=self.charm.model.app
+            app=self.charm.model.app,
+            departing_unit=getattr(event, "departing_unit", None)
         )
 
     @leader_check
     def on_units_changed(self, event: UnitsChangedEvent):
         live_units = json.loads(self.relation.data[self.charm.model.app].get("live_units", "{}"))
-        event_unit = getattr(event.unit, "name")
+        event_units = self.relation.units or {event.unit}
 
-        if event_unit in list(live_units.keys()):
-            del live_units[event_unit]
-        else:
-            live_units[event_unit] = {"host": event.host}
+        for event_unit in event_units:
+            host = self.relation.data[event_unit]["private-address"]
+            live_units[event_unit.name] = {"host": host}
+
+        if event.departing_unit:
+            del live_units[event.departing_unit.name]
 
         changed_live_units = json.dumps(live_units, sort_keys=True)
         self.relation.data[self.charm.model.app].update({"live_units": changed_live_units})
         getattr(self.charm.on, "update_servers").emit(msg="unit addresses updating")
-
-    def _on_cluster_relation_departed(self, event):
-        getattr(self.charm.on, "units_departed").emit(
-            host=event.relation.data[event.unit]["private-address"], unit=event.unit
-        )
 
     def _build_cluster_address(self, host: str) -> str:
         return f"{host}:{self.server_port}:{self.election_port}"
