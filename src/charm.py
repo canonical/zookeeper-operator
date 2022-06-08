@@ -48,9 +48,6 @@ class ZooKeeperCharm(CharmBase):
     def _on_cluster_relation_joined(self, _) -> None:
         return
 
-    def _on_restart(self, _):
-        return
-
     def _on_get_properties_action(self, event) -> None:
         """Handler for users to copy currently active config for passing to `juju config`."""
         msg = self.snap.get_merged_properties(property_label="zookeeper")

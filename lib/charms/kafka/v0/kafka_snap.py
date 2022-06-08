@@ -139,5 +139,3 @@ class KafkaSnap:
             final_config = default_config
 
         return "\n".join([f"{k}={v}" for k, v in final_config.items()])
-
-    def update_servers(self):
