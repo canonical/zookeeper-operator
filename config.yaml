@@ -8,8 +8,8 @@ options:
     type: string
     default: |
       clientPort=2181
-      dataDir=/var/snap/zookeeper/common/data
-      dataLogDir=/var/snap/zookeeper/common/log
+      dataDir=/var/snap/kafka/common/data
+      dataLogDir=/var/snap/kafka/common/log
       tickTime=2000
       initLimit=5
       syncLimit=2
@@ -20,4 +20,4 @@ options:
       autopurge.purgeInterval=0
       reconfigEnabled=true
       4lw.commands.whitelist=*
-      skipACL=yes
+      standaloneEnabled=false
