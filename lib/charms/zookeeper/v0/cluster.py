@@ -3,13 +3,13 @@
 # See LICENSE file for licensing details.
 
 import logging
-from typing import Set
+from typing import Iterable, Set
 
 from ops.charm import (
     CharmBase,
 )
-from ops.framework import EventBase, Object
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase, WaitingStatus
+from ops.framework import Object
+from ops.model import Unit
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -20,6 +20,11 @@ from charms.zookeeper.v0.client import (
 logger = logging.getLogger(__name__)
 
 CLUSTER_KEY = "cluster"
+
+
+class ZooKeeperClusterError(Exception):
+    def __init__(self, message: str):
+        self.message = message
 
 
 class ZooKeeperCluster(Object):
@@ -36,53 +41,58 @@ class ZooKeeperCluster(Object):
         self.server_port = server_port
         self.election_port = election_port
 
+    def _build_members(self, servers: Iterable[str], role: str) -> Set[str]:
+        return {f"{server}:{role};0.0.0.0:{self.client_port}" for server in servers}
+
     @property
     def relation(self):
+        logger.debug("---------- relation ----------")
         return self.charm.model.get_relation(CLUSTER_KEY)
-
-    def _get_server_id(self, unit):
-        return int(unit.name.split("/")[1]) + 1
-
-    def write_server_id(self):
-        for line in self.charm.config["zookeeper-properties"].splitlines():
-            if "dataDir" in line:
-                data_dir = line.split("=")[1]
-                with open(f"{data_dir}/myid", "w") as f:
-                    f.write(str(self._get_server_id(self.charm.unit)))
-                return MaintenanceStatus("successfully added myid file to zookeeper")
-
-            logger.warning("unable to set myid file to zookeeper - dataDir config option missing")
-            return BlockedStatus(
-                "unable to set myid file to zookeeper - dataDir config option missing"
-            )
 
     @property
     def hosts(self):
+        logger.debug("---------- hosts ----------")
         return [self.relation.data[unit]["private-address"] for unit in self.relation.data.units]
 
     @property
-    def juju_members(self) -> Set[str]:
+    def cluster_servers(self) -> Set[str]:
+        logger.debug("---------- cluster_servers ----------")
         servers = []
         for unit in self.relation.data.units:
-            server_id = self._get_server_id(unit=unit)
+            logger.debug(f"{unit=}")
+            server_id = self.get_server_id(unit=unit)
+            logger.debug(f"{server_id=}")
             host_address = self.relation.data[unit]["private-address"]
-
-            servers.append(
-                f"server.{server_id}={host_address}:{self.server_port}:{self.election_port}:participant;0.0.0.0:{self.client_port}"
+            logger.debug(f"{host_address=}")
+            server_address = (
+                f"server.{server_id}={host_address}:{self.server_port}:{self.election_port}"
             )
+            logger.debug(f"{server_address=}")
+
+            servers.append(server_address)
+            logger.debug(f"{servers=}")
 
         return set(servers)
 
-    def update_cluster(self) -> StatusBase:
+    def update_cluster(self) -> bool:
+        logger.debug("---------- update_cluster ----------")
         zk = ZooKeeperManager(hosts=self.hosts, client_port=self.client_port)
+        logger.debug(f"{zk=}")
         zk_members = zk.server_members
+        logger.debug(f"{zk_members=}")
+        active_cluster_members = self._build_members(
+            servers=self.cluster_servers, role="participant"
+        )
+        logger.debug(f"{active_cluster_members=}")
 
         try:
-            zk.remove_members(members=zk_members - self.juju_members)
-            zk.add_members(members=sorted(self.juju_members - zk_members))
-            return ActiveStatus()
-        except (MembersSyncingError, MemberNotReadyError):
-            return WaitingStatus("cluster members not ready for update, waiting")
-        except Exception as e:
-            logger.error(e)
-            return BlockedStatus("failure during cluster update")
+            zk.remove_members(members=zk_members - active_cluster_members)
+            zk.add_members(members=sorted(active_cluster_members - zk_members))
+            return True
+        except (MembersSyncingError, MemberNotReadyError) as e:
+            raise ZooKeeperClusterError(str(e))
+
+    @staticmethod
+    def get_server_id(unit: Unit) -> int:
+        logger.debug("---------- get_server_id ----------")
+        return int(unit.name.split("/")[1]) + 1

@@ -9,12 +9,15 @@ config parsing common to both the Kafka and ZooKeeper charms
 """
 
 import logging
+import os
 from typing import Dict, List
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase
 from kazoo.client import KazooClient as kc
+
+from charms.zookeeper.v0.generic_raise import generic_raise
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +32,26 @@ LIBAPI = 0
 LIBPATCH = 4
 
 
-DEFAULT_CONFIG_PATH = "/snap/kafka/current/opt/kafka/config/"
 SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
+
+
+class KafkaSnapError(Exception):
+    def __init__(self, message: str) -> None:
+        self.message = message
+
+
+def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, mode) as f:
+        f.write(content)
 
 
 class KafkaSnap:
     def __init__(self) -> None:
-        self.default_config_path = DEFAULT_CONFIG_PATH
         self.snap_config_path = SNAP_CONFIG_PATH
         self.kafka = snap.SnapCache()["kafka"]
 
-    def install_kafka_snap(self) -> StatusBase:
+    def install_kafka_snap(self) -> None:
         """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set.
 
         Returns:
@@ -57,10 +69,9 @@ class KafkaSnap:
 
             self.kafka = kafka
             logger.info("sucessfully installed kafka snap")
-            return MaintenanceStatus("sucessfully installed kafka snap")
-
-        except (snap.SnapError, apt.PackageNotFoundError):
-            return BlockedStatus("failed to install kakfa snap")
+        except (snap.SnapError, apt.PackageNotFoundError) as e:
+            logger.error(str(e))
+            raise KafkaSnapError("failed to install kafka snap")
 
     def get_kafka_apps(self) -> List:
         """Grabs apps from the snap property.
@@ -72,7 +83,7 @@ class KafkaSnap:
 
         return apps
 
-    def start_snap_service(self, snap_service: str) -> StatusBase:
+    def start_snap_service(self, snap_service: str) -> None:
         """Starts snap service process
 
         Args:
@@ -85,57 +96,42 @@ class KafkaSnap:
         try:
             self.kafka.start(services=[snap_service])
             logger.info(f"successfully started snap service: {snap_service}")
-            return ActiveStatus()
         except snap.SnapError as e:
-            logger.error(e)
-            return BlockedStatus(f"failed starting snap service: {snap_service}")
+            logger.error(str(e))
+            raise KafkaSnapError("unable to start snap service: {snap_service}")
 
-    def set_properties(self, properties: str, property_label: str) -> StatusBase:
+    def write_default_properties(self, properties: str, property_label: str) -> None:
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
-        with open(path, "w") as f:
-            f.write(properties)
-        return MaintenanceStatus(f"config successfully written to {path}")
+        safe_write_to_file(content=properties, path=path, mode="w")
+        logger.info(f"config successfully written to {path}")
 
-    @staticmethod
-    def get_properties(path: str) -> Dict[str, str]:
+    def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper"):
+        # TODO: Check if properties not set, return BlockedStatus
+        properties = self.get_properties(property_label=property_label)
+        # TODO: Check if dataDir not set, return BlockedStatus
+        myid_path = f"{properties['dataDir']}/myid"
+        safe_write_to_file(content=str(myid), path=myid_path, mode="w")
+        logger.info(f"succcessfully wrote file myid - {myid}")
+
+    def get_properties(self, property_label: str) -> Dict[str, str]:
         """Grabs active config lines from *.properties.
 
         Returns:
             dict: A map of config properties and their values
         """
-        with open(path, "r") as f:
-            config = f.readlines()
+        path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
+        try:
+            with open(path, "r") as f:
+                config = f.readlines()
+        except FileNotFoundError as e:
+            logger.error(str(e))
+            raise KafkaSnapError(f"missing properties file: {path}")
 
         config_map = {}
 
         for conf in config:
             if conf[0] != "#" and not conf.isspace():
                 logger.debug(conf.strip())
-                config_map[conf.split("=")[0]] = conf.split("=")[1].strip()
+                config_map[str(conf.split("=")[0])] = str(conf.split("=")[1].strip())
 
         return config_map
-
-    def get_merged_properties(self, property_label: str) -> str:
-        """Merges snap config overrides with default upstream *.properties.
-
-        Args:
-            property_label (str): The prefix of the desired *.properties file
-                e.g `server` or `zookeeper`
-
-        Returns:
-           str: The merged default and user config
-        """
-
-        default_path = self.default_config_path + f"{property_label}.properties"
-        default_config = self.get_properties(path=default_path)
-
-        override_path = self.snap_config_path + f"{property_label}.properties"
-
-        try:
-            override_config = self.get_properties(path=override_path)
-            final_config = {**default_config, **override_config}
-        except FileNotFoundError:
-            logging.info("no manual config found")
-            final_config = default_config
-
-        return "\n".join([f"{k}={v}" for k, v in final_config.items()])

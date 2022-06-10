@@ -5,4 +5,7 @@ get-zookeeper-properties:
 get-snap-apps:
   description: |
     Action to retrieve the available commands within the kafka snap
+get-zookeeper-leader-logs:
+  description: |
+    Action to retrieve the server.log output from the current zookeeper leader
 
