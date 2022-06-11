@@ -100,6 +100,7 @@ class ZooKeeperClient:
         self.host = host
         self.client_port = client_port
         self.client = KazooClient(hosts=f"{host}:{client_port}")
+        self.client.start()
 
     def __enter__(self):
         return self
