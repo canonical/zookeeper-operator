@@ -12,6 +12,8 @@ import logging
 import os
 from typing import Dict, List
 
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
+
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
 
@@ -31,9 +33,14 @@ LIBPATCH = 4
 SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
 
 
-class KafkaSnapError(Exception):
-    def __init__(self, message: str) -> None:
-        self.message = message
+def block_check(func):
+    def check_if_blocked(*args, **kwargs):
+        if args[0].blocked:
+            return
+        else:
+            return func(*args, **kwargs)
+
+    return check_if_blocked
 
 
 def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
@@ -41,12 +48,17 @@ def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
     with open(path, mode) as f:
         f.write(content)
 
+    return
+
 
 class KafkaSnap:
     def __init__(self) -> None:
         self.snap_config_path = SNAP_CONFIG_PATH
         self.kafka = snap.SnapCache()["kafka"]
+        self.blocked = False
+        self.status = MaintenanceStatus("performing snap operation")
 
+    @block_check
     def install_kafka_snap(self) -> None:
         """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set.
 
@@ -67,7 +79,9 @@ class KafkaSnap:
             logger.info("sucessfully installed kafka snap")
         except (snap.SnapError, apt.PackageNotFoundError) as e:
             logger.error(str(e))
-            raise KafkaSnapError("failed to install kafka snap")
+            self.blocked = True
+            self.status = BlockedStatus("failed to install kafka snap")
+            return
 
     def get_kafka_apps(self) -> List:
         """Grabs apps from the snap property.
@@ -79,6 +93,7 @@ class KafkaSnap:
 
         return apps
 
+    @block_check
     def start_snap_service(self, snap_service: str) -> None:
         """Starts snap service process
 
@@ -89,13 +104,19 @@ class KafkaSnap:
             ActiveStatus (StatusBase): If service starts successfully
             BlockedStatus (StatusBase): If service fails to start
         """
+
         try:
             self.kafka.start(services=[snap_service])
             logger.info(f"successfully started snap service: {snap_service}")
+            # TODO: service up-check here
+            self.status = ActiveStatus()
         except snap.SnapError as e:
             logger.error(str(e))
-            raise KafkaSnapError("unable to start snap service: {snap_service}")
+            self.blocked = True
+            self.status = BlockedStatus(f"unable to start snap service: {snap_service}")
+            return
 
+    @block_check
     def write_default_properties(
         self, properties: str, property_label: str, mode: str = "w"
     ) -> None:
@@ -103,14 +124,20 @@ class KafkaSnap:
         safe_write_to_file(content=properties, path=path, mode=mode)
         logger.info(f"config successfully written to {path}")
 
+    @block_check
     def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper"):
         # TODO: Check if properties not set, return BlockedStatus
         properties = self.get_properties(property_label=property_label)
         # TODO: Check if dataDir not set, return BlockedStatus
-        myid_path = f"{properties['dataDir']}/myid"
+        if properties:
+            myid_path = f"{properties.get('dataDir')}/myid"
+        else:
+            return
+
         safe_write_to_file(content=str(myid), path=myid_path, mode="w")
         logger.info(f"succcessfully wrote file myid - {myid}")
 
+    @block_check
     def get_properties(self, property_label: str) -> Dict[str, str]:
         """Grabs active config lines from *.properties.
 
@@ -118,18 +145,20 @@ class KafkaSnap:
             dict: A map of config properties and their values
         """
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
+        config_map = {}
+
         try:
             with open(path, "r") as f:
                 config = f.readlines()
         except FileNotFoundError as e:
             logger.error(str(e))
-            raise KafkaSnapError(f"missing properties file: {path}")
-
-        config_map = {}
+            self.blocked = True
+            self.status = BlockedStatus(f"missing properties file: {path}")
+            return {}
 
         for conf in config:
             if conf[0] != "#" and not conf.isspace():
-                logger.debug(conf.strip())
+                logger.info(conf.strip())
                 config_map[str(conf.split("=")[0])] = str(conf.split("=")[1].strip())
 
         return config_map

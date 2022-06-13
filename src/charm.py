@@ -11,14 +11,13 @@
 """Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
-from ops.framework import EventBase
-
-from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
-from charms.zookeeper.v0.cluster import ZooKeeperCluster, ZooKeeperClusterError
+from charms.zookeeper.v0.cluster import ZooKeeperCluster
 from ops.charm import CharmBase
+from ops.framework import EventBase
 from ops.main import main
+from ops.model import ActiveStatus
 
 logger = logging.getLogger(__name__)
 
@@ -57,61 +56,62 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_install(self, _) -> None:
         """Handler for on_install event."""
-        self.unit.status = MaintenanceStatus("starting unit install")
+        logger.info("---------- on_install ----------")
+        self.unit.status = self.snap.status
 
         self.snap.install_kafka_snap()
         self.snap.write_default_properties(
             properties=self.config["zookeeper-properties"], property_label="zookeeper", mode="w"
         )
         self.snap.write_zookeeper_myid(myid=self.myid)
-        self.unit.status = WaitingStatus("waiting for other units to be ready")
 
-    def _on_leader_elected(self, _):
-        if not self.unit.is_leader():
-            return
-        if self.cluster.relation.data[self.model.app].get("init", None):
-            return
-        
-          
-        
+        self.unit.status = self.snap.status
 
     def _on_start(self, event: EventBase) -> None:
+        logger.info("---------- on_start ----------")
         self.cluster.relation.data[self.unit].update({"myid": str(self.myid)})
         self.cluster.relation.data[self.unit].update({"state": "ready"})
+        # TODO: check 'init' flag here
         self.cluster.relation.data[self.unit].update(
             {
                 "server": self.cluster.build_server_string(
-                    unit=self.unit, role="participant" if self.myid != 1 else "observer"
+                    unit=self.unit, role="participant" if self.myid == 1 else "observer"
                 )
             }
         )
-        logger.debug(self.cluster.relation.data[self.unit])
-        is_next_server, servers = self.cluster.is_next_server(self.unit)
-        if is_next_server:
-            self.snap.write_default_properties(
-                properties=servers, property_label="zookeeper", mode="a"
-            )
-            self.snap.start_snap_service(snap_service=CHARM_KEY)
-            self.cluster.relation.data[self.unit].update({"state": "started"})
-            self.unit.status = ActiveStatus()
+        if self.myid == 1:
+            servers = self.cluster.relation.data[self.unit].get("server")
         else:
-            event.defer()
+            is_next_server, servers = self.cluster.is_next_server(self.unit)
+            logger.info(f"{is_next_server=}")
+            logger.info(f"{servers=}")
+            if not is_next_server:
+                self.unit.status = self.cluster.status
+                logger.info("---------- defer ----------")
+                event.defer()
+                return
+
+        self.snap.write_default_properties(
+            properties=servers, property_label="zookeeper", mode="a"
+        )
+        self.snap.start_snap_service(snap_service=CHARM_KEY)
+
+        if not self.snap.blocked:
+            self.cluster.relation.data[self.unit].update({"state": "started"})
+
+        self.unit.status = self.snap.status
 
     def _on_cluster_relation_updated(self, event) -> None:
+        logger.info("---------- on_cluster_relation_updated ----------")
         if not self.unit.is_leader():
             return
-        self.unit.status = MaintenanceStatus("starting cluster member update")
-        try:
-            if self.cluster.update_cluster():
-                self.unit.status = ActiveStatus()
-            else:
-                logger.debug("EVENT DEFFERRED")
-                event.defer()
-        except ZooKeeperClusterError as e:
-            logger.debug(str(e))
-            logger.debug("EVENT DEFFERRED")
-            event.defer()
+        self.unit.status = self.cluster.status
+        self.cluster.update_cluster()
 
+        self.unit.status = self.cluster.status
+        if self.cluster.status != ActiveStatus():
+            logger.info("---------- defer ----------")
+            event.defer()
 
     def _on_get_properties_action(self, event) -> None:
         """Handler for users to copy currently active config for passing to `juju config`."""
