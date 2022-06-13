@@ -14,10 +14,6 @@ from typing import Dict, List
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase
-from kazoo.client import KazooClient as kc
-
-from charms.zookeeper.v0.generic_raise import generic_raise
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +96,11 @@ class KafkaSnap:
             logger.error(str(e))
             raise KafkaSnapError("unable to start snap service: {snap_service}")
 
-    def write_default_properties(self, properties: str, property_label: str) -> None:
+    def write_default_properties(
+        self, properties: str, property_label: str, mode: str = "w"
+    ) -> None:
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
-        safe_write_to_file(content=properties, path=path, mode="w")
+        safe_write_to_file(content=properties, path=path, mode=mode)
         logger.info(f"config successfully written to {path}")
 
     def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper"):

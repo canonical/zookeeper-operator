@@ -18,7 +18,9 @@ class ZooKeeperManager:
     def __init__(self, hosts: List[str], client_port: int = 2181):
         logger.debug("---------- ZooKeeperManager ----------")
         self.hosts = hosts
+        logger.debug(f"{hosts=}")
         self.client_port = client_port
+        logger.debug(f"{client_port=}")
         self.leader = ""
 
         for host in self.hosts:

@@ -10,7 +10,6 @@ options:
       clientPort=2181
       dataDir=/var/snap/kafka/common/data
       dataLogDir=/var/snap/kafka/common/log
-      dynamicConfigFile=/var/snap/zookeeper/common/zookeeper-dynamic.cfg
       tickTime=2000
       initLimit=5
       syncLimit=2
@@ -21,4 +20,3 @@ options:
       autopurge.purgeInterval=0
       reconfigEnabled=true
       4lw.commands.whitelist=*
-      standaloneEnabled=false
