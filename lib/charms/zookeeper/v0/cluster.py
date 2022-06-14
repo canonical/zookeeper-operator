@@ -18,6 +18,7 @@ from ops.model import (
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
+    QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
 
@@ -65,8 +66,11 @@ class ZooKeeperCluster:
     def get_cluster_members(self) -> Set[str]:
         logger.info("---------- get_cluster_members ----------")
         servers = []
-        for unit in self.relation.units:
-            server = self.build_server_string(unit)
+        for item in self.relation.data:
+            if not isinstance(item, Unit):
+                continue
+
+            server = self.build_server_string(item)
             servers.append(server)
 
         return set(servers)
@@ -81,37 +85,37 @@ class ZooKeeperCluster:
             self.status = MaintenanceStatus("no units found in relation data")
             return
 
-        zk = ZooKeeperManager(hosts=self.hosts, client_port=self.client_port)
-        zk_members = zk.server_members
-        active_cluster_members = self.get_cluster_members()
-
         try:
+            zk = ZooKeeperManager(hosts=self.hosts, client_port=self.client_port)
+            zk_members = zk.server_members
+            active_cluster_members = self.get_cluster_members()
+
             zk.remove_members(members=zk_members - active_cluster_members)
             zk.add_members(members=sorted(active_cluster_members - zk_members))
             self.status = ActiveStatus()
-        except (MembersSyncingError, MemberNotReadyError) as e:
+        except (MembersSyncingError, MemberNotReadyError, QuorumLeaderNotFoundError) as e:
             logger.info(str(e))
             self.status = MaintenanceStatus(str(e))
 
     def is_next_server(self, unit: Unit) -> Tuple[bool, str]:
         logger.info("---------- is_next_server ----------")
-        servers_property = f"{self.relation.data[unit].get('server')}\n"
-        logger.info(f"{self.relation.units=}")
+        servers_property = ""
+        next_server = False
 
         for item in self.relation.data:
             logger.info(f"{item=}")
             if not isinstance(item, Unit):
                 continue
 
+            servers_property += f"{self.build_server_string(item)}\n"
+
             if (self.relation.data[item].get("state", None) == "started") and (
-                self.relation.data[item].get("myid", None) < self.relation.data[unit].get("server")
+                int(self.relation.data[item].get("myid", None))
+                == int(self.relation.data[unit].get("myid")) - 1
             ):
-                servers_property += f"{self.build_server_string(item)}\n"
+                next_server = True
 
-                if int(self.relation.data[item].get("myid", None)) == int(self.relation.data[unit].get("myid")) - 1:
-                    return True, servers_property
-
-        return False, ""
+        return next_server, servers_property
 
     @staticmethod
     def get_server_id(unit: Unit) -> int:

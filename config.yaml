@@ -19,4 +19,6 @@ options:
       autopurge.snapRetainCount=3
       autopurge.purgeInterval=0
       reconfigEnabled=true
+      standaloneEnabled=false
+      skipACL=yes
       4lw.commands.whitelist=*

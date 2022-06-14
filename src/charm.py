@@ -105,6 +105,12 @@ class ZooKeeperCharm(CharmBase):
         logger.info("---------- on_cluster_relation_updated ----------")
         if not self.unit.is_leader():
             return
+
+        if self.cluster.relation.data[self.unit].get("state") != "started":
+            logger.info("---------- defer ----------")
+            event.defer()
+            return
+
         self.unit.status = self.cluster.status
         self.cluster.update_cluster()
 
