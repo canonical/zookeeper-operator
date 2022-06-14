@@ -34,6 +34,8 @@ SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
 
 
 def block_check(func):
+    """Simple decorator for ensuring function does not run if object is blocked."""
+
     def check_if_blocked(*args, **kwargs):
         if args[0].blocked:
             return
@@ -44,6 +46,7 @@ def block_check(func):
 
 
 def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
+    """Ensures destination filepath exists before writing."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, mode) as f:
         f.write(content)
@@ -52,6 +55,8 @@ def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
 
 
 class KafkaSnap:
+    """Wrapper for performing common operations specific to the Kafka Snap."""
+
     def __init__(self) -> None:
         self.snap_config_path = SNAP_CONFIG_PATH
         self.kafka = snap.SnapCache()["kafka"]
@@ -62,9 +67,8 @@ class KafkaSnap:
     def install_kafka_snap(self) -> None:
         """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set.
 
-        Returns:
-            MaintenanceStatus (StatusBase): If snap install was successful
-            BlockedStatus (StatusBase): If snap install failed
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
         """
         try:
             apt.update()
@@ -95,20 +99,20 @@ class KafkaSnap:
 
     @block_check
     def start_snap_service(self, snap_service: str) -> None:
-        """Starts snap service process
+        """Starts snap service process.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
 
         Args:
             snap_service (str): The desired service to run on the unit
                 `kafka` or `zookeeper`
-        Returns:
-            ActiveStatus (StatusBase): If service starts successfully
-            BlockedStatus (StatusBase): If service fails to start
         """
 
         try:
             self.kafka.start(services=[snap_service])
             logger.info(f"successfully started snap service: {snap_service}")
-            # TODO: service up-check here
+            # TODO: check if the service is actually running (i.e not failed silently)
             self.status = ActiveStatus()
         except snap.SnapError as e:
             logger.error(str(e))
@@ -117,21 +121,45 @@ class KafkaSnap:
             return
 
     @block_check
-    def write_default_properties(
-        self, properties: str, property_label: str, mode: str = "w"
-    ) -> None:
+    def write_properties(self, properties: str, property_label: str, mode: str = "w") -> None:
+        """Writes to the expected config file location for the Kafka Snap.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
+        Args:
+            properties (str): A multiline string containing the properties to be set
+            property_label (str): The file prefix for the config file
+                `server` for Kafka, `zookeeper` for ZooKeeper
+            mode (str): The write mode
+                "w" for overwrite, "a" for append
+        """
+
+        # TODO: Check if required properties are not set, return BlockedStatus
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
         safe_write_to_file(content=properties, path=path, mode=mode)
         logger.info(f"config successfully written to {path}")
 
     @block_check
     def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper"):
-        # TODO: Check if properties not set, return BlockedStatus
+        """Checks the *.properties file for dataDir, and writes ZooKeeper id to <data-dir>/myid.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
+        Args:
+            myid (int): The desired ZooKeeper server id
+                Expected to be (unit id + 1) to index from 1
+            property_label (str): The file prefix for the config file
+                `zookeeper` for ZooKeeper
+        """
         properties = self.get_properties(property_label=property_label)
-        # TODO: Check if dataDir not set, return BlockedStatus
-        if properties:
-            myid_path = f"{properties.get('dataDir')}/myid"
-        else:
+        try:
+            myid_path = f"{properties['dataDir']}/myid"
+        except KeyError as e:
+            logger.error(str(e))
+            self.blocked = True
+            self.status = BlockedStatus("required property is not set - 'dataDir'")
             return
 
         safe_write_to_file(content=str(myid), path=myid_path, mode="w")
@@ -140,6 +168,9 @@ class KafkaSnap:
     @block_check
     def get_properties(self, property_label: str) -> Dict[str, str]:
         """Grabs active config lines from *.properties.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
 
         Returns:
             dict: A map of config properties and their values
@@ -158,7 +189,6 @@ class KafkaSnap:
 
         for conf in config:
             if conf[0] != "#" and not conf.isspace():
-                logger.info(conf.strip())
                 config_map[str(conf.split("=")[0])] = str(conf.split("=")[1].strip())
 
         return config_map

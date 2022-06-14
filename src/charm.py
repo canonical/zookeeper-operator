@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-# TODO: is_next_server not working
-# TODO: server0 participant, server 1+ observer, leader does not matter
-# TODO: Add get password action
-# TODO: Add logging everywhere
-# TODO: Add run it through and write tests as you go
-
 
 """Charmed Machine Operator for Apache ZooKeeper."""
 
@@ -14,7 +8,7 @@ import logging
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.zookeeper.v0.cluster import ZooKeeperCluster
-from ops.charm import CharmBase
+from ops.charm import ActionEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus
@@ -51,16 +45,16 @@ class ZooKeeperCharm(CharmBase):
         )
 
     @property
-    def myid(self):
+    def myid(self) -> int:
+        """Returns the zookeeper server id for the unit."""
         return self.cluster.get_server_id(self.unit)
 
     def _on_install(self, _) -> None:
-        """Handler for on_install event."""
-        logger.info("---------- on_install ----------")
+        """Handler for the on_install event."""
         self.unit.status = self.snap.status
 
         self.snap.install_kafka_snap()
-        self.snap.write_default_properties(
+        self.snap.write_properties(
             properties=self.config["zookeeper-properties"], property_label="zookeeper", mode="w"
         )
         self.snap.write_zookeeper_myid(myid=self.myid)
@@ -68,10 +62,9 @@ class ZooKeeperCharm(CharmBase):
         self.unit.status = self.snap.status
 
     def _on_start(self, event: EventBase) -> None:
-        logger.info("---------- on_start ----------")
-        self.cluster.relation.data[self.unit].update({"myid": str(self.myid)})
+        """Handler for the on_start event."""
+
         self.cluster.relation.data[self.unit].update({"state": "ready"})
-        # TODO: check 'init' flag here
         self.cluster.relation.data[self.unit].update(
             {
                 "server": self.cluster.build_server_string(
@@ -79,21 +72,17 @@ class ZooKeeperCharm(CharmBase):
                 )
             }
         )
-        if self.myid == 1:
-            servers = self.cluster.relation.data[self.unit].get("server")
+        if self.myid == 1:  # i.e the unit should start as the initial quorum participant
+            is_next_server, servers = True, self.cluster.relation.data[self.unit].get("server")
         else:
             is_next_server, servers = self.cluster.is_next_server(self.unit)
-            logger.info(f"{is_next_server=}")
-            logger.info(f"{servers=}")
-            if not is_next_server:
-                self.unit.status = self.cluster.status
-                logger.info("---------- defer ----------")
-                event.defer()
-                return
 
-        self.snap.write_default_properties(
-            properties=servers, property_label="zookeeper", mode="a"
-        )
+        if not is_next_server:
+            self.unit.status = self.cluster.status
+            event.defer()
+            return
+
+        self.snap.write_properties(properties=str(servers), property_label="zookeeper", mode="a")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
         if not self.snap.blocked:
@@ -101,31 +90,25 @@ class ZooKeeperCharm(CharmBase):
 
         self.unit.status = self.snap.status
 
-    def _on_cluster_relation_updated(self, event) -> None:
-        logger.info("---------- on_cluster_relation_updated ----------")
+    def _on_cluster_relation_updated(self, event: EventBase) -> None:
+        """Handler for events triggered by changing units."""
         if not self.unit.is_leader():
-            return
-
-        if self.cluster.relation.data[self.unit].get("state") != "started":
-            logger.info("---------- defer ----------")
-            event.defer()
             return
 
         self.unit.status = self.cluster.status
         self.cluster.update_cluster()
 
         self.unit.status = self.cluster.status
-        if self.cluster.status != ActiveStatus():
-            logger.info("---------- defer ----------")
+        if self.cluster.status != ActiveStatus():  # found expected error occurred in cluster
             event.defer()
 
-    def _on_get_properties_action(self, event) -> None:
+    def _on_get_properties_action(self, event: ActionEvent) -> None:
         """Handler for users to copy currently active config for passing to `juju config`."""
         config_map = self.snap.get_properties(property_label="zookeeper")
         msg = "\n".join([f"{k}={v}" for k, v in config_map.items()])
         event.set_results({"properties": msg})
 
-    def _on_get_snap_apps_action(self, event) -> None:
+    def _on_get_snap_apps_action(self, event: ActionEvent) -> None:
         """Handler for users to retrieve the list of available Kafka snap commands."""
         msg = self.snap.get_kafka_apps()
         event.set_results({"apps": msg})
