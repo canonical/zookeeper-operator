@@ -9,6 +9,7 @@ from ops.charm import CharmBase
 
 from ops.model import (
     ActiveStatus,
+    BlockedStatus,
     MaintenanceStatus,
     Relation,
     StatusBase,
@@ -42,8 +43,16 @@ class ZooKeeperCluster:
         self.client_port = client_port
         self.server_port = server_port
         self.election_port = election_port
+        self.blocked = False
         self.status: StatusBase = MaintenanceStatus("performing cluster operation")
-
+        self.init = True
+         
+        for item in self.relation.data:
+            if self.relation.data[item].get("state", None) != "started":
+                self.blocked = True
+                self.init = False
+                self.status = BlockedStatus("units not yet initialised")
+             
     @property
     def relation(self) -> Relation:
         """The charm's peer relation.
@@ -60,6 +69,7 @@ class ZooKeeperCluster:
         Returns:
             [str]: list of IP addresses of currently started units
         """
+        logger.info(f"{self.relation.units=}")
         hosts = []
         for unit in self.relation.data:
             if self.relation.data[unit].get("state", None) == "started":
@@ -106,6 +116,9 @@ class ZooKeeperCluster:
         """Compares the current ZK quorum units with application units, and updates leader config
         to align accordingly.
         """
+        if self.blocked: 
+            return
+
         if not self.hosts:
             self.blocked = True
             self.status = MaintenanceStatus("no units found in relation data")
@@ -136,16 +149,13 @@ class ZooKeeperCluster:
         Returns:
             (bool, str): tuple of whether it is the unit's turn to start, and the servers property to set during startup
         """
-        is_next = None
         servers_property = ""
+        logger.info(f"{self.relation.data}")
 
         for item in self.relation.data:
             if not isinstance(item, Unit):
                 continue
             
-            # units were found, default to the passed unit to being next
-            is_next = True
-
             # builds server string for every started unit in the peer relation
             servers_property += f"{self.build_server_string(item)}\n"
 
@@ -153,11 +163,13 @@ class ZooKeeperCluster:
             if (self.relation.data[item].get("state", None) != "started") and (
                 self.get_server_id(item) < self.get_server_id(unit)
             ):
-                is_next = False
+                servers_property = ""
                 break
-
-        next_server = is_next or True
-        return next_server, servers_property
+        
+        if servers_property:
+            return True, servers_property
+        else:
+            return False, ""
 
     @staticmethod
     def get_server_id(unit: Unit) -> int:

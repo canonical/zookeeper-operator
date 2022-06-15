@@ -72,19 +72,21 @@ class ZooKeeperCharm(CharmBase):
                 )
             }
         )
-        if self.myid == 1:  # i.e the unit should start as the initial quorum participant
-            is_next_server, servers = True, self.cluster.relation.data[self.unit].get("server")
+
+        if self.myid == 1:  # initial participant
+            is_next_server, servers = True, self.cluster.build_server_string(self.unit)
         else:
             is_next_server, servers = self.cluster.is_next_server(self.unit)
 
         if not is_next_server:
             self.unit.status = self.cluster.status
+            logger.info("------------------- DEFER START -------------------------")
             event.defer()
             return
 
         self.snap.write_properties(properties=str(servers), property_label="zookeeper", mode="a")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
-
+        logger.info("------------------- STARTED -------------------------")
         if not self.snap.blocked:
             self.cluster.relation.data[self.unit].update({"state": "started"})
 
@@ -94,12 +96,12 @@ class ZooKeeperCharm(CharmBase):
         """Handler for events triggered by changing units."""
         if not self.unit.is_leader():
             return
-
-        self.unit.status = self.cluster.status
+        
         self.cluster.update_cluster()
 
         self.unit.status = self.cluster.status
         if self.cluster.status != ActiveStatus():  # found expected error occurred in cluster
+            logger.info("------------------- DEFER UPDATED -------------------------")
             event.defer()
 
     def _on_get_properties_action(self, event: ActionEvent) -> None:

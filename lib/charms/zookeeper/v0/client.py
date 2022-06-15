@@ -4,7 +4,10 @@ from typing import Any, Dict, Iterable, List, Set, Tuple
 from kazoo.client import KazooClient
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+
+# Kazoo logs are unbearably chatty
+logging.getLogger('kazoo.client').disabled = True
+
 
 
 class MembersSyncingError(Exception):
