@@ -6,8 +6,7 @@ from kazoo.client import KazooClient
 logger = logging.getLogger(__name__)
 
 # Kazoo logs are unbearably chatty
-logging.getLogger('kazoo.client').disabled = True
-
+# logging.getLogger("kazoo.client").disabled = True
 
 
 class MembersSyncingError(Exception):
@@ -134,7 +133,7 @@ class ZooKeeperClient:
     def __init__(self, host, client_port):
         self.host = host
         self.client_port = client_port
-        self.client = KazooClient(hosts=f"{host}:{client_port}")
+        self.client = KazooClient(hosts=f"{host}:{client_port}", timeout=5.0)
         self.client.start()
 
     def __enter__(self):

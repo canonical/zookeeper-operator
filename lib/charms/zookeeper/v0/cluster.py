@@ -3,13 +3,14 @@
 # See LICENSE file for licensing details.
 
 import logging
-from typing import List, Set, Tuple
+import re
+from typing import Dict, Iterable, List, Optional, Tuple
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
+import json
 
 from ops.model import (
     ActiveStatus,
-    BlockedStatus,
     MaintenanceStatus,
     Relation,
     StatusBase,
@@ -26,7 +27,7 @@ from charms.zookeeper.v0.client import (
 logger = logging.getLogger(__name__)
 
 CHARM_KEY = "zookeeper"
-CLUSTER_KEY = "cluster"
+PEER = "cluster"
 
 
 class ZooKeeperCluster:
@@ -43,143 +44,156 @@ class ZooKeeperCluster:
         self.client_port = client_port
         self.server_port = server_port
         self.election_port = election_port
-        self.blocked = False
         self.status: StatusBase = MaintenanceStatus("performing cluster operation")
-        self.init = True
-         
-        for item in self.relation.data:
-            if self.relation.data[item].get("state", None) != "started":
-                self.blocked = True
-                self.init = False
-                self.status = BlockedStatus("units not yet initialised")
-             
+
     @property
     def relation(self) -> Relation:
-        """The charm's peer relation.
-
-        Returns:
-            Relation
-        """
-        return self.charm.model.get_relation(CLUSTER_KEY)
+        return self.charm.model.get_relation(PEER)
 
     @property
-    def hosts(self) -> List[str]:
-        """The current started units' IPaddreses from the charm's relation data bucket.
-
-        Returns:
-            [str]: list of IP addresses of currently started units
-        """
-        logger.info(f"{self.relation.units=}")
-        hosts = []
-        for unit in self.relation.data:
-            if self.relation.data[unit].get("state", None) == "started":
-                hosts.append(self.relation.data[unit]["private-address"])
-        return hosts
-
-    def build_server_string(self, unit: Unit, role: str = "participant"):
-        """Builds the ZK compliant server string for a given unit.
-
-        args:
-            unit (Unit): the unit to get the server string of
-            role (str): the ZooKeeper role for the unit. Defaults to 'participant'
-
-        Returns:
-            str: the server string
-                e.g "server.1=10.141.89.132:2888:3888:participant;0.0.0.0:2181"
-        """
-        server_id = self.get_server_id(unit=unit)
-        host_address = self.relation.data[unit]["private-address"]
-        return f"server.{server_id}={host_address}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
-
-    def get_cluster_members(self) -> Set[str]:
-        """Retreives the server strings for all started, peer-related units.
-
-        This is grabbed from relation.data and not relation.units because we want
-        units that may not have started yet.
-
-        Returns:
-            {str}: the set of server strings
-                e.g {"server.1=10.141.89.132:2888:3888:participant;0.0.0.0:2181"}
-        """
-        servers = []
-        for item in self.relation.data:
-            # to ignore returns of type Application
-            if not isinstance(item, Unit):
-                continue
-
-            server = self.build_server_string(item)
-            servers.append(server)
-
-        return set(servers)
-
-    def update_cluster(self) -> None:
-        """Compares the current ZK quorum units with application units, and updates leader config
-        to align accordingly.
-        """
-        if self.blocked: 
-            return
-
-        if not self.hosts:
-            self.blocked = True
-            self.status = MaintenanceStatus("no units found in relation data")
-            return
-
-        try:
-            logger.info(f"{self.hosts=}")
-            zk = ZooKeeperManager(hosts=self.hosts, client_port=self.client_port)
-            zk_members = zk.server_members  # the current members in the ZK quorum
-            active_cluster_members = self.get_cluster_members()  # the active charm units
-
-            # remove units first, faster due to no startup/sync delay
-            zk.remove_members(members=zk_members - active_cluster_members)
-
-            # sorting units to ensure units are added in id order
-            zk.add_members(members=sorted(active_cluster_members - zk_members))
-            self.status = ActiveStatus()
-        except (MembersSyncingError, MemberNotReadyError, QuorumLeaderNotFoundError, KazooTimeoutError) as e:
-            self.status = MaintenanceStatus(str(e))
-            return
-
-    def is_next_server(self, unit: Unit) -> Tuple[bool, str]:
-        """Checks whether a given unit is the next in order for initial startup.
-
-        args:
-            Unit: the unit to check
-
-        Returns:
-            (bool, str): tuple of whether it is the unit's turn to start, and the servers property to set during startup
-        """
-        servers_property = ""
-        logger.info(f"{self.relation.data}")
-
+    def units(self) -> Iterable[Unit]:
+        units = []
         for item in self.relation.data:
             if not isinstance(item, Unit):
                 continue
-            
-            # builds server string for every started unit in the peer relation
-            servers_property += f"{self.build_server_string(item)}\n"
+            else:
+                units.append(item)
 
-            # checks if the unit before the passed unit has started
-            if (self.relation.data[item].get("state", None) != "started") and (
-                self.get_server_id(item) < self.get_server_id(unit)
-            ):
-                servers_property = ""
-                break
-        
-        if servers_property:
-            return True, servers_property
-        else:
-            return False, ""
+        return units
+
+    @property
+    def planned_units(self) -> bool:
+        return True if self.charm.app.planned_units() else False
+
+    @property
+    def servers(self) -> Dict[str, Dict[str, str]]:
+        servers = {}
+        for item in self.relation.data[self.charm.app]:
+            result = json.loads(item)
+            if result.get("state", ""):
+                servers = {**servers, **result}
+
+        logger.info(f"{servers=}")
+        return servers
+
+    @property
+    def app_started(self) -> bool:
+        if self.relation.data[self.charm.app].get("state", None) != "started":
+            return False
+
+        return True
 
     @staticmethod
     def get_server_id(unit: Unit) -> int:
-        """Retrieves the ZooKeeper server id for a given unit.
-
-        args:
-            unit (Unit): the unit to check
-
-        Returns:
-            int: the ZK id, equivalent to the application's unit number + 1
-        """
-
         return int(unit.name.split("/")[1]) + 1
+
+    def get_server_host(self, unit: Unit) -> str:
+        return self.relation.data[unit]["private-address"]
+
+    def get_server_string(self, unit: Unit, role: str = "participant"):
+        if not self.app_started and self.get_server_id(unit) == 1:
+            role = "participant"
+
+        server_id = self.get_server_id(unit=unit)
+        host_address = self.get_server_host(unit=unit)
+        return f"server.{server_id}={host_address}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
+
+    def unit_to_server_config(self, unit: Unit, state: str) -> Dict[str, Dict[str, str]]:
+        server_id = str(self.get_server_id(unit))
+        server_string = self.get_server_string(unit)
+        host = self.get_server_host(unit)
+
+        return {server_id: {"host": host, "server": server_string, "state": state}}
+
+    def server_string_to_server_config(
+        self, server_string: str, state: str
+    ) -> Dict[str, Dict[str, str]]:
+        server_id = str(re.findall(r"server.([1-9]*)", server_string)[0])
+        host = str(re.findall(r"(\=[\d.]+)\:", server_string)[0])
+
+        return {server_id: {"host": host, "server": server_string, "state": state}}
+
+    def get_unit_from_server_id(self, myid: int) -> Unit:
+        for unit in self.units:
+            if f"/{myid}" in unit.name:
+                return unit
+
+        raise
+
+    def update_cluster(self) -> Dict[str, Dict[str, str]]:
+        if not self.app_started or self.planned_units:
+            self.status = MaintenanceStatus("waiting for units to start")
+            return {}
+
+        active_hosts = [
+            value["hosts"] for _, value in self.servers.items() if value["state"] != "removed"
+        ]
+        active_servers = {
+            value["server"] for _, value in self.servers.items() if value["state"] != "removed"
+        }
+
+        try:
+            zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
+            zk_members = zk.server_members  # the current members in the ZK quorum
+
+            # remove units first, faster due to no startup/sync delay
+            servers_to_remove = list(zk_members - active_servers)
+            zk.remove_members(members=servers_to_remove)
+
+            removed_servers = {}
+            for removed_server in servers_to_remove:
+                removed_servers = {
+                    **removed_servers,
+                    **self.server_string_to_server_config(removed_server, state="removed"),
+                }
+
+            # sorting units to ensure units are added in id order
+            servers_to_add = sorted(active_servers - zk_members)
+            zk.add_members(members=servers_to_add)
+
+            added_servers = {}
+            for added_server in servers_to_add:
+                added_servers = {
+                    **added_servers,
+                    **self.server_string_to_server_config(added_server, state="added"),
+                }
+
+            self.status = ActiveStatus()
+
+            return {**removed_servers, **added_servers}
+
+        except (
+            MembersSyncingError,
+            MemberNotReadyError,
+            QuorumLeaderNotFoundError,
+            KazooTimeoutError,
+        ) as e:
+            self.status = MaintenanceStatus(str(e))
+            return {}
+
+    def _is_unit_turn(self, unit) -> bool:
+        my_turn = True
+        server_id = self.get_server_id(unit)
+        for myid in range(1, server_id):
+            if not self.servers.get(str(myid), None):
+                my_turn = False
+
+        logger.info(f"{my_turn=}")
+        return my_turn
+
+    def ready_to_start(self, unit: Unit) -> Tuple[bool, str]:
+        candidate_server = [self.relation.data[unit].get("server", "")]
+        servers_property = list(self.servers.values())
+        candidate_servers_property = "\n".join(candidate_server + servers_property)
+
+        # move the initial server through
+        if self.get_server_id(unit) == 1 and not self.app_started:
+            return True, str(self.relation.data[unit].get("server"))
+
+        logger.info(f"{self._is_unit_turn(unit=unit)=}")
+        # this is a scale up, so check for unit order
+        if self.planned_units:
+            if not self._is_unit_turn(unit=unit):
+                return False, ""
+        
+        return True, candidate_servers_property
