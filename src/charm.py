@@ -63,6 +63,7 @@ class ZooKeeperCharm(CharmBase):
     def _on_start(self, event: EventBase) -> None:
         """Handler for the on_start event."""
 
+        self.cluster.relation.data[self.unit].update({"state": "ready"})
         is_next_server, servers, unit_config = self.cluster.ready_to_start(self.unit)
 
         if not is_next_server:
@@ -89,8 +90,8 @@ class ZooKeeperCharm(CharmBase):
         self.unit.status = self.cluster.status
 
         if self.cluster.status == ActiveStatus():
-            self.cluster.relation.data[self.model.app].update(updated_servers)
-            self.cluster.relation.data[self.model.app].update({"init": "completed"})
+            for server in updated_servers:
+                self.cluster.relation.data[self.model.app].update(server)
         else:
             event.defer()
             return

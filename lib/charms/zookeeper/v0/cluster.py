@@ -2,10 +2,9 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from binascii import unhexlify
 import logging
 import re
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 import json
@@ -56,86 +55,61 @@ class ZooKeeperCluster:
         return self.charm.model.get_relation(PEER)
 
     @property
-    def units(self) -> Set[Unit]:
-        units = [self.charm.unit]
-        for item in self.relation.data:
-            if not isinstance(item, Unit):
-                continue
-            else:
-                units.append(item)
-
-        return set(units)
-
-    @property
-    def planned_units(self) -> bool:
-        return True if self.charm.app.planned_units() else False
-
-    @property
-    def servers(self) -> Dict[str, Dict[str, str]]:
-        servers = {}
-        for item in self.relation.data[self.charm.app]:
-            result = json.loads(item)
-            if result.get("state", None):
-                servers = {**servers, **result}
-
-        logger.info(f"{servers=}")
-        return servers
-
-    @property
     def init_finished(self) -> bool:
-        for unit in self.units:
-            if not self.relation.data[self.charm.app].get(unit.name, None):
+        for unit_id in range(1, self.charm.app.planned_units()):
+            if unit_id not in self.relation.data[self.charm.app]:
                 return False
+
         return True
+
+    @property
+    def peer_units(self) -> Set[Unit]:
+        return set([self.charm.unit] + list(self.relation.units))
 
     @staticmethod
     def get_unit_id(unit: Unit) -> int:
         return int(unit.name.split("/")[1])
 
-    def generate_unit_config(
-        self, unit_id: int, state: str, role: str = "participant"
-    ) -> Dict[str, Dict[str, str]]:
-        unit = None
-        for relation_unit in self.units:
-            if self.get_unit_id(relation_unit) == unit_id:
-                unit = relation_unit
+    def get_unit_from_id(self, unit_id: int) -> Unit:
+        for unit in self.relation.units:
+            if int(unit.split("/")[1]) == unit_id:
+                return unit
 
-        if not unit:
+        raise UnitNotFoundError("could not find unit in peer relation")
+
+    def unit_config(self, unit: Union[Unit,int], state: str = "ready", role: str = "participant") -> Dict[str, str]:
+        unit_id = None
+        server_id = None
+        if isinstance(unit, Unit):
+            unit = unit
+            unit_id = self.get_unit_id(unit=unit)
+            server_id = unit_id + 1
+        if isinstance(unit, int):
+            unit_id = unit
+            server_id = unit + 1
+            unit = self.get_unit_from_id(unit)
+
+        if unit not in self.peer_units:
             raise UnitNotFoundError
 
-        server_id = int(unit.name.split("/")[1]) + 1
         host = self.relation.data[unit]["private-address"]
         server_string = f"server.{server_id}={host}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
 
         return {
-            str(unit.name): {
-                "host": host,
-                "server_string": server_string,
-                "state": state,
-                "server_id": str(server_id),
-                "unit_id": str(unit_id),
-            }
+            "host": host,
+            "server_string": server_string,
+            "server_id": str(server_id),
+            "unit_id": str(unit_id),
+            "unit_name": unit.name, 
+            "state": state,
         }
 
-    def server_string_to_server_config(
-        self, server_string: str, state: str
-    ) -> Dict[str, Dict[str, str]]:
-        unit_id = int(re.findall(r"server.([1-9]*)", server_string)[0]) - 1
-        return self.generate_unit_config(unit_id=unit_id, state=state)
-
-    def update_cluster(self) -> Dict[str, Dict[str, str]]:
-        # TODO: you were checking validity of units during startup
-
-        active_hosts = [
-            value["host"]
-            for _, value in self.servers.items()
-            if value.get("state", None) == "added"
-        ]
-        active_servers = {
-            value["server_string"]
-            for _, value in self.servers.items()
-            if value.get("state", None) == "added"
-        }
+    def update_cluster(self) -> List:
+        active_hosts = []
+        active_servers = set() 
+        for unit in self.peer_units:
+            active_hosts.append(self.unit_config(unit=unit)["host"])
+            active_servers.add(self.unit_config(unit=unit)["server_string"])
 
         try:
             zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
@@ -145,57 +119,48 @@ class ZooKeeperCluster:
             servers_to_remove = list(zk_members - active_servers)
             zk.remove_members(members=servers_to_remove)
 
-            removed_servers = {}
-            for removed_server in servers_to_remove:
-                removed_servers = {
-                    **removed_servers,
-                    **self.server_string_to_server_config(removed_server, state="removed"),
-                }
-
             # sorting units to ensure units are added in id order
             servers_to_add = sorted(active_servers - zk_members)
             zk.add_members(members=servers_to_add)
 
-            added_servers = {}
-            for added_server in servers_to_add:
-                added_servers = {
-                    **added_servers,
-                    **self.server_string_to_server_config(added_server, state="added"),
-                }
-
             self.status = ActiveStatus()
+            
+            updated_servers = []
+            for server in servers_to_add:
+                unit_id = str(int(re.findall(r'server.([1-9]*)/:', server)[0]) - 1)
+                updated_servers.append({unit_id: "added"})
 
-            return {**removed_servers, **added_servers}
+            return updated_servers
 
         except (
             MembersSyncingError,
             MemberNotReadyError,
             QuorumLeaderNotFoundError,
             KazooTimeoutError,
+            UnitNotFoundError
         ) as e:
             self.status = MaintenanceStatus(str(e))
-            return {}
+            return []
 
     def _is_unit_turn(self, unit: Unit) -> bool:
         my_turn = True
         unit_id = self.get_unit_id(unit=unit)
-        app_name = unit.name.split("/")[0]
 
         # looping through all app data, ensuring an item exists
         for myid in range(1, unit_id):
             # if it doesn't exist, it hasn't been added by the leader yet
             # i.e not ready
-            if not self.servers.get(f"{app_name}/{myid}", None):
+            if not self.relation.data[self.charm.app].get(str(myid), None):
                 my_turn = False
 
         return my_turn
 
     def _generate_init_units(self, unit_string: str) -> str:
         try:
-            quorum_leader_config = self.generate_unit_config(
-                unit_id=0, state="ready", role="participant"
+            quorum_leader_config= self.unit_config(
+                unit=0, state="ready", role="participant"
             )
-            quorum_leader_string = list(quorum_leader_config.values())[0]["server_string"]
+            quorum_leader_string = quorum_leader_config["server_string"]
         except UnitNotFoundError as e:  # leader unit not yet found, can't add
             logger.error(str(e))
             return ""
@@ -203,31 +168,36 @@ class ZooKeeperCluster:
         return f"{unit_string}\n{quorum_leader_string}"
 
     def ready_to_start(self, unit: Unit) -> Tuple[bool, str, Dict]:
-        unit_id = self.get_unit_id(unit=unit)
         servers = ""
-        unit_config = self.generate_unit_config(unit_id=unit_id, state="ready", role="observer")
-        unit_string = list(unit_config.values())[0]["server_string"]
+        unit_config = self.unit_config(unit=unit, state="ready", role="observer")
+        unit_string = unit_config["server_string"]
+        unit_id = unit_config["unit_id"]
 
-        if unit_id == 0 and not self.app_started:
+        if self.init_finished:
+            servers = ""
+            # populating with active servers
+            for unit in self.peer_units:
+                server_string = self.unit_config(unit=unit)["server_string"]
+                servers = servers + "\n" + server_string
+
+            logger.info(f"SINGLE UNIT")
+            logger.info(f"{servers=}")
+            return True, servers, unit_config
+
+        if unit_id == 0 and not self.init_finished:
             unit_string = unit_string.replace("observer", "participant")
-            unit_config[unit.name]["server_string"] = unit_string
+            logger.info("INIT LEADER")
             return True, unit_string.replace("observer", "participant"), unit_config
 
-        if self.charm.app.planned_units():
+        if not self.init_finished:
             if not self._is_unit_turn(unit=unit):
+                logger.info(f"INIT FOLLOWER - NOT TURN")
                 return False, "", {}
-
-        if self.app_started:
-            # populating with active servers
-            for server in self.servers.values():
-                if server.get("state", None) == "added":
-                    servers = servers + "\n" + server.get("server_string", "")
-
-            servers = f"{servers}\n{unit_string}"
-
-        if not self.app_started:
             servers = self._generate_init_units(unit_string=unit_string)
             if not servers:
                 return False, "", {}
+            
+            logger.info(f"INIT FOLLOWER - TURN")
+            return True, servers, unit_config
 
         return True, servers, unit_config
