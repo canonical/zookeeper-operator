@@ -49,11 +49,6 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "get_snap_apps_action"), self._on_get_snap_apps_action
         )
 
-    @property
-    def myid(self) -> int:
-        """Returns the zookeeper server id for the unit."""
-        return self.cluster.get_unit_id(self.unit)
-
     def _on_install(self, _) -> None:
         """Handler for the on_install event."""
         self.unit.status = self.snap.status
@@ -62,23 +57,27 @@ class ZooKeeperCharm(CharmBase):
         self.snap.write_properties(
             properties=self.config["zookeeper-properties"], property_label="zookeeper", mode="w"
         )
-        self.snap.write_zookeeper_myid(myid=self.myid)
+        self.snap.write_zookeeper_myid(myid=self.cluster.get_unit_id(self.unit) + 1)
         self.unit.status = self.snap.status
 
     def _on_start(self, event: EventBase) -> None:
         """Handler for the on_start event."""
 
-        is_next_server, servers = self.cluster.ready_to_start(self.unit)
+        is_next_server, servers, unit_config = self.cluster.ready_to_start(self.unit)
 
         if not is_next_server:
             self.unit.status = self.cluster.status
             event.defer()
             return
 
+        logger.info(f"{is_next_server=}")
+        logger.info(f"{servers=}")
         self.snap.write_properties(properties=servers, property_label="zookeeper", mode="a")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
         self.unit.status = self.snap.status
+
+        self.cluster.relation.data[self.unit].update(unit_config)
 
     def _on_cluster_relation_updated(self, event: EventBase) -> None:
         """Handler for events triggered by changing units."""

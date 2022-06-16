@@ -82,10 +82,10 @@ class ZooKeeperCluster:
         return servers
 
     @property
-    def app_started(self) -> bool:
-        if self.relation.data[self.charm.app].get("init", None) != "completed":
-            return False
-
+    def init_finished(self) -> bool:
+        for unit in self.units:
+            if not self.relation.data[self.charm.app].get(unit.name, None):
+                return False
         return True
 
     @staticmethod
@@ -124,9 +124,7 @@ class ZooKeeperCluster:
         return self.generate_unit_config(unit_id=unit_id, state=state)
 
     def update_cluster(self) -> Dict[str, Dict[str, str]]:
-        if not self.app_started or self.planned_units:
-            self.status = MaintenanceStatus("waiting for units to start")
-            return {}
+        # TODO: you were checking validity of units during startup
 
         active_hosts = [
             value["host"]
@@ -204,24 +202,22 @@ class ZooKeeperCluster:
 
         return f"{unit_string}\n{quorum_leader_string}"
 
-    def ready_to_start(self, unit: Unit) -> Tuple[bool, str]:
+    def ready_to_start(self, unit: Unit) -> Tuple[bool, str, Dict]:
         unit_id = self.get_unit_id(unit=unit)
         servers = ""
         unit_config = self.generate_unit_config(unit_id=unit_id, state="ready", role="observer")
         unit_string = list(unit_config.values())[0]["server_string"]
 
         if unit_id == 0 and not self.app_started:
-            logger.info("-------------INIT LEADER-------------")
-            return True, unit_string
+            unit_string = unit_string.replace("observer", "participant")
+            unit_config[unit.name]["server_string"] = unit_string
+            return True, unit_string.replace("observer", "participant"), unit_config
 
         if self.charm.app.planned_units():
-            logger.info("-------------INIT SCALEUP-------------")
             if not self._is_unit_turn(unit=unit):
-                logger.info("-------------NOT TURN-------------")
-                return False, ""
+                return False, "", {}
 
         if self.app_started:
-            logger.info("-------------INIT NORMAL-------------")
             # populating with active servers
             for server in self.servers.values():
                 if server.get("state", None) == "added":
@@ -230,10 +226,8 @@ class ZooKeeperCluster:
             servers = f"{servers}\n{unit_string}"
 
         if not self.app_started:
-            logger.info("-------------INIT FOLLOWER-------------")
             servers = self._generate_init_units(unit_string=unit_string)
             if not servers:
-                logger.info("-------------INIT FOLLOWER NO LEADER-------------")
-                return False, ""
+                return False, "", {}
 
-        return True, servers
+        return True, servers, unit_config
