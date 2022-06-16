@@ -6,7 +6,7 @@ from kazoo.client import KazooClient
 logger = logging.getLogger(__name__)
 
 # Kazoo logs are unbearably chatty
-# logging.getLogger("kazoo.client").disabled = True
+logging.getLogger("kazoo.client").disabled = True
 
 
 class MembersSyncingError(Exception):

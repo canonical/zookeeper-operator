@@ -65,19 +65,22 @@ class ZooKeeperCharm(CharmBase):
         self.cluster.relation.data[self.unit].update({"state": "ready"})
         is_next_server, servers, unit_config = self.cluster.ready_to_start(self.unit)
 
+        logger.info(f"{is_next_server=}")
+        logger.info(f"{servers=}")
+        logger.info(f"{unit_config=}")
+
         if not is_next_server:
             self.unit.status = self.cluster.status
-            logger.info(unit_config)
             event.defer()
             return
 
-        logger.info(f"{servers=}")
         self.snap.write_properties(properties=servers, property_label="zookeeper", mode="a")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
         self.unit.status = self.snap.status
 
         self.cluster.relation.data[self.unit].update(unit_config)
+        self.cluster.relation.data[self.unit].update({"state": "started"})
 
     def _on_cluster_relation_updated(self, event: EventBase) -> None:
         """Handler for events triggered by changing units."""
@@ -85,12 +88,12 @@ class ZooKeeperCharm(CharmBase):
             return
 
         updated_servers = self.cluster.update_cluster()
-        logger.info("{updated_servers=}")
         self.unit.status = self.cluster.status
 
         if self.cluster.status == ActiveStatus():
             for server in updated_servers:
                 self.cluster.relation.data[self.model.app].update(server)
+            self.cluster.relation.data[self.model.app].update({"init": "finished"})
         else:
             event.defer()
             return
