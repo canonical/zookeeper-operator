@@ -12,7 +12,6 @@ from ops.charm import ActionEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +67,10 @@ class ZooKeeperCharm(CharmBase):
 
         if not is_next_server:
             self.unit.status = self.cluster.status
+            logger.info(unit_config)
             event.defer()
             return
 
-        logger.info(f"{is_next_server=}")
         logger.info(f"{servers=}")
         self.snap.write_properties(properties=servers, property_label="zookeeper", mode="a")
         self.snap.start_snap_service(snap_service=CHARM_KEY)

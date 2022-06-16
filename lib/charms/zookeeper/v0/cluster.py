@@ -4,10 +4,9 @@
 
 import logging
 import re
-from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
-import json
 
 from ops.model import (
     ActiveStatus,
@@ -72,12 +71,14 @@ class ZooKeeperCluster:
 
     def get_unit_from_id(self, unit_id: int) -> Unit:
         for unit in self.relation.units:
-            if int(unit.split("/")[1]) == unit_id:
+            if int(unit.name.split("/")[1]) == unit_id:
                 return unit
 
         raise UnitNotFoundError("could not find unit in peer relation")
 
-    def unit_config(self, unit: Union[Unit,int], state: str = "ready", role: str = "participant") -> Dict[str, str]:
+    def unit_config(
+        self, unit: Union[Unit, int], state: str = "ready", role: str = "participant"
+    ) -> Dict[str, str]:
         unit_id = None
         server_id = None
         if isinstance(unit, Unit):
@@ -100,13 +101,13 @@ class ZooKeeperCluster:
             "server_string": server_string,
             "server_id": str(server_id),
             "unit_id": str(unit_id),
-            "unit_name": unit.name, 
+            "unit_name": unit.name,
             "state": state,
         }
 
     def update_cluster(self) -> List:
         active_hosts = []
-        active_servers = set() 
+        active_servers = set()
         for unit in self.peer_units:
             active_hosts.append(self.unit_config(unit=unit)["host"])
             active_servers.add(self.unit_config(unit=unit)["server_string"])
@@ -124,10 +125,10 @@ class ZooKeeperCluster:
             zk.add_members(members=servers_to_add)
 
             self.status = ActiveStatus()
-            
+
             updated_servers = []
             for server in servers_to_add:
-                unit_id = str(int(re.findall(r'server.([1-9]*)/:', server)[0]) - 1)
+                unit_id = str(int(re.findall(r"server.([1-9]*)/:", server)[0]) - 1)
                 updated_servers.append({unit_id: "added"})
 
             return updated_servers
@@ -137,7 +138,7 @@ class ZooKeeperCluster:
             MemberNotReadyError,
             QuorumLeaderNotFoundError,
             KazooTimeoutError,
-            UnitNotFoundError
+            UnitNotFoundError,
         ) as e:
             self.status = MaintenanceStatus(str(e))
             return []
@@ -157,9 +158,7 @@ class ZooKeeperCluster:
 
     def _generate_init_units(self, unit_string: str) -> str:
         try:
-            quorum_leader_config= self.unit_config(
-                unit=0, state="ready", role="participant"
-            )
+            quorum_leader_config = self.unit_config(unit=0, state="ready", role="participant")
             quorum_leader_string = quorum_leader_config["server_string"]
         except UnitNotFoundError as e:  # leader unit not yet found, can't add
             logger.error(str(e))
@@ -184,7 +183,7 @@ class ZooKeeperCluster:
             logger.info(f"{servers=}")
             return True, servers, unit_config
 
-        if unit_id == 0 and not self.init_finished:
+        if int(unit_id == 0) and not self.init_finished:
             unit_string = unit_string.replace("observer", "participant")
             logger.info("INIT LEADER")
             return True, unit_string.replace("observer", "participant"), unit_config
@@ -196,7 +195,7 @@ class ZooKeeperCluster:
             servers = self._generate_init_units(unit_string=unit_string)
             if not servers:
                 return False, "", {}
-            
+
             logger.info(f"INIT FOLLOWER - TURN")
             return True, servers, unit_config
 
