@@ -52,7 +52,7 @@ class ZooKeeperCharm(CharmBase):
     @property
     def myid(self) -> int:
         """Returns the zookeeper server id for the unit."""
-        return self.cluster.get_server_id(self.unit)
+        return self.cluster.get_unit_id(self.unit)
 
     def _on_install(self, _) -> None:
         """Handler for the on_install event."""
@@ -67,8 +67,6 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_start(self, event: EventBase) -> None:
         """Handler for the on_start event."""
-        server = self.cluster.get_server_string(self.unit, role="observer")
-        self.cluster.relation.data[self.unit].update({"server": server})
 
         is_next_server, servers = self.cluster.ready_to_start(self.unit)
 
@@ -77,16 +75,8 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        logger.info(f"{is_next_server=}")
-        logger.info(f"{servers=}")
         self.snap.write_properties(properties=servers, property_label="zookeeper", mode="a")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
-
-        if not self.snap.blocked and self.unit.is_leader():
-            # TODO: Where units are active
-            self.cluster.relation.data[self.model.app].update(
-                {str(self.myid): self.cluster.unit_to_server_config(unit=self.unit, state="added")}
-            )
 
         self.unit.status = self.snap.status
 
@@ -96,11 +86,12 @@ class ZooKeeperCharm(CharmBase):
             return
 
         updated_servers = self.cluster.update_cluster()
+        logger.info("{updated_servers=}")
         self.unit.status = self.cluster.status
 
         if self.cluster.status == ActiveStatus():
             self.cluster.relation.data[self.model.app].update(updated_servers)
-            self.cluster.relation.data[self.model.app].update({"state": "started"})
+            self.cluster.relation.data[self.model.app].update({"init": "completed"})
         else:
             event.defer()
             return

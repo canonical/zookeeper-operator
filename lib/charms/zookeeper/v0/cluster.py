@@ -2,9 +2,10 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+from binascii import unhexlify
 import logging
 import re
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 import json
@@ -30,6 +31,10 @@ CHARM_KEY = "zookeeper"
 PEER = "cluster"
 
 
+class UnitNotFoundError(Exception):
+    pass
+
+
 class ZooKeeperCluster:
     """Handler for performing ZK cluster + peer relation commands."""
 
@@ -51,15 +56,15 @@ class ZooKeeperCluster:
         return self.charm.model.get_relation(PEER)
 
     @property
-    def units(self) -> Iterable[Unit]:
-        units = []
+    def units(self) -> Set[Unit]:
+        units = [self.charm.unit]
         for item in self.relation.data:
             if not isinstance(item, Unit):
                 continue
             else:
                 units.append(item)
 
-        return units
+        return set(units)
 
     @property
     def planned_units(self) -> bool:
@@ -70,7 +75,7 @@ class ZooKeeperCluster:
         servers = {}
         for item in self.relation.data[self.charm.app]:
             result = json.loads(item)
-            if result.get("state", ""):
+            if result.get("state", None):
                 servers = {**servers, **result}
 
         logger.info(f"{servers=}")
@@ -78,47 +83,45 @@ class ZooKeeperCluster:
 
     @property
     def app_started(self) -> bool:
-        if self.relation.data[self.charm.app].get("state", None) != "started":
+        if self.relation.data[self.charm.app].get("init", None) != "completed":
             return False
 
         return True
 
     @staticmethod
-    def get_server_id(unit: Unit) -> int:
-        return int(unit.name.split("/")[1]) + 1
+    def get_unit_id(unit: Unit) -> int:
+        return int(unit.name.split("/")[1])
 
-    def get_server_host(self, unit: Unit) -> str:
-        return self.relation.data[unit]["private-address"]
+    def generate_unit_config(
+        self, unit_id: int, state: str, role: str = "participant"
+    ) -> Dict[str, Dict[str, str]]:
+        unit = None
+        for relation_unit in self.units:
+            if self.get_unit_id(relation_unit) == unit_id:
+                unit = relation_unit
 
-    def get_server_string(self, unit: Unit, role: str = "participant"):
-        if not self.app_started and self.get_server_id(unit) == 1:
-            role = "participant"
+        if not unit:
+            raise UnitNotFoundError
 
-        server_id = self.get_server_id(unit=unit)
-        host_address = self.get_server_host(unit=unit)
-        return f"server.{server_id}={host_address}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
+        server_id = int(unit.name.split("/")[1]) + 1
+        host = self.relation.data[unit]["private-address"]
+        server_string = f"server.{server_id}={host}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
 
-    def unit_to_server_config(self, unit: Unit, state: str) -> Dict[str, Dict[str, str]]:
-        server_id = str(self.get_server_id(unit))
-        server_string = self.get_server_string(unit)
-        host = self.get_server_host(unit)
-
-        return {server_id: {"host": host, "server": server_string, "state": state}}
+        return {
+            str(unit.name): {
+                "host": host,
+                "server_string": server_string,
+                "state": state,
+                "server_id": str(server_id),
+                "unit_id": str(unit_id),
+            }
+        }
 
     def server_string_to_server_config(
         self, server_string: str, state: str
     ) -> Dict[str, Dict[str, str]]:
-        server_id = str(re.findall(r"server.([1-9]*)", server_string)[0])
-        host = str(re.findall(r"(\=[\d.]+)\:", server_string)[0])
-
-        return {server_id: {"host": host, "server": server_string, "state": state}}
-
-    def get_unit_from_server_id(self, myid: int) -> Unit:
-        for unit in self.units:
-            if f"/{myid}" in unit.name:
-                return unit
-
-        raise
+        unit_id = int(re.findall(r"server.([1-9]*)", server_string)[0]) - 1
+        return self.generate_unit_config(unit_id=unit_id, state=state)
 
     def update_cluster(self) -> Dict[str, Dict[str, str]]:
         if not self.app_started or self.planned_units:
@@ -126,10 +129,14 @@ class ZooKeeperCluster:
             return {}
 
         active_hosts = [
-            value["hosts"] for _, value in self.servers.items() if value["state"] != "removed"
+            value["host"]
+            for _, value in self.servers.items()
+            if value.get("state", None) == "added"
         ]
         active_servers = {
-            value["server"] for _, value in self.servers.items() if value["state"] != "removed"
+            value["server_string"]
+            for _, value in self.servers.items()
+            if value.get("state", None) == "added"
         }
 
         try:
@@ -171,29 +178,62 @@ class ZooKeeperCluster:
             self.status = MaintenanceStatus(str(e))
             return {}
 
-    def _is_unit_turn(self, unit) -> bool:
+    def _is_unit_turn(self, unit: Unit) -> bool:
         my_turn = True
-        server_id = self.get_server_id(unit)
-        for myid in range(1, server_id):
-            if not self.servers.get(str(myid), None):
+        unit_id = self.get_unit_id(unit=unit)
+        app_name = unit.name.split("/")[0]
+
+        # looping through all app data, ensuring an item exists
+        for myid in range(1, unit_id):
+            # if it doesn't exist, it hasn't been added by the leader yet
+            # i.e not ready
+            if not self.servers.get(f"{app_name}/{myid}", None):
                 my_turn = False
 
-        logger.info(f"{my_turn=}")
         return my_turn
 
+    def _generate_init_units(self, unit_string: str) -> str:
+        try:
+            quorum_leader_config = self.generate_unit_config(
+                unit_id=0, state="ready", role="participant"
+            )
+            quorum_leader_string = list(quorum_leader_config.values())[0]["server_string"]
+        except UnitNotFoundError as e:  # leader unit not yet found, can't add
+            logger.error(str(e))
+            return ""
+
+        return f"{unit_string}\n{quorum_leader_string}"
+
     def ready_to_start(self, unit: Unit) -> Tuple[bool, str]:
-        candidate_server = [self.relation.data[unit].get("server", "")]
-        servers_property = list(self.servers.values())
-        candidate_servers_property = "\n".join(candidate_server + servers_property)
+        unit_id = self.get_unit_id(unit=unit)
+        servers = ""
+        unit_config = self.generate_unit_config(unit_id=unit_id, state="ready", role="observer")
+        unit_string = list(unit_config.values())[0]["server_string"]
 
-        # move the initial server through
-        if self.get_server_id(unit) == 1 and not self.app_started:
-            return True, str(self.relation.data[unit].get("server"))
+        if unit_id == 0 and not self.app_started:
+            logger.info("-------------INIT LEADER-------------")
+            return True, unit_string
 
-        logger.info(f"{self._is_unit_turn(unit=unit)=}")
-        # this is a scale up, so check for unit order
-        if self.planned_units:
+        if self.charm.app.planned_units():
+            logger.info("-------------INIT SCALEUP-------------")
             if not self._is_unit_turn(unit=unit):
+                logger.info("-------------NOT TURN-------------")
                 return False, ""
-        
-        return True, candidate_servers_property
+
+        if self.app_started:
+            logger.info("-------------INIT NORMAL-------------")
+            # populating with active servers
+            for server in self.servers.values():
+                if server.get("state", None) == "added":
+                    servers = servers + "\n" + server.get("server_string", "")
+
+            servers = f"{servers}\n{unit_string}"
+
+        if not self.app_started:
+            logger.info("-------------INIT FOLLOWER-------------")
+            servers = self._generate_init_units(unit_string=unit_string)
+            if not servers:
+                logger.info("-------------INIT FOLLOWER NO LEADER-------------")
+                return False, ""
+
+        return True, servers
