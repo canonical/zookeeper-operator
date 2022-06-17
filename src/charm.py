@@ -65,10 +65,6 @@ class ZooKeeperCharm(CharmBase):
         self.cluster.relation.data[self.unit].update({"state": "ready"})
         is_next_server, servers, unit_config = self.cluster.ready_to_start(self.unit)
 
-        logger.info(f"{is_next_server=}")
-        logger.info(f"{servers=}")
-        logger.info(f"{unit_config=}")
-
         if not is_next_server:
             self.unit.status = self.cluster.status
             event.defer()
@@ -86,6 +82,10 @@ class ZooKeeperCharm(CharmBase):
         """Handler for events triggered by changing units."""
         if not self.unit.is_leader():
             return
+
+        for unit in self.cluster.started_units:
+            unit_id = self.cluster.get_unit_id(unit)
+            self.cluster.relation.data[self.model.app].update({str(unit_id): "started"})
 
         updated_servers = self.cluster.update_cluster()
         self.unit.status = self.cluster.status

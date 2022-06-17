@@ -53,22 +53,40 @@ class ZooKeeperCluster:
     def relation(self) -> Relation:
         return self.charm.model.get_relation(PEER)
 
-    @property
-    def init_finished(self) -> bool:
-        if not self.relation.data[self.charm.app].get("init", None) == "finished":
-            return False
+    def has_init_finished(self, unit) -> bool:
+        logger.info("--------------HAS INIT FINISHED--------------")
+        unit_id = self.get_unit_id(unit)
+        logger.info(f"{unit_id=}")
+
+        for myid in range(0, unit_id):
+            logger.info(f"{myid=}")
+            if self.relation.data[self.charm.app].get(str(myid), None) != ("added" or "started"):
+
+                logger.info(f"FALSE")
+                return False
+
+        logger.info(f"TRUE")
         return True
 
     @property
     def peer_units(self) -> Set[Unit]:
+        logger.info("--------------PEER UNITS--------------")
+        logger.info(f"{set([self.charm.unit] + list(self.relation.units))=}")
         return set([self.charm.unit] + list(self.relation.units))
 
     @property
-    def quorum_reached(self) -> bool:
-        if len(self.peer_units) < 2:
-            return False
+    def started_units(self) -> Set[Unit]:
+        logger.info("--------------STARTED UNITS--------------")
+        logger.info(f"{self.peer_units=}")
+        started_units = set()
+        for unit in self.peer_units:
+            logger.info(f"{unit=}")
+            logger.info(f"{self.relation.data[unit]=}")
+            if self.relation.data[unit].get("state", None) == "started":
+                started_units.add(unit)
 
-        return True
+        logger.info(f"{started_units=}")
+        return started_units
 
     @staticmethod
     def get_unit_id(unit: Unit) -> int:
@@ -84,6 +102,7 @@ class ZooKeeperCluster:
     def unit_config(
         self, unit: Union[Unit, int], state: str = "ready", role: str = "participant"
     ) -> Dict[str, str]:
+        logger.info("--------------UNIT CONFIG--------------")
         unit_id = None
         server_id = None
         if isinstance(unit, Unit):
@@ -95,11 +114,14 @@ class ZooKeeperCluster:
             server_id = unit + 1
             unit = self.get_unit_from_id(unit)
 
-        if unit not in self.peer_units:
-            raise UnitNotFoundError
-
         host = self.relation.data[unit]["private-address"]
         server_string = f"server.{server_id}={host}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
+
+
+        logger.info(f"{host=}")
+        logger.info(f"{unit=}")
+        logger.info(f"{unit_id=}")
+        logger.info(f"{server_id=}")
 
         return {
             "host": host,
@@ -111,18 +133,19 @@ class ZooKeeperCluster:
         }
 
     def update_cluster(self) -> List:
-        if not self.quorum_reached:
-            logger.info("units not ready")
-            self.status = MaintenanceStatus("Peer members not yet started")
-            return []
-
+        logger.info("--------------UPDATE CLUSTER--------------")
         active_hosts = []
         active_servers = set()
-        for unit in self.peer_units:
+
+        logger.info(f"{self.started_units=}")
+        for unit in self.started_units:
+            logger.info(f"{unit=}")
             active_hosts.append(self.unit_config(unit=unit)["host"])
             active_servers.add(self.unit_config(unit=unit)["server_string"])
 
-        logger.info(f"{self.peer_units}")
+
+        logger.info(f"{active_hosts=}")
+        logger.info(f"{active_servers=}")
 
         try:
             zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
@@ -145,6 +168,7 @@ class ZooKeeperCluster:
 
             updated_servers.append({"0": "added"})  # for during initial startup
 
+            logger.info(f"{updated_servers=}")
             return updated_servers
 
         except (
@@ -158,39 +182,47 @@ class ZooKeeperCluster:
             return []
 
     def _is_unit_turn(self, unit: Unit) -> bool:
+        logger.info("--------------IS UNIT TURN--------------")
         my_turn = True
         unit_id = self.get_unit_id(unit=unit)
+        logger.info(f"{unit_id=}")
 
         # looping through all app data, ensuring an item exists
-        for myid in range(1, unit_id):
+        for myid in range(0, unit_id):
+            logger.info(f"{myid=}")
+            logger.info(f"{self.relation.data[self.charm.app]=}")
             # if it doesn't exist, it hasn't been added by the leader yet
             # i.e not ready
-            if not self.relation.data[self.charm.app].get(str(myid), None):
+            if not self.relation.data[self.charm.app].get(str(myid), None) != ("started", "added"):
                 my_turn = False
 
+        logger.info(f"{my_turn}")
         return my_turn
 
     def _generate_init_units(self, unit_string: str) -> str:
+        logger.info("--------------GENERATE INIT UNITS--------------")
         try:
             quorum_leader_config = self.unit_config(unit=0, state="ready", role="participant")
             quorum_leader_string = quorum_leader_config["server_string"]
-        except UnitNotFoundError:  # leader unit not yet found, can't add
+            return unit_string + "\n" + quorum_leader_string
+        except UnitNotFoundError:
             return ""
 
-        return unit_string + "\n" + quorum_leader_string
 
     def _generate_units(self, unit_string: str) -> str:
-        servers = ""
-        for unit_id in self.relation.data[self.charm.app]:
-            try:
-                server_string = self.unit_config(unit=unit_id)["server_string"]
+        logger.info("--------------GENERATE UNITS--------------")
+        try:
+            servers = ""
+            for unit_id in self.relation.data[self.charm.app]:
+                server_string = self.unit_config(unit=int(unit_id))["server_string"]
                 servers = servers + "\n" + server_string
-            except UnitNotFoundError:
-                return ""
 
-        servers = servers + "\n" + unit_string
+            servers = servers + "\n" + unit_string
+            logger.info(f"{servers=}")
+            return servers
+        except UnitNotFoundError:
+            return ""
 
-        return servers
 
     def ready_to_start(self, unit: Unit) -> Tuple[bool, str, Dict]:
         servers = ""
@@ -198,19 +230,21 @@ class ZooKeeperCluster:
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        if int(unit_id == 0) and not self.init_finished:
+        if int(unit_id) == 0: 
+            logger.info("LEADER")
             unit_string = unit_string.replace("observer", "participant")
             return True, unit_string.replace("observer", "participant"), unit_config
 
-        if not self._is_unit_turn(unit=unit):
-            return False, "", {}
-
-        if not self.init_finished:
+        if not self.has_init_finished(unit=unit):
+            logger.info("INIT FOLLOWER")
             servers = self._generate_init_units(unit_string=unit_string)
-        else:
-            servers = self._generate_units(unit_string=unit_string)
+            if not self._is_unit_turn(unit=unit) or not servers:
+                return False, "", {}
+            return True, servers, unit_config
 
-        if not servers:
+        logger.info("FOLLOWER")
+        servers = self._generate_units(unit_string=unit_string)
+        if not self._is_unit_turn(unit=unit):
             return False, "", {}
 
         return True, servers, unit_config

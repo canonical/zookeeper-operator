@@ -6,7 +6,7 @@ from kazoo.client import KazooClient
 logger = logging.getLogger(__name__)
 
 # Kazoo logs are unbearably chatty
-logging.getLogger("kazoo.client").disabled = True
+# logging.getLogger("kazoo.client").disabled = True
 
 
 class MembersSyncingError(Exception):
@@ -120,7 +120,7 @@ class ZooKeeperManager:
             raise MembersSyncingError("Unable to remove members - some members are syncing")
 
         for member in members:
-            member_id = re.findall(r"server.([1-9]*)", member)[0]
+            member_id = re.findall(r"server.([1-9]+)", member)[0]
             with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
                 zk.client.reconfig(
                     joining=None, leaving=member_id, new_members=None, from_config=self.version
