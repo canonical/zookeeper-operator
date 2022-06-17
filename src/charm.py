@@ -7,7 +7,7 @@
 import logging
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
-from charms.zookeeper.v0.cluster import ZooKeeperCluster
+from charms.zookeeper.v0.cluster import NotUnitTurnError, ZooKeeperCluster
 from ops.charm import ActionEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
@@ -43,63 +43,109 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
         )
-        # TODO: Get Properties Action
+        self.framework.observe(
+            getattr(self.on, "get_properties_action"), self._on_get_properties_action
+        )
         self.framework.observe(
             getattr(self.on, "get_snap_apps_action"), self._on_get_snap_apps_action
         )
 
     def _on_install(self, _) -> None:
-        """Handler for the on_install event."""
+        """Handler for the on_install event.
+
+        This includes:
+            - Installing the snap
+            - Writing config to config files
+        """
+
+        # is MaintenanceStatus during event start
         self.unit.status = self.snap.status
 
+        # if any snap method calls fail, Snap.status is set to BlockedStatus
+        # non-idempotent commands (e.g setting properties) will no longer run, returning None
         self.snap.install_kafka_snap()
         self.snap.write_properties(
             properties=self.config["zookeeper-properties"], property_label="zookeeper", mode="w"
         )
+
+        # zk servers index at 1
         self.snap.write_zookeeper_myid(myid=self.cluster.get_unit_id(self.unit) + 1)
+
+        # resolve the status of the snap commands, either MaintenanceStatus or BlockedStatus
         self.unit.status = self.snap.status
 
     def _on_start(self, event: EventBase) -> None:
-        """Handler for the on_start event."""
+        """Handler for the on_start event.
 
+        This includes:
+            - Setting unit readiness to relation data
+            - Checking if the unit is next in line to start
+            - Writing config to config files
+            - Starting the snap service
+        """
+
+        # units should flag that they are at least 'ready' to start so that they exist in the relation data
         self.cluster.relation.data[self.unit].update({"state": "ready"})
-        is_next_server, servers, unit_config = self.cluster.ready_to_start(self.unit)
 
-        if not is_next_server:
+        # checks if the unit is next, grabs the servers to add, and it's own config for debugging
+        try:
+            servers, unit_config = self.cluster.ready_to_start(self.unit)
+        except NotUnitTurnError as e:
+            logger.error(str(e))
+            # defaults to MaintenanceStatus
             self.unit.status = self.cluster.status
             event.defer()
             return
-
-        self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic", mode="w")
+            
+        # servers properties needs to be written to dynamic config
+        self.snap.write_properties(
+            properties=servers, property_label="zookeeper-dynamic", mode="w"
+        )
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
+        # Active if above commands succeeded, else Maintenance
         self.unit.status = self.snap.status
 
+        # unit flags itself as 'started' so it can be retrieved by the leader
         self.cluster.relation.data[self.unit].update(unit_config)
         self.cluster.relation.data[self.unit].update({"state": "started"})
 
     def _on_cluster_relation_updated(self, event: EventBase) -> None:
-        """Handler for events triggered by changing units."""
+        """Handler for events triggered by changing units.
+
+        This includes:
+            leader_elected
+            *_relation_joined
+            *_relation_departed
+        """
         if not self.unit.is_leader():
             return
 
+        # units need to exist in the app data to be iterated through for next_turn
         for unit in self.cluster.started_units:
             unit_id = self.cluster.get_unit_id(unit)
-            self.cluster.relation.data[self.model.app].update({str(unit_id): "started"})
+            self.cluster.relation.data[self.model.app].update(
+                self.cluster.relation.data[self.model.app].get(
+                    str(unit_id), {str(unit_id): "started"}  # sets to "started" if not already exists
+                )
+            )
 
+        # adds + removes members for all self-confirmed started units
         updated_servers = self.cluster.update_cluster()
+
+        # either Active if successful, else Maintenance
         self.unit.status = self.cluster.status
 
         if self.cluster.status == ActiveStatus():
-            for server in updated_servers:
-                self.cluster.relation.data[self.model.app].update(server)
-            self.cluster.relation.data[self.model.app].update({"init": "finished"})
+            self.cluster.relation.data[self.model.app].update(updated_servers)
         else:
+            # in the event some unit wasn't started/ready
             event.defer()
             return
 
     def _on_get_properties_action(self, event: ActionEvent) -> None:
         """Handler for users to copy currently active config for passing to `juju config`."""
+        # TODO: this needs updating to use a different source for the config
         config_map = self.snap.get_properties(property_label="zookeeper")
         msg = "\n".join([f"{k}={v}" for k, v in config_map.items()])
         event.set_results({"properties": msg})
