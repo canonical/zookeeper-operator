@@ -6,7 +6,7 @@ from kazoo.client import KazooClient
 logger = logging.getLogger(__name__)
 
 # Kazoo logs are unbearably chatty
-# logging.getLogger("kazoo.client").disabled = True
+logging.getLogger("kazoo.client").disabled = True
 
 
 class MembersSyncingError(Exception):
@@ -41,8 +41,6 @@ class ZooKeeperManager:
                 response = zk.srvr
                 if response.get("Mode") == "leader":
                     self.leader = host
-                    logger.info("FOUND LEADER")
-                    logger.info(f"{host=}")
 
         if not self.leader:
             raise QuorumLeaderNotFoundError("quorum leader not found, probably not ready yet")

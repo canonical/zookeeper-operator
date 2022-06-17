@@ -70,9 +70,7 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        logger.info(f"{servers=}")
-
-        self.snap.write_properties(properties=servers, property_label="zookeeper", mode="a")
+        self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic", mode="w")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
         self.unit.status = self.snap.status
