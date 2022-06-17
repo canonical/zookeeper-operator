@@ -34,6 +34,7 @@ class UnitNotFoundError(Exception):
 
     pass
 
+
 class NotUnitTurnError(Exception):
     """Generic exception for when a desired unit isn't next in line to start safely."""
 
@@ -224,7 +225,7 @@ class ZooKeeperCluster:
             updated_servers["0"] = "added"
 
             return updated_servers
-        
+
         # all errors relate to a unit/zk_server not yet being ready to change
         except (
             MembersSyncingError,
@@ -277,14 +278,14 @@ class ZooKeeperCluster:
 
     def ready_to_start(self, unit: Unit) -> Tuple[str, Dict]:
         """Decides whether a unit should start, and with what configuration.
-        
+
         Args:
             unit (Unit): the unit to validate
 
         Returns:
-            server_config (str), unit_config (dict): 
+            server_config (str), unit_config (dict):
                 `server_config` - a new-line delimited string of servers to add to a config file
-                `unit_config` - a mapping of configuration for the given unit to be added to unit data 
+                `unit_config` - a mapping of configuration for the given unit to be added to unit data
 
         """
         servers = ""
@@ -292,7 +293,9 @@ class ZooKeeperCluster:
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        if int(unit_id) == 0:  # i.e is the initial leader unit, always a participant to start quorum
+        if (
+            int(unit_id) == 0
+        ):  # i.e is the initial leader unit, always a participant to start quorum
             unit_string = unit_string.replace("observer", "participant")
             return unit_string.replace("observer", "participant"), unit_config
 
@@ -304,6 +307,6 @@ class ZooKeeperCluster:
 
         servers = self._generate_units(unit_string=unit_string)
         if not self._is_unit_turn(unit=unit) or not servers:
-            raise NotUnitTurnError("not unit turn")
 
+            raise NotUnitTurnError("not unit turn")
         return servers, unit_config

@@ -96,7 +96,7 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = self.cluster.status
             event.defer()
             return
-            
+
         # servers properties needs to be written to dynamic config
         self.snap.write_properties(
             properties=servers, property_label="zookeeper-dynamic", mode="w"
@@ -126,7 +126,8 @@ class ZooKeeperCharm(CharmBase):
             unit_id = self.cluster.get_unit_id(unit)
             self.cluster.relation.data[self.model.app].update(
                 self.cluster.relation.data[self.model.app].get(
-                    str(unit_id), {str(unit_id): "started"}  # sets to "started" if not already exists
+                    str(unit_id),
+                    {str(unit_id): "started"},  # sets to "started" if not already exists
                 )
             )
 
