@@ -54,38 +54,26 @@ class ZooKeeperCluster:
         return self.charm.model.get_relation(PEER)
 
     def has_init_finished(self, unit) -> bool:
-        logger.info("--------------HAS INIT FINISHED--------------")
         unit_id = self.get_unit_id(unit)
-        logger.info(f"{unit_id=}")
 
         for myid in range(0, unit_id):
-            logger.info(f"{myid=}")
             if self.relation.data[self.charm.app].get(str(myid), None) != ("added" or "started"):
 
-                logger.info(f"FALSE")
                 return False
 
-        logger.info(f"TRUE")
         return True
 
     @property
     def peer_units(self) -> Set[Unit]:
-        logger.info("--------------PEER UNITS--------------")
-        logger.info(f"{set([self.charm.unit] + list(self.relation.units))=}")
         return set([self.charm.unit] + list(self.relation.units))
 
     @property
     def started_units(self) -> Set[Unit]:
-        logger.info("--------------STARTED UNITS--------------")
-        logger.info(f"{self.peer_units=}")
         started_units = set()
         for unit in self.peer_units:
-            logger.info(f"{unit=}")
-            logger.info(f"{self.relation.data[unit]=}")
             if self.relation.data[unit].get("state", None) == "started":
                 started_units.add(unit)
 
-        logger.info(f"{started_units=}")
         return started_units
 
     @staticmethod
@@ -102,7 +90,6 @@ class ZooKeeperCluster:
     def unit_config(
         self, unit: Union[Unit, int], state: str = "ready", role: str = "participant"
     ) -> Dict[str, str]:
-        logger.info("--------------UNIT CONFIG--------------")
         unit_id = None
         server_id = None
         if isinstance(unit, Unit):
@@ -117,12 +104,6 @@ class ZooKeeperCluster:
         host = self.relation.data[unit]["private-address"]
         server_string = f"server.{server_id}={host}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
 
-
-        logger.info(f"{host=}")
-        logger.info(f"{unit=}")
-        logger.info(f"{unit_id=}")
-        logger.info(f"{server_id=}")
-
         return {
             "host": host,
             "server_string": server_string,
@@ -133,19 +114,12 @@ class ZooKeeperCluster:
         }
 
     def update_cluster(self) -> List:
-        logger.info("--------------UPDATE CLUSTER--------------")
         active_hosts = []
         active_servers = set()
 
-        logger.info(f"{self.started_units=}")
         for unit in self.started_units:
-            logger.info(f"{unit=}")
             active_hosts.append(self.unit_config(unit=unit)["host"])
             active_servers.add(self.unit_config(unit=unit)["server_string"])
-
-
-        logger.info(f"{active_hosts=}")
-        logger.info(f"{active_servers=}")
 
         try:
             zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
@@ -168,7 +142,6 @@ class ZooKeeperCluster:
 
             updated_servers.append({"0": "added"})  # for during initial startup
 
-            logger.info(f"{updated_servers=}")
             return updated_servers
 
         except (
@@ -182,25 +155,19 @@ class ZooKeeperCluster:
             return []
 
     def _is_unit_turn(self, unit: Unit) -> bool:
-        logger.info("--------------IS UNIT TURN--------------")
         my_turn = True
         unit_id = self.get_unit_id(unit=unit)
-        logger.info(f"{unit_id=}")
 
         # looping through all app data, ensuring an item exists
         for myid in range(0, unit_id):
-            logger.info(f"{myid=}")
-            logger.info(f"{self.relation.data[self.charm.app]=}")
             # if it doesn't exist, it hasn't been added by the leader yet
             # i.e not ready
             if not self.relation.data[self.charm.app].get(str(myid), None) != ("started", "added"):
                 my_turn = False
 
-        logger.info(f"{my_turn}")
         return my_turn
 
     def _generate_init_units(self, unit_string: str) -> str:
-        logger.info("--------------GENERATE INIT UNITS--------------")
         try:
             quorum_leader_config = self.unit_config(unit=0, state="ready", role="participant")
             quorum_leader_string = quorum_leader_config["server_string"]
@@ -208,9 +175,7 @@ class ZooKeeperCluster:
         except UnitNotFoundError:
             return ""
 
-
     def _generate_units(self, unit_string: str) -> str:
-        logger.info("--------------GENERATE UNITS--------------")
         try:
             servers = ""
             for unit_id in self.relation.data[self.charm.app]:
@@ -218,11 +183,9 @@ class ZooKeeperCluster:
                 servers = servers + "\n" + server_string
 
             servers = servers + "\n" + unit_string
-            logger.info(f"{servers=}")
             return servers
         except UnitNotFoundError:
             return ""
-
 
     def ready_to_start(self, unit: Unit) -> Tuple[bool, str, Dict]:
         servers = ""
@@ -230,19 +193,16 @@ class ZooKeeperCluster:
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        if int(unit_id) == 0: 
-            logger.info("LEADER")
+        if int(unit_id) == 0:
             unit_string = unit_string.replace("observer", "participant")
             return True, unit_string.replace("observer", "participant"), unit_config
 
         if not self.has_init_finished(unit=unit):
-            logger.info("INIT FOLLOWER")
             servers = self._generate_init_units(unit_string=unit_string)
             if not self._is_unit_turn(unit=unit) or not servers:
                 return False, "", {}
             return True, servers, unit_config
 
-        logger.info("FOLLOWER")
         servers = self._generate_units(unit_string=unit_string)
         if not self._is_unit_turn(unit=unit):
             return False, "", {}
