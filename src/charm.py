@@ -83,7 +83,7 @@ class ZooKeeperCharm(CharmBase):
         if not self.unit.is_leader():
             return
 
-        for unit in self.cluster.added_units:
+        for unit in self.cluster.started_units:
             unit_id = self.cluster.get_unit_id(unit)
             self.cluster.relation.data[self.model.app].update({str(unit_id): "started"})
 
