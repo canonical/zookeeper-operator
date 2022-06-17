@@ -198,13 +198,15 @@ class ZooKeeperCluster:
             return True, unit_string.replace("observer", "participant"), unit_config
 
         if not self.has_init_finished(unit=unit):
+            logger.info("INIT NOT FINISHED")
             servers = self._generate_init_units(unit_string=unit_string)
             if not self._is_unit_turn(unit=unit) or not servers:
                 return False, "", {}
             return True, servers, unit_config
 
+        logger.info("STANDALONE")
         servers = self._generate_units(unit_string=unit_string)
-        if not self._is_unit_turn(unit=unit):
+        if not self._is_unit_turn(unit=unit) or not servers:
             return False, "", {}
 
         return True, servers, unit_config
