@@ -35,7 +35,7 @@ class ZooKeeperManager:
         self.client_port = client_port
         self.leader = ""
 
-        # iterate through all units to find current leader
+        # iterate through all hosts to find current leader
         for host in self.hosts:
             with ZooKeeperClient(host=host, client_port=client_port) as zk:
                 response = zk.srvr
@@ -50,7 +50,7 @@ class ZooKeeperManager:
         """The current members within the ZooKeeper quorum.
 
         Returns:
-            set: A set of ZK member strings
+            A set of ZK member strings
                 e.g {"server.1=10.141.78.207:2888:3888:participant;0.0.0.0:2181"}
         """
         with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
@@ -63,7 +63,7 @@ class ZooKeeperManager:
         """The current config version for ZooKeeper.
 
         Returns:
-            int: the zookeeper config version
+            The zookeeper config version decoded from base16
         """
         with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
             _, version = zk.config
@@ -75,7 +75,7 @@ class ZooKeeperManager:
         """Flag to check if any quorum members are currently syncing data.
 
         Returns:
-            bool: True if any members are syncing
+            True if any members are syncing. Otherwise False.
         """
         with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
             result = zk.mntr
@@ -150,7 +150,7 @@ class ZooKeeperClient:
         """Retreives the dynamic config for a ZooKeeper service.
 
         Returns:
-            (list(str), int): tuple of the decoded config list, and config version
+            Tuple of the decoded config list, and decoded config version
         """
         response = self.client.get("/zookeeper/config")
         if response:
@@ -166,7 +166,7 @@ class ZooKeeperClient:
         """Retreives attributes returned from the 'srvr' 4lw command.
 
         Returns:
-            {str, Any}: dict of field and setting
+            Mapping of field and setting returned from `mntr`
         """
         response = self._run_4lw_command("srvr")
 
@@ -183,7 +183,7 @@ class ZooKeeperClient:
         """Retreives attributes returned from the 'mntr' 4lw command.
 
         Returns:
-            {str, Any}: dict of field and setting
+            Mapping of field and setting returned from `mntr`
         """
         response = self._run_4lw_command("mntr")
 
@@ -203,7 +203,7 @@ class ZooKeeperClient:
         """Flag to confirm connected ZooKeeper server is connected and broadcasting.
 
         Returns:
-            bool
+            True if server is bradcasting. Otherwise False.
         """
         if self.client.connected:
             return "broadcast" in self.mntr.get("zk_peer_state", "")

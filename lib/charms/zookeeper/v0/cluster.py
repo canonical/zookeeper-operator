@@ -4,7 +4,7 @@
 
 import logging
 import re
-from typing import Dict, Iterable, List, Set, Tuple, Union
+from typing import Dict, Iterable, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 
@@ -30,13 +30,13 @@ PEER = "cluster"
 
 
 class UnitNotFoundError(Exception):
-    """Generic exception for when a desired unit isn't yet found in the relation data."""
+    """a desired unit isn't yet found in the relation data."""
 
     pass
 
 
 class NotUnitTurnError(Exception):
-    """Generic exception for when a desired unit isn't next in line to start safely."""
+    """a desired unit isn't next in line to start safely."""
 
     pass
 
@@ -65,32 +65,16 @@ class ZooKeeperCluster:
         """Relation property to be used by both the instance and charm.
 
         Returns:
-            relation (Relation): The peer relation
+            The peer relation instance
         """
         return self.charm.model.get_relation(PEER)
-
-    def has_init_finished(self, unit: Unit) -> bool:
-        """Checks whether any unit before the given unit has been added by the quorum leader.
-
-        Returns:
-            has_init_finished (bool): True if there are no units before the given unit pending. Otherwise False
-        """
-        unit_id = self.get_unit_id(unit)
-
-        # when starting ZK units with auth, they need to join quorum in increasing order.
-        # units should be added by the leader to app data before succeeding units can start
-        for myid in range(0, unit_id):
-            # TODO: this should probably be just "started"
-            if self.relation.data[self.charm.app].get(str(myid), None) != ("added" or "started"):
-                return False
-        return True
 
     @property
     def peer_units(self) -> Iterable[Unit]:
         """Grabs all units in the current peer relation, including the running unit.
 
         Returns:
-            peer_units (set(Unit)): Units in the current peer relation, including the running unit
+            Iterable of units in the current peer relation, including the running unit
         """
         return set([self.charm.unit] + list(self.relation.units))
 
@@ -98,8 +82,11 @@ class ZooKeeperCluster:
     def started_units(self) -> Set[Unit]:
         """Checks peer relation units for whether they've started the ZK service.
 
+        Such units are ready to join the ZK quorum if they haven't already.
+
         Returns:
-            started_units (set(Unit)): The units who have started the service
+            Set of units with unit data "state" == "started". Shows only those units
+                currently found related to the current unit.
         """
         started_units = set()
         for unit in self.peer_units:
@@ -113,20 +100,31 @@ class ZooKeeperCluster:
         """Grabs the unit's ID as definied by Juju.
 
         Args:
-            unit (Unit): The target unit
+            unit: The target `Unit`
 
         Returns:
-            unit_id (int): The Juju unit ID for the unit
-                e.g "zookeeper/0" -> 0
+            The Juju unit ID for the unit.
+                e.g `zookeeper/0` -> `0`
         """
         return int(unit.name.split("/")[1])
 
     def get_unit_from_id(self, unit_id: int) -> Unit:
+        """Grabs the corresponding Unit for a given Juju unit ID
+
+        Args:
+            unit_id: The target unit id
+
+        Returns:
+            The target `Unit`
+
+        Raises:
+            UnitNotFoundError: The desired unit could not be found in the peer data
+        """
         for unit in self.peer_units:
             if int(unit.name.split("/")[1]) == unit_id:
                 return unit
 
-        raise UnitNotFoundError("could not find unit in peer relation")
+        raise UnitNotFoundError
 
     def unit_config(
         self, unit: Union[Unit, int], state: str = "ready", role: str = "participant"
@@ -134,22 +132,25 @@ class ZooKeeperCluster:
         """Builds a collection of data useful for ZK for a given unit.
 
         Args:
-            unit (Unit or int): The target unit, either directly or from it's Juju unit ID
-            state (str): The desired output state.
-                "ready" if installation is complete
-                "started" if the ZK service has started running
-            role (str): The ZK role for the unit. Default = "participant"
+            unit: The target `Unit`, either explicitly or from it's Juju unit ID
+            state: The desired output state. "ready" or "started"
+            role: The ZK role for the unit. Default = "participant"
 
         Returns:
-            unit_config (dict): The config for the given unit, with keys:
-                "host" - the host address for the unit
-                "server_string" - the built ZK server string. e.g "server.1:host:server_port:election_port:role:localhost:client_port"
-                "server_id" - the ZK ID for the unit, equivalent to Juju unit ID + 1
-                "unit_name" - the name of the unit
-                "state" - the desired state of the unit
+            The generated config for the given unit.
+                e.g for unit zookeeper/1:
+
+                {
+                    "host": 10.121.23.23,
+                    "server_string": "server.1=host:server_port:election_port:role;localhost:clientport",
+                    "server_id": "2",
+                    "unit_id": "1",
+                    "unit_name": "zookeeper/1",
+                    "state": "ready",
+                }
 
         Raises:
-            UnitNotFoundError (from get_unit_from_id): When the target unit can't be found in the unit relation data, and as such cannot extract the private-address
+            UnitNotFoundError: When the target unit can't be found in the unit relation data, and/or cannot extract the private-address
         """
         unit_id = None
         server_id = None
@@ -178,27 +179,41 @@ class ZooKeeperCluster:
             "state": state,
         }
 
+    def _get_updated_servers(self, server_strings: Iterable[str], updated_state: str):
+        """Simple wrapper for building `updated_servers` for passing to app data updates."""
+        updated_servers = {}
+        for server in server_strings:
+            unit_id = str(int(re.findall(r"server.([1-9]+)", server)[0]) - 1)
+            updated_servers[unit_id] = updated_state
+
+        return updated_servers
+
     def update_cluster(self) -> Dict[str, str]:
         """Adds and removes members from the current ZK quroum.
 
-        To be ran by leader.
+        To be ran by the Juju leader.
 
-        After grabbing all the "started" units that the leader can see in the peer relation unit data, it removes members not in the quorum anymore (i.e relation_departed), and adds new members to the quorum (i.e relation_joined).
+        After grabbing all the "started" units that the leader can see in the peer relation unit data.
+        Removes members not in the quorum anymore (i.e `relation_departed` event)
+        Adds new members to the quorum (i.e `relation_joined` event).
 
             Returns:
-                updated_servers (dict) - a mapping of Juju unit IDs that were successfully added to the quorum, and their new state. To be used by the leader to update app data
-
+                A mapping of Juju unit IDs and updated state for changed units
+                To be used in updating the app data
+                    e.g {"0": "added", "1": "removed"}
         """
         active_hosts = []
         active_servers = set()
 
+        # grabs all currently 'started' units from unit data
+        # failed units will be absent
         for unit in self.started_units:
             active_hosts.append(self.unit_config(unit=unit)["host"])
             active_servers.add(self.unit_config(unit=unit)["server_string"])
 
         try:
             zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
-            zk_members = zk.server_members  # the current members in the ZK quorum
+            zk_members = zk.server_members
 
             # remove units first, faster due to no startup/sync delay
             servers_to_remove = list(zk_members - active_servers)
@@ -210,23 +225,17 @@ class ZooKeeperCluster:
 
             self.status = ActiveStatus()
 
-            # extracts Juju unit ID from the newly removed servers
-            updated_servers = {}
-            for server in servers_to_add:
-                unit_id = str(int(re.findall(r"server.([1-9]+)", server)[0]) - 1)
-                updated_servers[unit_id:"removed"]
+            # extracts Juju unit ID from the changed servers
+            removed_servers = self._get_updated_servers(
+                server_strings=servers_to_remove, updated_state="removed"
+            )
+            added_servers = self._get_updated_servers(
+                server_strings=servers_to_add, updated_state="added"
+            )
 
-            # extracts Juju unit ID from the newly added servers
-            for server in servers_to_add:
-                unit_id = str(int(re.findall(r"server.([1-9]+)", server)[0]) - 1)
-                updated_servers[unit_id:"added"]
+            return {**added_servers, **removed_servers}
 
-            # for during initial startup, as otherwise wouldn't be set
-            updated_servers["0"] = "added"
-
-            return updated_servers
-
-        # all errors relate to a unit/zk_server not yet being ready to change
+        # caught errors relate to a unit/zk_server not yet being ready to change
         except (
             MembersSyncingError,
             MemberNotReadyError,
@@ -237,76 +246,57 @@ class ZooKeeperCluster:
             self.status = MaintenanceStatus(str(e))
             return {}
 
-    def _is_unit_turn(self, unit: Unit) -> bool:
-        """Loops through the units in the app data confirming they are started,
-        if they are, the unit is ready to start."""
-
-        my_turn = True
-        unit_id = self.get_unit_id(unit=unit)
-
-        for myid in range(0, unit_id):
-            # if it doesn't exist, it hasn't been added by the leader yet
-            # i.e not ready
-            # TODO: confirm "started" vs "added" here
-            if not self.relation.data[self.charm.app].get(str(myid), None) != ("started", "added"):
-                my_turn = False
-
-        return my_turn
-
-    def _generate_init_units(self, unit_string: str) -> str:
-        """During initilisation of the cluster, populate target servers with at least the leader."""
-        try:
-            quorum_leader_config = self.unit_config(unit=0, state="ready", role="participant")
-            quorum_leader_string = quorum_leader_config["server_string"]
-            return unit_string + "\n" + quorum_leader_string
-        except UnitNotFoundError:  # leader not yet in peer data
-            return ""
+    def _is_unit_turn(self, unit_id: int) -> bool:
+        """Checks if all units with a lower id than the current unit has been added/removed to the ZK quorum."""
+        for peer_id in range(0, unit_id):
+            if not self.relation.data[self.charm.app].get(str(peer_id), None):
+                return False
+        return True
 
     def _generate_units(self, unit_string: str) -> str:
-        """After initilisation of the cluster, populate target servers with the active units from the app relation data."""
-        try:
-            servers = ""
-            # TODO: Bug fix this, probably doesn't work
-            for unit_id in self.relation.data[self.charm.app]:
+        """Gets valid start-up server strings for current ZK quorum units found in the app data."""
+        servers = ""
+        for unit_id, state in self.relation.data[self.charm.app].items():
+            if state == "added":
                 server_string = self.unit_config(unit=int(unit_id))["server_string"]
                 servers = servers + "\n" + server_string
 
-            servers = servers + "\n" + unit_string
-            return servers
-        except UnitNotFoundError:
-            return ""
+        servers = servers + "\n" + unit_string
+        return servers
 
     def ready_to_start(self, unit: Unit) -> Tuple[str, Dict]:
-        """Decides whether a unit should start, and with what configuration.
+        """Decides whether a unit should start the ZK service, and with what configuration.
 
         Args:
-            unit (Unit): the unit to validate
+            unit: the `Unit` to evaluate startability
 
         Returns:
-            server_config (str), unit_config (dict):
-                `server_config` - a new-line delimited string of servers to add to a config file
-                `unit_config` - a mapping of configuration for the given unit to be added to unit data
+            `servers`: a new-line delimited string of servers to add to a config file
+            `unit_config`: a mapping of configuration for the given unit to be added to unit data
 
+        Raises:
+            `UnitNotFoundError`: if a lower ID unit is missing from the app/unit data
+            `NotUnitTurnError`: if a lower ID unit has not yet been added to the ZK quorum
         """
         servers = ""
         unit_config = self.unit_config(unit=unit, state="ready", role="observer")
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        if (
-            int(unit_id) == 0
-        ):  # i.e is the initial leader unit, always a participant to start quorum
+        # double-checks all units are in the relation data
+        total_units = len(self.relation.data[self.charm.app]) + 1
+        if total_units < int(unit_id):
+            raise UnitNotFoundError("can't find relation data")
+
+        # i.e is the initial leader unit, always a participant to start quorum
+        # in the case when 0 fails over, "0" will be in app data
+        if int(unit_id) == 0 and not self.relation.data[self.charm.app].get("0", None):
             unit_string = unit_string.replace("observer", "participant")
             return unit_string.replace("observer", "participant"), unit_config
 
-        if not self.has_init_finished(unit=unit):
-            servers = self._generate_init_units(unit_string=unit_string)
-            if not self._is_unit_turn(unit=unit) or not servers:
-                raise NotUnitTurnError("initialising - not unit turn")
-            return servers, unit_config
+        if not self._is_unit_turn(unit_id=int(unit_id)):
+            raise NotUnitTurnError("other units not yet added")
 
         servers = self._generate_units(unit_string=unit_string)
-        if not self._is_unit_turn(unit=unit) or not servers:
 
-            raise NotUnitTurnError("not unit turn")
         return servers, unit_config
