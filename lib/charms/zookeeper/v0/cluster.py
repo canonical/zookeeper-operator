@@ -30,13 +30,13 @@ PEER = "cluster"
 
 
 class UnitNotFoundError(Exception):
-    """a desired unit isn't yet found in the relation data."""
+    """A desired unit isn't yet found in the relation data."""
 
     pass
 
 
 class NotUnitTurnError(Exception):
-    """a desired unit isn't next in line to start safely."""
+    """A desired unit isn't next in line to start safely."""
 
     pass
 
@@ -194,7 +194,7 @@ class ZooKeeperCluster:
         To be ran by the Juju leader.
 
         After grabbing all the "started" units that the leader can see in the peer relation unit data.
-        Removes members not in the quorum anymore (i.e `relation_departed` event)
+        Removes members not in the quorum anymore (i.e `relation_departed`/`leader_elected` event)
         Adds new members to the quorum (i.e `relation_joined` event).
 
             Returns:

@@ -46,7 +46,13 @@ def block_check(func):
 
 
 def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
-    """Ensures destination filepath exists before writing."""
+    """Ensures destination filepath exists before writing.
+        
+    args:
+        content: The content to be written to a file
+        path: The full destination filepath
+        mode: The write mode. Usually "w" for write, or "a" for append. Default "w"
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, mode) as f:
         f.write(content)
@@ -80,7 +86,6 @@ class KafkaSnap:
                 kafka.ensure(snap.SnapState.Latest, channel="rock/edge")
 
             self.kafka = kafka
-            logger.info("sucessfully installed kafka snap")
         except (snap.SnapError, apt.PackageNotFoundError) as e:
             logger.error(str(e))
             self.blocked = True
@@ -91,7 +96,7 @@ class KafkaSnap:
         """Grabs apps from the snap property.
 
         Returns:
-            list: The apps declared by the installed snap
+            List of apps declared by the installed snap
         """
         apps = self.kafka.apps
 
@@ -105,13 +110,12 @@ class KafkaSnap:
         additional non-idempotent methods.
 
         Args:
-            snap_service (str): The desired service to run on the unit
+            snap_service: The desired service to run on the unit
                 `kafka` or `zookeeper`
         """
 
         try:
             self.kafka.start(services=[snap_service])
-            logger.info(f"successfully started snap service: {snap_service}")
             # TODO: check if the service is actually running (i.e not failed silently)
             self.status = ActiveStatus()
         except snap.SnapError as e:
@@ -128,30 +132,28 @@ class KafkaSnap:
         additional non-idempotent methods.
 
         Args:
-            properties (str): A multiline string containing the properties to be set
-            property_label (str): The file prefix for the config file
+            properties: A multiline string containing the properties to be set
+            property_label: The file prefix for the config file
                 `server` for Kafka, `zookeeper` for ZooKeeper
-            mode (str): The write mode
-                "w" for overwrite, "a" for append
+            mode: The write mode. Usually "w" for write, or "a" for append. Default "w"
         """
 
-        # TODO: Check if required properties are not set, return BlockedStatus
+        # TODO: Check if required properties are not set, update BlockedStatus
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
         safe_write_to_file(content=properties, path=path, mode=mode)
         logger.info(f"config successfully written to {path}")
 
     @block_check
-    def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper"):
+    def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper") -> None:
         """Checks the *.properties file for dataDir, and writes ZooKeeper id to <data-dir>/myid.
 
         If fails with expected errors, it will block the KafkaSnap instance from executing
         additional non-idempotent methods.
 
         Args:
-            myid (int): The desired ZooKeeper server id
+            myid: The desired ZooKeeper server id
                 Expected to be (unit id + 1) to index from 1
-            property_label (str): The file prefix for the config file
-                `zookeeper` for ZooKeeper
+            property_label: The file prefix for the config file. Default "zookeeper"
         """
         properties = self.get_properties(property_label=property_label)
         try:
@@ -163,7 +165,6 @@ class KafkaSnap:
             return
 
         safe_write_to_file(content=str(myid), path=myid_path, mode="w")
-        logger.info(f"succcessfully wrote file myid - {myid}")
 
     @block_check
     def get_properties(self, property_label: str) -> Dict[str, str]:
@@ -173,7 +174,7 @@ class KafkaSnap:
         additional non-idempotent methods.
 
         Returns:
-            dict: A map of config properties and their values
+            A maping of config properties and their values
         """
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
         config_map = {}
