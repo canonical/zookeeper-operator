@@ -203,7 +203,7 @@ class ZooKeeperClient:
         """Flag to confirm connected ZooKeeper server is connected and broadcasting.
 
         Returns:
-            True if server is bradcasting. Otherwise False.
+            True if server is broadcasting. Otherwise False.
         """
         if self.client.connected:
             return "broadcast" in self.mntr.get("zk_peer_state", "")

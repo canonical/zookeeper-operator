@@ -70,11 +70,11 @@ class ZooKeeperCluster:
         return self.charm.model.get_relation(PEER)
 
     @property
-    def peer_units(self) -> Iterable[Unit]:
+    def peer_units(self) -> Set[Unit]:
         """Grabs all units in the current peer relation, including the running unit.
 
         Returns:
-            Iterable of units in the current peer relation, including the running unit
+            Set of units in the current peer relation, including the running unit
         """
         return set([self.charm.unit] + list(self.relation.units))
 
@@ -264,11 +264,11 @@ class ZooKeeperCluster:
         servers = servers + "\n" + unit_string
         return servers
 
-    def ready_to_start(self, unit: Unit) -> Tuple[str, Dict]:
+    def ready_to_start(self, unit: Union[Unit, int]) -> Tuple[str, Dict]:
         """Decides whether a unit should start the ZK service, and with what configuration.
 
         Args:
-            unit: the `Unit` to evaluate startability
+            unit: the `Unit` or Juju unit ID to evaluate startability
 
         Returns:
             `servers`: a new-line delimited string of servers to add to a config file
@@ -284,7 +284,7 @@ class ZooKeeperCluster:
         unit_id = unit_config["unit_id"]
 
         # double-checks all units are in the relation data
-        total_units = len(self.relation.data[self.charm.app]) + 1
+        total_units = len(self.peer_units)
         if total_units < int(unit_id):
             raise UnitNotFoundError("can't find relation data")
 

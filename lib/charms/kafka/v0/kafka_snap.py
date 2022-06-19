@@ -47,7 +47,7 @@ def block_check(func):
 
 def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
     """Ensures destination filepath exists before writing.
-        
+
     args:
         content: The content to be written to a file
         path: The full destination filepath
