@@ -242,6 +242,7 @@ class ZooKeeperCluster:
             KazooTimeoutError,
             UnitNotFoundError,
         ) as e:
+            logger.info(e)
             self.status = MaintenanceStatus(str(e))
             return {}
 
