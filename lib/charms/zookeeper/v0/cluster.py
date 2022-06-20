@@ -286,6 +286,7 @@ class ZooKeeperCluster:
         # double-checks all units are in the relation data
         total_units = len(self.peer_units)
         if total_units < int(unit_id):
+            self.status = MaintenanceStatus("can't find relation data")
             raise UnitNotFoundError("can't find relation data")
 
         # during cluster startup, we want unit id 0 to start as a solo participant
@@ -296,6 +297,7 @@ class ZooKeeperCluster:
             return unit_string.replace("observer", "participant"), unit_config
 
         if not self._is_unit_turn(unit_id=int(unit_id)):
+            self.status = MaintenanceStatus("other units not yet added")
             raise NotUnitTurnError("other units not yet added")
 
         servers = self._generate_units(unit_string=unit_string)

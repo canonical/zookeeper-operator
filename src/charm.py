@@ -15,7 +15,7 @@ from charms.zookeeper.v0.cluster import (
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
 logger = logging.getLogger(__name__)
 
@@ -55,21 +55,19 @@ class ZooKeeperCharm(CharmBase):
             - Installing the snap
             - Writing config to config files
         """
-        # is MaintenanceStatus during event start
-        self.unit.status = self.snap.status
+        self.unit.status = MaintenanceStatus("installing Kafka snap")
 
         # if any snap method calls fail, Snap.status is set to BlockedStatus
         # non-idempotent commands (e.g setting properties) will no longer run, returning None
-        self.snap.install()
-        self.snap.write_properties(
-            properties=self.config["zookeeper-properties"], property_label="zookeeper"
-        )
+        if self.snap.install():
+            self.snap.write_properties(
+                properties=self.config["zookeeper-properties"], property_label="zookeeper"
+            )
 
-        # zk servers index at 1
-        self.snap.write_zookeeper_myid(myid=self.cluster.get_unit_id(self.unit) + 1)
-
-        # resolve the status of the snap commands, either MaintenanceStatus or BlockedStatus
-        self.unit.status = self.snap.status
+            # zk servers index at 1
+            self.snap.write_zookeeper_myid(myid=self.cluster.get_unit_id(self.unit) + 1)
+        else:
+            self.unit.status = BlockedStatus("unable to install Kafka snap")
 
     def _on_start(self, event: EventBase) -> None:
         """Handler for the `on_start` event.
@@ -80,6 +78,8 @@ class ZooKeeperCharm(CharmBase):
             - Writing config to config files
             - Starting the snap service
         """
+        self.unit.status = MaintenanceStatus("starting ZooKeeper unit")
+
         # checks if the unit is next, grabs the servers to add, and it's own config for debugging
         try:
             servers, unit_config = self.cluster.ready_to_start(self.unit)
@@ -94,8 +94,7 @@ class ZooKeeperCharm(CharmBase):
         self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
-        # Active if above commands succeeded, else Maintenance
-        self.unit.status = self.snap.status
+        self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         self.cluster.relation.data[self.unit].update(unit_config)
