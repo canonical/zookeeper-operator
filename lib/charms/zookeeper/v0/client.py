@@ -59,7 +59,7 @@ class ZooKeeperManager:
         return set(members)
 
     @property
-    def version(self) -> int:
+    def config_version(self) -> int:
         """The current config version for ZooKeeper.
 
         Returns:
@@ -107,7 +107,7 @@ class ZooKeeperManager:
             # specific connection to leader
             with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
                 zk.client.reconfig(
-                    joining=member, leaving=None, new_members=None, from_config=self.version
+                    joining=member, leaving=None, new_members=None, from_config=self.config_version
                 )
 
     def remove_members(self, members: Iterable[str]):
@@ -123,7 +123,10 @@ class ZooKeeperManager:
             member_id = re.findall(r"server.([1-9]+)", member)[0]
             with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
                 zk.client.reconfig(
-                    joining=None, leaving=member_id, new_members=None, from_config=self.version
+                    joining=None,
+                    leaving=member_id,
+                    new_members=None,
+                    from_config=self.config_version,
                 )
 
 

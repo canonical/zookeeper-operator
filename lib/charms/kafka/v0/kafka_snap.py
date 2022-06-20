@@ -70,7 +70,7 @@ class KafkaSnap:
         self.status = MaintenanceStatus("performing snap operation")
 
     @block_check
-    def install_kafka_snap(self) -> None:
+    def install(self) -> None:
         """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set.
 
         If fails with expected errors, it will block the KafkaSnap instance from executing
@@ -174,7 +174,7 @@ class KafkaSnap:
         additional non-idempotent methods.
 
         Returns:
-            A maping of config properties and their values
+            A mapping of config properties and their values
         """
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
         config_map = {}

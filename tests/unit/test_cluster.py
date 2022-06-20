@@ -115,15 +115,18 @@ class TestCluster(unittest.TestCase):
         self.assertIn("treebeard", split_string)
 
     def test_get_updated_servers(self):
-        server_strings = [
+        added_servers = [
+            "server.2=gandalf.the.grey",
+        ]
+        removed_servers = [
             "server.2=gandalf.the.grey",
             "server.3=in.a.hole.in.the.ground.there.lived.a:hobbit",
         ]
         updated_servers = self.cluster._get_updated_servers(
-            server_strings=server_strings, updated_state="ready"
+            added_servers=added_servers, removed_servers=removed_servers
         )
 
-        self.assertDictEqual(updated_servers, {"2": "ready", "1": "ready"})
+        self.assertDictEqual(updated_servers, {"2": "removed", "1": "added"})
 
     def test_is_unit_turn_succeeds_scaleup(self):
         self.harness.update_relation_data(

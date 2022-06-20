@@ -4,7 +4,7 @@
 
 import logging
 import re
-from typing import Dict, Iterable, Set, Tuple, Union
+from typing import Dict, List, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 
@@ -179,12 +179,16 @@ class ZooKeeperCluster:
             "state": state,
         }
 
-    def _get_updated_servers(self, server_strings: Iterable[str], updated_state: str):
+    def _get_updated_servers(
+        self, added_servers: List[str], removed_servers: List[str]
+    ) -> Dict[str, str]:
         """Simple wrapper for building `updated_servers` for passing to app data updates."""
+        servers_to_update = removed_servers + added_servers
         updated_servers = {}
-        for server in server_strings:
+
+        for server in servers_to_update:
             unit_id = str(int(re.findall(r"server.([1-9]+)", server)[0]) - 1)
-            updated_servers[unit_id] = updated_state
+            updated_servers[unit_id] = "added" if unit_id in updated_servers else "removed"
 
         return updated_servers
 
@@ -197,10 +201,10 @@ class ZooKeeperCluster:
         Removes members not in the quorum anymore (i.e `relation_departed`/`leader_elected` event)
         Adds new members to the quorum (i.e `relation_joined` event).
 
-            Returns:
-                A mapping of Juju unit IDs and updated state for changed units
-                To be used in updating the app data
-                    e.g {"0": "added", "1": "removed"}
+        Returns:
+            A mapping of Juju unit IDs and updated state for changed units
+            To be used in updating the app data
+                e.g {"0": "added", "1": "removed"}
         """
         active_hosts = []
         active_servers = set()
@@ -208,8 +212,9 @@ class ZooKeeperCluster:
         # grabs all currently 'started' units from unit data
         # failed units will be absent
         for unit in self.started_units:
-            active_hosts.append(self.unit_config(unit=unit)["host"])
-            active_servers.add(self.unit_config(unit=unit)["server_string"])
+            config = self.unit_config(unit=unit)
+            active_hosts.append(config["host"])
+            active_servers.add(config["server_string"])
 
         try:
             zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
@@ -225,15 +230,9 @@ class ZooKeeperCluster:
 
             self.status = ActiveStatus()
 
-            # extracts Juju unit ID from the changed servers
-            removed_servers = self._get_updated_servers(
-                server_strings=servers_to_remove, updated_state="removed"
+            return self._get_updated_servers(
+                added_servers=servers_to_add, removed_servers=servers_to_remove
             )
-            added_servers = self._get_updated_servers(
-                server_strings=servers_to_add, updated_state="added"
-            )
-
-            return {**added_servers, **removed_servers}
 
         # caught errors relate to a unit/zk_server not yet being ready to change
         except (
@@ -288,8 +287,9 @@ class ZooKeeperCluster:
         if total_units < int(unit_id):
             raise UnitNotFoundError("can't find relation data")
 
-        # i.e is the initial leader unit, always a participant to start quorum
-        # in the case when 0 fails over, "0" will be in app data
+        # during cluster startup, we want unit id 0 to start as a solo participant
+        # if unit 0 fails and restarts after that, we want it to start as a normal unit
+        # with all current members
         if int(unit_id) == 0 and not self.relation.data[self.charm.app].get("0", None):
             unit_string = unit_string.replace("observer", "participant")
             return unit_string.replace("observer", "participant"), unit_config

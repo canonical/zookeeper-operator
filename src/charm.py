@@ -67,9 +67,9 @@ class ZooKeeperCharm(CharmBase):
 
         # if any snap method calls fail, Snap.status is set to BlockedStatus
         # non-idempotent commands (e.g setting properties) will no longer run, returning None
-        self.snap.install_kafka_snap()
+        self.snap.install()
         self.snap.write_properties(
-            properties=self.config["zookeeper-properties"], property_label="zookeeper", mode="w"
+            properties=self.config["zookeeper-properties"], property_label="zookeeper"
         )
 
         # zk servers index at 1
@@ -98,9 +98,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # servers properties needs to be written to dynamic config
-        self.snap.write_properties(
-            properties=servers, property_label="zookeeper-dynamic", mode="w"
-        )
+        self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic")
         self.snap.start_snap_service(snap_service=CHARM_KEY)
 
         # Active if above commands succeeded, else Maintenance
