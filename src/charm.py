@@ -5,6 +5,8 @@
 """Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
+import secrets
+import string
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.zookeeper.v0.cluster import (
