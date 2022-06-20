@@ -125,7 +125,7 @@ class KafkaSnap:
             return
 
     @block_check
-    def write_properties(self, properties: str, property_label: str, mode: str = "w") -> None:
+    def write_properties(self, properties: str, property_label: str) -> None:
         """Writes to the expected config file location for the Kafka Snap.
 
         If fails with expected errors, it will block the KafkaSnap instance from executing
@@ -140,7 +140,7 @@ class KafkaSnap:
 
         # TODO: Check if required properties are not set, update BlockedStatus
         path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
-        safe_write_to_file(content=properties, path=path, mode=mode)
+        safe_write_to_file(content=properties, path=path)
         logger.info(f"config successfully written to {path}")
 
     @block_check
