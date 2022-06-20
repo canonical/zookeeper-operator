@@ -12,7 +12,7 @@ from charms.zookeeper.v0.cluster import (
     UnitNotFoundError,
     ZooKeeperCluster,
 )
-from ops.charm import ActionEvent, CharmBase
+from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus
@@ -46,13 +46,6 @@ class ZooKeeperCharm(CharmBase):
         )
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
-        )
-        self.framework.observe(
-            getattr(self.on, "get_zookeeper_properties_action"),
-            self._on_get_zookeeper_properties_action,
-        )
-        self.framework.observe(
-            getattr(self.on, "get_snap_apps_action"), self._on_get_snap_apps_action
         )
 
     def _on_install(self, _) -> None:
@@ -152,18 +145,6 @@ class ZooKeeperCharm(CharmBase):
             # in the event some unit wasn't started/ready
             event.defer()
             return
-
-    def _on_get_zookeeper_properties_action(self, event: ActionEvent) -> None:
-        """Handler for users to copy currently active config for passing to `juju config`."""
-        # TODO: this needs updating to use a client for the config
-        config_map = self.snap.get_properties(property_label="zookeeper")
-        msg = "\n".join([f"{k}={v}" for k, v in config_map.items()])
-        event.set_results({"properties": msg})
-
-    def _on_get_snap_apps_action(self, event: ActionEvent) -> None:
-        """Handler for users to retrieve the list of available Kafka snap commands."""
-        msg = self.snap.get_kafka_apps()
-        event.set_results({"apps": msg})
 
 
 if __name__ == "__main__":
