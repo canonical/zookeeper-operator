@@ -10,6 +10,7 @@ import string
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.zookeeper.v0.cluster import (
+    NoPasswordError,
     NotUnitTurnError,
     UnitNotFoundError,
     ZooKeeperCluster,
@@ -80,12 +81,19 @@ class ZooKeeperCharm(CharmBase):
             - Writing config to config files
             - Starting the snap service
         """
-        self.unit.status = MaintenanceStatus("starting ZooKeeper unit")
+
+        # setting default app passwords on leader start
+        if self.unit.is_leader():
+            for password in ["super_password", "sync_password"]:
+                current_value = self.cluster.relation.data[self.app].get(password, None)
+                self.cluster.relation.data[self.app].update(
+                    {password: current_value or self.cluster.generate_password()}
+                )
 
         # checks if the unit is next, grabs the servers to add, and it's own config for debugging
         try:
             servers, unit_config = self.cluster.ready_to_start(self.unit)
-        except (NotUnitTurnError, UnitNotFoundError) as e:
+        except (NotUnitTurnError, UnitNotFoundError, NoPasswordError) as e:
             logger.info(str(e))
             # defaults to MaintenanceStatus
             self.unit.status = self.cluster.status

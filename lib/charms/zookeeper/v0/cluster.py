@@ -3,6 +3,8 @@
 # See LICENSE file for licensing details.
 
 import logging
+import secrets
+import string
 import re
 from typing import Dict, List, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
@@ -37,6 +39,12 @@ class UnitNotFoundError(Exception):
 
 class NotUnitTurnError(Exception):
     """A desired unit isn't next in line to start safely."""
+
+    pass
+
+
+class NoPasswordError(Exception):
+    """Required passwords not yet set in the app data."""
 
     pass
 
@@ -293,6 +301,9 @@ class ZooKeeperCluster:
         if total_units < int(unit_id):
             self.status = MaintenanceStatus("can't find relation data")
             raise UnitNotFoundError("can't find relation data")
+        
+        if not self.relation.data[self.charm.app].get("sync_password", None):
+            raise NoPasswordError
 
         # during cluster startup, we want unit id 0 to start as a solo participant
         # if unit 0 fails and restarts after that, we want it to start as a normal unit
@@ -308,3 +319,32 @@ class ZooKeeperCluster:
         servers = self._generate_units(unit_string=unit_string)
 
         return servers, unit_config
+
+
+class ZooKeeperAuth:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def generate_password():
+        return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
+    
+    @staticmethod
+    def get_auth_config(sync_password: str, super_password: str) -> str:
+        """Generate content of the auth ZooKeeper config file"""
+        return f"""
+            QuorumServer {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                user_sync="{sync_password}";
+            }};
+            QuorumLearner {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                username="sync"
+                password="{sync_password}";
+            }};
+            
+            Server {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                user_super="{super_password}";
+            }};
+        """
