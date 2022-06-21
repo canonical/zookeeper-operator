@@ -39,13 +39,13 @@ class ZooKeeperManager:
         self.retry_delay = retry_delay
 
         # iterate through all hosts to find current leader
-        for attempt in range(0, self.tries):
+        for attempt in range(self.tries):
             for host in self.hosts:
                 with ZooKeeperClient(host=host, client_port=client_port) as zk:
                     response = zk.srvr
                     if response.get("Mode") == "leader":
                         self.leader = host
-            if not self.leader or attempt == self.tries - 1:
+            if not self.leader or attempt < self.tries:
                 time.sleep(self.retry_delay)
                 continue
             break
