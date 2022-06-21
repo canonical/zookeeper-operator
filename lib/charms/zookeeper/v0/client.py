@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from typing import Any, Dict, Iterable, List, Set, Tuple
 from kazoo.client import KazooClient
 
@@ -30,17 +31,24 @@ class QuorumLeaderNotFoundError(Exception):
 class ZooKeeperManager:
     """Handler for performing ZK commands."""
 
-    def __init__(self, hosts: List[str], client_port: int = 2181):
+    def __init__(self, hosts: List[str], client_port: int = 2181, tries=2, retry_delay=3.0):
         self.hosts = hosts
         self.client_port = client_port
         self.leader = ""
+        self.tries = tries
+        self.retry_delay = retry_delay
 
         # iterate through all hosts to find current leader
-        for host in self.hosts:
-            with ZooKeeperClient(host=host, client_port=client_port) as zk:
-                response = zk.srvr
-                if response.get("Mode") == "leader":
-                    self.leader = host
+        for attempt in range(0, self.tries):
+            for host in self.hosts:
+                with ZooKeeperClient(host=host, client_port=client_port) as zk:
+                    response = zk.srvr
+                    if response.get("Mode") == "leader":
+                        self.leader = host
+            if not self.leader or attempt == self.tries - 1:
+                time.sleep(self.retry_delay)
+                continue
+            break
 
         if not self.leader:
             raise QuorumLeaderNotFoundError("quorum leader not found, probably not ready yet")

@@ -183,12 +183,15 @@ class ZooKeeperCluster:
         self, added_servers: List[str], removed_servers: List[str]
     ) -> Dict[str, str]:
         """Simple wrapper for building `updated_servers` for passing to app data updates."""
-        servers_to_update = removed_servers + added_servers
-        updated_servers = {}
+        servers_to_update = added_servers + removed_servers
 
+        updated_servers = {}
         for server in servers_to_update:
             unit_id = str(int(re.findall(r"server.([1-9]+)", server)[0]) - 1)
-            updated_servers[unit_id] = "added" if unit_id in updated_servers else "removed"
+            if server in added_servers:
+                updated_servers[unit_id] = "added"
+            elif server in removed_servers:
+                updated_servers[unit_id] = "removed"
 
         return updated_servers
 
@@ -216,6 +219,8 @@ class ZooKeeperCluster:
             active_hosts.append(config["host"])
             active_servers.add(config["server_string"])
 
+        logger.info(f"{active_servers=}")
+
         try:
             zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
             zk_members = zk.server_members
@@ -242,7 +247,7 @@ class ZooKeeperCluster:
             KazooTimeoutError,
             UnitNotFoundError,
         ) as e:
-            logger.info(e)
+            logger.info(str(e))
             self.status = MaintenanceStatus(str(e))
             return {}
 

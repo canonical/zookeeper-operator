@@ -111,11 +111,6 @@ class ZooKeeperCharm(CharmBase):
         if not self.unit.is_leader():
             return
 
-        # avoids the leader removing other units on it's departure
-        # TODO: this is REALLY slow if removing only the quorum leader
-        # the new leader can't find leader until the old unit fully departs
-        # and waits for next update_status event, whenever that may be
-        # try to speed this up, maybe by emitting another event? Reemit?
         if getattr(event, "departing_unit", None) == self.unit:
             return
 

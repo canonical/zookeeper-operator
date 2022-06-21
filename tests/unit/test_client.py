@@ -120,7 +120,7 @@ class TestManager(unittest.TestCase):
     @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
     @patch.object(DummyClient, "reconfig")
     def test_add_members_runs_on_leader(self, _, client):
-        zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"])
+        zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], tries=1, retry_delay=0.1)
         zk.leader = "leader"
         zk.add_members(["server.2=sam.gamgee"])
 
@@ -149,4 +149,6 @@ class TestManager(unittest.TestCase):
         zk.leader = "leader"
         zk.remove_members(["server.2=sam.gamgee"])
 
-        client.assert_called_with(hosts="leader:2181", timeout=5.0)
+        client.assert_called_with(
+            hosts="leader:2181", timeout=5.0
+        )
