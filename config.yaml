@@ -27,4 +27,4 @@ options:
       quorum.auth.learnerRequireSasl=true
       quorum.auth.serverRequireSasl=true
       authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-      autid.enable=true
+      autit.enable=true
