@@ -229,8 +229,15 @@ class ZooKeeperCluster:
 
         logger.info(f"{active_servers=}")
 
+        super_password, _ = self.passwords
+
         try:
-            zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
+            zk = ZooKeeperManager(
+                hosts=active_hosts,
+                client_port=self.client_port,
+                username="super",
+                password=super_password,
+            )
             zk_members = zk.server_members
 
             # remove units first, faster due to no startup/sync delay
@@ -301,7 +308,7 @@ class ZooKeeperCluster:
         if total_units < int(unit_id):
             self.status = MaintenanceStatus("can't find relation data")
             raise UnitNotFoundError("can't find relation data")
-        
+
         if not self.relation.data[self.charm.app].get("sync_password", None):
             raise NoPasswordError
 
@@ -320,31 +327,22 @@ class ZooKeeperCluster:
 
         return servers, unit_config
 
-
-class ZooKeeperAuth:
-    def __init__(self):
-        pass
-
     @staticmethod
     def generate_password():
         return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
-    
-    @staticmethod
-    def get_auth_config(sync_password: str, super_password: str) -> str:
-        """Generate content of the auth ZooKeeper config file"""
-        return f"""
-            QuorumServer {{
-                org.apache.zookeeper.server.auth.DigestLoginModule required
-                user_sync="{sync_password}";
-            }};
-            QuorumLearner {{
-                org.apache.zookeeper.server.auth.DigestLoginModule required
-                username="sync"
-                password="{sync_password}";
-            }};
-            
-            Server {{
-                org.apache.zookeeper.server.auth.DigestLoginModule required
-                user_super="{super_password}";
-            }};
-        """
+
+    @property
+    def passwords(self) -> Tuple[str, str]:
+        super_password = str(self.relation.data[self.charm.app].get("super_password", ""))
+        sync_password = str(self.relation.data[self.charm.app].get("sync_password", ""))
+
+        return super_password, sync_password
+
+    @property
+    def passwords_set(self) -> bool:
+        # checking existance of passwords for non-leader units
+        super_password, sync_password = self.passwords
+        if not super_password or not sync_password:
+            return False
+        else:
+            return True

@@ -5,8 +5,6 @@
 """Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
-import secrets
-import string
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.zookeeper.v0.cluster import (
@@ -90,6 +88,13 @@ class ZooKeeperCharm(CharmBase):
                     {password: current_value or self.cluster.generate_password()}
                 )
 
+        if not self.cluster.passwords_set:
+            logger.info("passwords not yet set, deferring")
+            event.defer()
+            return
+
+        self.unit.status = MaintenanceStatus("starting ZooKeeper unit")
+
         # checks if the unit is next, grabs the servers to add, and it's own config for debugging
         try:
             servers, unit_config = self.cluster.ready_to_start(self.unit)
@@ -102,8 +107,13 @@ class ZooKeeperCharm(CharmBase):
 
         # servers properties needs to be written to dynamic config
         self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic")
-        self.snap.start_snap_service(snap_service=CHARM_KEY)
 
+        # KAFKA_OPTS env var gets loaded on snap start
+        super_password, sync_password = self.cluster.passwords
+        self.snap.set_auth_config(sync_password=sync_password, super_password=super_password)
+        self.snap.set_kafka_opts()
+
+        self.snap.start_snap_service(snap_service=CHARM_KEY)
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
@@ -135,6 +145,11 @@ class ZooKeeperCharm(CharmBase):
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
+
+        if not self.cluster.passwords_set:
+            logger.info("passwords not yet set, deferring")
+            event.defer()
+            return
 
         # adds + removes members for all self-confirmed started units
         updated_servers = self.cluster.update_cluster()
