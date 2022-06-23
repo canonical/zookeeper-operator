@@ -79,7 +79,6 @@ class ZooKeeperCharm(CharmBase):
             - Writing config to config files
             - Starting the snap service
         """
-
         # setting default app passwords on leader start
         if self.unit.is_leader():
             for password in ["super_password", "sync_password"]:
