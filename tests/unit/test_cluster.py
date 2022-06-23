@@ -7,6 +7,7 @@ import unittest
 
 import ops.testing
 from charms.zookeeper.v0.cluster import (
+    NoPasswordError,
     NotUnitTurnError,
     UnitNotFoundError,
     ZooKeeperCluster,
@@ -137,14 +138,18 @@ class TestCluster(unittest.TestCase):
 
     def test_is_unit_turn_fails_scaleup(self):
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "added", "1": "added"}
+            self.relation_id,
+            "zookeeper",
+            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
 
         self.assertFalse(self.cluster._is_unit_turn(3))
 
     def test_is_unit_turn_succeeds_failover(self):
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "1": "added"}
+            self.relation_id,
+            "zookeeper",
+            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
 
         self.assertTrue(self.cluster._is_unit_turn(0))
@@ -152,10 +157,25 @@ class TestCluster(unittest.TestCase):
 
     def test_is_unit_turn_fails_failover(self):
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "1": "added"}
+            self.relation_id,
+            "zookeeper",
+            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
 
         self.assertFalse(self.cluster._is_unit_turn(3))
+
+    def test_ready_to_start_raises_no_password(self):
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
+        self.harness.update_relation_data(
+            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
+        )
+        self.harness.update_relation_data(
+            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
+        )
+        self.harness.update_relation_data(self.relation_id, "zookeeper", {"0": "removed"})
+
+        with self.assertRaises(NoPasswordError):
+            self.cluster.ready_to_start(unit=1)
 
     def test_generate_units_scaleup_adds_all_servers(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
@@ -231,7 +251,7 @@ class TestCluster(unittest.TestCase):
             self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
         )
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "password": "Mellon"}
+            self.relation_id, "zookeeper", {"0": "removed", "sync_password": "Mellon"}
         )
 
         with self.assertRaises(UnitNotFoundError):
@@ -250,7 +270,7 @@ class TestCluster(unittest.TestCase):
             self.relation_id, "zookeeper/2", {"private-address": "gimli"}
         )
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "password": "Mellon"}
+            self.relation_id, "zookeeper", {"0": "removed", "sync_password": "Mellon"}
         )
 
         with self.assertRaises(NotUnitTurnError):
@@ -259,6 +279,11 @@ class TestCluster(unittest.TestCase):
     def test_ready_to_start_succeeds_init(self):
         self.harness.update_relation_data(
             self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
+        )
+        self.harness.update_relation_data(
+            self.relation_id,
+            "zookeeper",
+            {"sync_password": "gollum", "super_password": "precious"},
         )
         servers, _ = self.cluster.ready_to_start(unit=0)
         self.assertNotIn("observer", servers)
@@ -272,7 +297,9 @@ class TestCluster(unittest.TestCase):
             self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
         )
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "1": "added"}
+            self.relation_id,
+            "zookeeper",
+            {"0": "removed", "1": "added", "sync_password": "Mellon"},
         )
 
         generated_servers, _ = self.cluster.ready_to_start(unit=0)

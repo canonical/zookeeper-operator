@@ -21,5 +21,10 @@ options:
       autopurge.purgeInterval=0
       reconfigEnabled=true
       standaloneEnabled=false
-      skipACL=yes
       4lw.commands.whitelist=*
+      DigestAuthenticationProvider.digestAlg=SHA3-256
+      quorum.auth.enableSasl=true
+      quorum.auth.learnerRequireSasl=true
+      quorum.auth.serverRequireSasl=true
+      authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+      audit.enable=true

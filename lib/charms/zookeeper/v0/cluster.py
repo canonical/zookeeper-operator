@@ -3,6 +3,8 @@
 # See LICENSE file for licensing details.
 
 import logging
+import secrets
+import string
 import re
 from typing import Dict, List, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
@@ -37,6 +39,12 @@ class UnitNotFoundError(Exception):
 
 class NotUnitTurnError(Exception):
     """A desired unit isn't next in line to start safely."""
+
+    pass
+
+
+class NoPasswordError(Exception):
+    """Required passwords not yet set in the app data."""
 
     pass
 
@@ -221,8 +229,15 @@ class ZooKeeperCluster:
 
         logger.info(f"{active_servers=}")
 
+        super_password, _ = self.passwords
+
         try:
-            zk = ZooKeeperManager(hosts=active_hosts, client_port=self.client_port)
+            zk = ZooKeeperManager(
+                hosts=active_hosts,
+                client_port=self.client_port,
+                username="super",
+                password=super_password,
+            )
             zk_members = zk.server_members
 
             # remove units first, faster due to no startup/sync delay
@@ -294,6 +309,9 @@ class ZooKeeperCluster:
             self.status = MaintenanceStatus("can't find relation data")
             raise UnitNotFoundError("can't find relation data")
 
+        if not self.relation.data[self.charm.app].get("sync_password", None):
+            raise NoPasswordError
+
         # during cluster startup, we want unit id 0 to start as a solo participant
         # if unit 0 fails and restarts after that, we want it to start as a normal unit
         # with all current members
@@ -308,3 +326,23 @@ class ZooKeeperCluster:
         servers = self._generate_units(unit_string=unit_string)
 
         return servers, unit_config
+
+    @staticmethod
+    def generate_password():
+        return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
+
+    @property
+    def passwords(self) -> Tuple[str, str]:
+        super_password = str(self.relation.data[self.charm.app].get("super_password", ""))
+        sync_password = str(self.relation.data[self.charm.app].get("sync_password", ""))
+
+        return super_password, sync_password
+
+    @property
+    def passwords_set(self) -> bool:
+        # checking existance of passwords for non-leader units
+        super_password, sync_password = self.passwords
+        if not super_password or not sync_password:
+            return False
+        else:
+            return True

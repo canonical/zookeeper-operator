@@ -29,6 +29,7 @@ LIBPATCH = 4
 
 
 SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
+AUTH_CONFIG_PATH = f"{SNAP_CONFIG_PATH}/zookeeper-jaas.cfg"
 
 
 class ConfigError(Exception):
@@ -181,3 +182,37 @@ class KafkaSnap:
                 config_map[str(conf.split("=")[0])] = str(conf.split("=")[1].strip())
 
         return config_map
+
+    @staticmethod
+    def set_auth_config(sync_password: str, super_password: str) -> None:
+        """Generate content of the auth ZooKeeper config file"""
+        auth_config = f"""
+            QuorumServer {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                user_sync="{sync_password}";
+            }};
+            QuorumLearner {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                username="sync"
+                password="{sync_password}";
+            }};
+            
+            Server {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                user_super="{super_password}";
+            }};
+        """
+        logger.info(f"{auth_config=}")
+        safe_write_to_file(content=str(auth_config), path=f"{AUTH_CONFIG_PATH}", mode="w")
+
+    def set_kafka_opts(self) -> None:
+        opt_properties = " ".join(
+            [
+                "-Dzookeeper.requireClientAuthScheme=sasl",
+                "-Dzookeeper.superUser=super",
+                f"-Djava.security.auth.login.config={AUTH_CONFIG_PATH}",
+            ]
+        )
+        safe_write_to_file(
+            content=f"KAFKA_OPTS={opt_properties}", path="/etc/environment", mode="a"
+        )

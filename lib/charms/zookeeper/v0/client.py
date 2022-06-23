@@ -31,8 +31,18 @@ class QuorumLeaderNotFoundError(Exception):
 class ZooKeeperManager:
     """Handler for performing ZK commands."""
 
-    def __init__(self, hosts: List[str], client_port: int = 2181, tries=2, retry_delay=3.0):
+    def __init__(
+        self,
+        hosts: List[str],
+        username: str,
+        password: str,
+        client_port: int = 2181,
+        tries=2,
+        retry_delay=3.0,
+    ):
         self.hosts = hosts
+        self.username = username
+        self.password = password
         self.client_port = client_port
         self.leader = ""
         self.tries = tries
@@ -41,7 +51,9 @@ class ZooKeeperManager:
         # iterate through all hosts to find current leader
         for attempt in range(self.tries):
             for host in self.hosts:
-                with ZooKeeperClient(host=host, client_port=client_port) as zk:
+                with ZooKeeperClient(
+                    host=host, client_port=client_port, username=username, password=password
+                ) as zk:
                     response = zk.srvr
                     if response.get("Mode") == "leader":
                         self.leader = host
@@ -61,7 +73,12 @@ class ZooKeeperManager:
             A set of ZK member strings
                 e.g {"server.1=10.141.78.207:2888:3888:participant;0.0.0.0:2181"}
         """
-        with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
             members, _ = zk.config
 
         return set(members)
@@ -73,7 +90,12 @@ class ZooKeeperManager:
         Returns:
             The zookeeper config version decoded from base16
         """
-        with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
             _, version = zk.config
 
         return version
@@ -85,7 +107,12 @@ class ZooKeeperManager:
         Returns:
             True if any members are syncing. Otherwise False.
         """
-        with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
             result = zk.mntr
         if (
             result.get("zk_peer_state", "") == "leading - broadcast"
@@ -108,12 +135,22 @@ class ZooKeeperManager:
             host = member.split("=")[1].split(":")[0]
 
             # individual connections to each server
-            with ZooKeeperClient(host=host, client_port=self.client_port) as zk:
+            with ZooKeeperClient(
+                host=host,
+                client_port=self.client_port,
+                username=self.username,
+                password=self.password,
+            ) as zk:
                 if not zk.is_ready:
                     raise MemberNotReadyError(f"Server is not ready: {host}")
 
             # specific connection to leader
-            with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
+            with ZooKeeperClient(
+                host=self.leader,
+                client_port=self.client_port,
+                username=self.username,
+                password=self.password,
+            ) as zk:
                 zk.client.reconfig(
                     joining=member, leaving=None, new_members=None, from_config=self.config_version
                 )
@@ -129,7 +166,12 @@ class ZooKeeperManager:
 
         for member in members:
             member_id = re.findall(r"server.([1-9]+)", member)[0]
-            with ZooKeeperClient(host=self.leader, client_port=self.client_port) as zk:
+            with ZooKeeperClient(
+                host=self.leader,
+                client_port=self.client_port,
+                username=self.username,
+                password=self.password,
+            ) as zk:
                 zk.client.reconfig(
                     joining=None,
                     leaving=member_id,
@@ -141,10 +183,16 @@ class ZooKeeperManager:
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
 
-    def __init__(self, host, client_port):
+    def __init__(self, host: str, client_port: int, username: str, password: str):
         self.host = host
         self.client_port = client_port
-        self.client = KazooClient(hosts=f"{host}:{client_port}", timeout=5.0)
+        self.username = username
+        self.password = password
+        self.client = KazooClient(
+            hosts=f"{host}:{client_port}",
+            timeout=5.0,
+            sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
+        )
         self.client.start()
 
     def __enter__(self):
