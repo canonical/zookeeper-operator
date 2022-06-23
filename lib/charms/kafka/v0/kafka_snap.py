@@ -9,11 +9,11 @@ config parsing common to both the Kafka and ZooKeeper charms
 """
 
 import logging
+import os
 from typing import Dict, List
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase
 
 logger = logging.getLogger(__name__)
 
@@ -28,18 +28,45 @@ LIBAPI = 0
 LIBPATCH = 4
 
 
+SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
+
+
+class ConfigError(Exception):
+    """Required field is missing from the config."""
+
+    pass
+
+
+def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
+    """Ensures destination filepath exists before writing.
+
+    args:
+        content: The content to be written to a file
+        path: The full destination filepath
+        mode: The write mode. Usually "w" for write, or "a" for append. Default "w"
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, mode) as f:
+        f.write(content)
+
+    return
+
+
 class KafkaSnap:
+    """Wrapper for performing common operations specific to the Kafka Snap."""
+
     def __init__(self) -> None:
-        self.default_config_path = "/snap/kafka/current/opt/kafka/config/"
-        self.snap_config_path = "/var/snap/kafka/common/"
+        self.snap_config_path = SNAP_CONFIG_PATH
         self.kafka = snap.SnapCache()["kafka"]
 
-    def install_kafka_snap(self) -> StatusBase:
+    def install(self) -> bool:
         """Loads the Kafka snap from LP, returning a StatusBase for the Charm to set.
 
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
         Returns:
-            MaintenanceStatus (StatusBase): If snap install was successful
-            BlockedStatus (StatusBase): If snap install failed
+            True if successfully installed. False otherwise.
         """
         try:
             apt.update()
@@ -51,80 +78,106 @@ class KafkaSnap:
                 kafka.ensure(snap.SnapState.Latest, channel="rock/edge")
 
             self.kafka = kafka
-            logger.info("sucessfully installed kafka snap")
-            return MaintenanceStatus("sucessfully installed kafka snap")
-
-        except (snap.SnapError, apt.PackageNotFoundError):
-            return BlockedStatus("failed to install kakfa snap")
+            return True
+        except (snap.SnapError, apt.PackageNotFoundError) as e:
+            logger.error(str(e))
+            return False
 
     def get_kafka_apps(self) -> List:
         """Grabs apps from the snap property.
 
         Returns:
-            list: The apps declared by the installed snap
+            List of apps declared by the installed snap
         """
         apps = self.kafka.apps
 
         return apps
 
-    def start_snap_service(self, snap_service: str) -> StatusBase:
-        """Starts snap service process
+    def start_snap_service(self, snap_service: str) -> bool:
+        """Starts snap service process.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
 
         Args:
-            snap_service (str): The desired service to run on the unit
+            snap_service: The desired service to run on the unit
                 `kafka` or `zookeeper`
+
         Returns:
-            ActiveStatus (StatusBase): If service starts successfully
-            BlockedStatus (StatusBase): If service fails to start
+            True if service successfully starts. False otherwise.
         """
         try:
             self.kafka.start(services=[snap_service])
-            logger.info(f"successfully started snap service: {snap_service}")
-            return ActiveStatus()
+            return True
+            # TODO: check if the service is actually running (i.e not failed silently)
         except snap.SnapError as e:
-            logger.error(e)
-            return BlockedStatus(f"failed starting snap service: {snap_service}")
+            logger.error(str(e))
+            return False
 
-    @staticmethod
-    def get_properties(path: str) -> Dict[str, str]:
+    def write_properties(self, properties: str, property_label: str) -> None:
+        """Writes to the expected config file location for the Kafka Snap.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
+        Args:
+            properties: A multiline string containing the properties to be set
+            property_label: The file prefix for the config file
+                `server` for Kafka, `zookeeper` for ZooKeeper
+            mode: The write mode. Usually "w" for write, or "a" for append. Default "w"
+        """
+
+        # TODO: Check if required properties are not set, update BlockedStatus
+        path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
+        safe_write_to_file(content=properties, path=path)
+
+    def write_zookeeper_myid(self, myid: int, property_label: str = "zookeeper") -> None:
+        """Checks the *.properties file for dataDir, and writes ZooKeeper id to <data-dir>/myid.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
+        Args:
+            myid: The desired ZooKeeper server id
+                Expected to be (unit id + 1) to index from 1
+            property_label: The file prefix for the config file. Default "zookeeper"
+
+        Raises:
+            ConfigError: If the dataDir property is not set in the charm config
+        """
+        properties = self.get_properties(property_label=property_label)
+        try:
+            myid_path = f"{properties['dataDir']}/myid"
+        except KeyError as e:
+            logger.error(str(e))
+            raise ConfigError("dataDir is not set in the config")
+
+        safe_write_to_file(content=str(myid), path=myid_path, mode="w")
+
+    def get_properties(self, property_label: str) -> Dict[str, str]:
         """Grabs active config lines from *.properties.
 
-        Returns:
-            dict: A map of config properties and their values
-        """
-        with open(path, "r") as f:
-            config = f.readlines()
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
 
+        Returns:
+            A mapping of config properties and their values
+
+        Raises:
+            ConfigError: If the properties file cannot be found in the unit
+        """
+        path = f"{SNAP_CONFIG_PATH}/{property_label}.properties"
         config_map = {}
+
+        try:
+            with open(path, "r") as f:
+                config = f.readlines()
+        except FileNotFoundError as e:
+            logger.error(str(e))
+            raise ConfigError(f"missing properties file: {path}")
 
         for conf in config:
             if conf[0] != "#" and not conf.isspace():
-                logger.debug(conf.strip())
-                config_map[conf.split("=")[0]] = conf.split("=")[1].strip()
+                config_map[str(conf.split("=")[0])] = str(conf.split("=")[1].strip())
 
         return config_map
-
-    def get_merged_properties(self, property_label: str) -> str:
-        """Merges snap config overrides with default upstream *.properties.
-
-        Args:
-            property_label (str): The prefix of the desired *.properties file
-                e.g `server` or `zookeeper`
-
-        Returns:
-           str: The merged default and user config
-        """
-
-        default_path = self.default_config_path + f"{property_label}.properties"
-        default_config = self.get_properties(path=default_path)
-
-        override_path = self.snap_config_path + f"{property_label}.properties"
-
-        try:
-            override_config = self.get_properties(path=override_path)
-            final_config = {**default_config, **override_config}
-        except FileNotFoundError:
-            logging.info("no manual config found")
-            final_config = default_config
-
-        return "\n".join([f"{k}={v}" for k, v in final_config.items()])

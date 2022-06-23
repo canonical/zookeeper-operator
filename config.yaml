@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+options:
+  zookeeper-properties:
+    description: zookeeper.properties configuration file.
+    type: string
+    default: |
+      clientPort=2181
+      dataDir=/var/snap/kafka/common/data
+      dataLogDir=/var/snap/kafka/common/log
+      dynamicConfigFile=/var/snap/kafka/common/zookeeper-dynamic.properties
+      tickTime=2000
+      initLimit=5
+      syncLimit=2
+      maxClientCnxns=60
+      minSessionTimeout=4000
+      maxSessionTimeout=40000
+      autopurge.snapRetainCount=3
+      autopurge.purgeInterval=0
+      reconfigEnabled=true
+      standaloneEnabled=false
+      skipACL=yes
+      4lw.commands.whitelist=*
