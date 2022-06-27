@@ -130,9 +130,6 @@ class ZooKeeperCharm(CharmBase):
         if not self.unit.is_leader():
             return
 
-        if getattr(event, "departing_unit", None) == self.unit:
-            return
-
         # units need to exist in the app data to be iterated through for next_turn
         for unit in self.cluster.started_units:
             unit_id = self.cluster.get_unit_id(unit)

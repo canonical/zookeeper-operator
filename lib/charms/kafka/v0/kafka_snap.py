@@ -202,7 +202,6 @@ class KafkaSnap:
                 user_super="{super_password}";
             }};
         """
-        logger.info(f"{auth_config=}")
         safe_write_to_file(content=str(auth_config), path=f"{AUTH_CONFIG_PATH}", mode="w")
 
     def set_kafka_opts(self) -> None:
