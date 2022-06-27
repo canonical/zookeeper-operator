@@ -57,16 +57,16 @@ class ZooKeeperManager:
                         if response.get("Mode") == "leader":
                             self.leader = host
                             break
-                except KazooTimeoutError:
-                    logger.info(f"TIMEOUT - {host}")
+                except KazooTimeoutError:  # in the case of having a dead unit in relation data
+                    logger.debug(f"TIMEOUT - {host}")
                     continue
             if not self.leader:
-                logger.info(f"RETRYING - quorum leader not found")
-                time.sleep(3)
+                logger.debug(f"RETRYING - quorum leader not found")
+                time.sleep(3)  # hacky sleep to give enough time for leadership to change
                 continue
 
         if not self.leader:
-            raise QuorumLeaderNotFoundError("quorum leader not found, probably not ready yet")
+            raise QuorumLeaderNotFoundError("quorum leader not found")
 
     @property
     def server_members(self) -> Set[str]:
@@ -136,7 +136,7 @@ class ZooKeeperManager:
 
         for member in members:
             host = member.split("=")[1].split(":")[0]
-            
+
             try:
                 # individual connections to each server
                 with ZooKeeperClient(
@@ -147,7 +147,7 @@ class ZooKeeperManager:
                 ) as zk:
                     if not zk.is_ready:
                         raise MemberNotReadyError(f"Server is not ready: {host}")
-            except KazooTimeoutError as e:
+            except KazooTimeoutError as e:  # for when units are departing
                 logger.warning(str(e))
                 continue
 

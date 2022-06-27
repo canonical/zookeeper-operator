@@ -5,6 +5,7 @@
 """Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
+import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.zookeeper.v0.cluster import (
@@ -88,7 +89,6 @@ class ZooKeeperCharm(CharmBase):
                 )
 
         if not self.cluster.passwords_set:
-            logger.info("passwords not yet set, deferring")
             event.defer()
             return
 
@@ -99,8 +99,8 @@ class ZooKeeperCharm(CharmBase):
             servers, unit_config = self.cluster.ready_to_start(self.unit)
         except (NotUnitTurnError, UnitNotFoundError, NoPasswordError) as e:
             logger.info(str(e))
-            # defaults to MaintenanceStatus
             self.unit.status = self.cluster.status
+            time.sleep(2)  # accounts for when defers are used up before leader updates config
             event.defer()
             return
 
@@ -130,6 +130,10 @@ class ZooKeeperCharm(CharmBase):
         if not self.unit.is_leader():
             return
 
+        # ensures leader doesn't remove all units upon departure
+        if getattr(event, "departing_unit", None) == self.unit:
+            return
+
         # units need to exist in the app data to be iterated through for next_turn
         for unit in self.cluster.started_units:
             unit_id = self.cluster.get_unit_id(unit)
@@ -143,13 +147,11 @@ class ZooKeeperCharm(CharmBase):
                 )
 
         if not self.cluster.passwords_set:
-            logger.info("passwords not yet set, deferring")
             event.defer()
             return
 
         # adds + removes members for all self-confirmed started units
         updated_servers = self.cluster.update_cluster()
-        logger.debug(f"{updated_servers=}")
 
         # either Active if successful, else Maintenance
         self.unit.status = self.cluster.status

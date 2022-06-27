@@ -3,88 +3,18 @@
 # See LICENSE file for licensing details.
 
 import logging
+import time
 from pathlib import Path
 
-import re
-import time
-from kazoo.client import KazooClient
-from typing import Dict
 import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
-from subprocess import PIPE, check_output
+from scaling_helpers import check_key, get_password, restart_unit, srvr, write_key
 
 logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
-
-
-def get_password(model_full_name):
-    show_unit = check_output(
-        f"JUJU_MODEL={model_full_name} juju show-unit {APP_NAME}/0",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    response = yaml.safe_load(show_unit)
-    password = response[f"{APP_NAME}/0"]["relation-info"][0]["application-data"]["super_password"]
-    logger.info(f"{password=}")
-    return password
-
-
-def restart_unit(model_full_name: str, unit: str):
-    check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh {unit} -i sudo snap stop kafka.zookeeper",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    time.sleep(10)
-    check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh {unit} -i sudo snap start kafka.zookeeper",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-
-
-def write_key(host: str, password: str, username: str = "super"):
-    kc = KazooClient(
-        hosts=host,
-        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
-    )
-    kc.start()
-    kc.create_async("/legolas", b"hobbits")
-    kc.stop()
-    kc.close()
-
-
-def check_key(host: str, password: str, username: str = "super"):
-    kc = KazooClient(
-        hosts=host,
-        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
-    )
-    kc.start()
-    assert kc.exists_async("/legolas")
-    value, _ = kc.get_async("/legolas") or None, None
-    assert value.get()[0] == b"hobbits"
-    kc.stop()
-    kc.close()
-
-
-def srvr(host: str) -> Dict:
-    response = check_output(
-        f"echo srvr | nc {host} 2181", stderr=PIPE, shell=True, universal_newlines=True
-    )
-
-    result = {}
-    for item in response.splitlines():
-        k = re.split(": ", item)[0]
-        v = re.split(": ", item)[1]
-        result[k] = v
-
-    return result
 
 
 async def ping_servers(ops_test: OpsTest):
@@ -132,7 +62,7 @@ async def test_scale_up_replication(ops_test: OpsTest):
     await ping_servers(ops_test)
     host = ops_test.model.applications[APP_NAME].units[0].public_address
     model_full_name = ops_test.model_full_name
-    password = get_password(model_full_name)
+    password = get_password(model_full_name or "")
     write_key(host=host, password=password)
     await ops_test.model.applications[APP_NAME].add_units(count=1)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
@@ -183,6 +113,7 @@ async def test_kill_juju_leader_restart(ops_test: OpsTest):
         model_full_name = ops_test.model_full_name
         if model_full_name:
             restart_unit(model_full_name=model_full_name, unit=leader)
+            time.sleep(10)
             await ping_servers(ops_test)
         else:
             raise
