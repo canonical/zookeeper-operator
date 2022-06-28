@@ -137,7 +137,7 @@ class ZooKeeperCluster:
 
     @staticmethod
     def get_unit_id(unit: Unit) -> int:
-        """Grabs the unit's ID as definied by Juju.
+        """Grabs the unit's ID as defined by Juju.
 
         Args:
             unit: The target `Unit`
@@ -236,7 +236,7 @@ class ZooKeeperCluster:
         return updated_servers
 
     def update_cluster(self) -> Dict[str, str]:
-        """Adds and removes members from the current ZK quroum.
+        """Adds and removes members from the current ZK quorum.
 
         To be ran by the Juju leader.
 

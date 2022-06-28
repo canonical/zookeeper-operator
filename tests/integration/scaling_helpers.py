@@ -82,6 +82,11 @@ def check_key(host: str, password: str, username: str = "super") -> None:
 
 
 def srvr(host: str) -> Dict:
+    """Retrieves attributes returned from the 'srvr' 4lw command.
+
+    Specifically for this test, we are interested in the "Mode" of the ZK server,
+    which allows checking quorum leadership and follower active status.
+    """
     response = check_output(
         f"echo srvr | nc {host} 2181", stderr=PIPE, shell=True, universal_newlines=True
     )

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
-from scaling_helpers import check_key, get_password, restart_unit, srvr, write_key
+from tests.integration.scaling_helpers import check_key, get_password, restart_unit, srvr, write_key
 
 logger = logging.getLogger(__name__)
 

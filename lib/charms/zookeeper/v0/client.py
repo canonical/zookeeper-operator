@@ -1,9 +1,12 @@
 import logging
 import re
-import time
 from typing import Any, Dict, Iterable, List, Set, Tuple
 from kazoo.client import KazooClient
 from kazoo.handlers.threading import KazooTimeoutError
+from tenacity import RetryError, retry
+from tenacity.retry import retry_if_not_result
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -45,28 +48,46 @@ class ZooKeeperManager:
         self.client_port = client_port
         self.leader = ""
 
-        # iterate through all hosts to find current leader
-        retries = 2
-        for _ in range(retries):
-            for host in self.hosts:
-                try:
-                    with ZooKeeperClient(
-                        host=host, client_port=client_port, username=username, password=password
-                    ) as zk:
-                        response = zk.srvr
-                        if response.get("Mode") == "leader":
-                            self.leader = host
-                            break
-                except KazooTimeoutError:  # in the case of having a dead unit in relation data
-                    logger.debug(f"TIMEOUT - {host}")
-                    continue
-            if not self.leader:
-                logger.debug(f"RETRYING - quorum leader not found")
-                time.sleep(3)  # hacky sleep to give enough time for leadership to change
+        try:
+            self.leader = self.get_leader()
+        except RetryError:
+            raise QuorumLeaderNotFoundError("quorum leader not found")
+
+    @retry(
+        wait=wait_fixed(3),
+        stop=stop_after_attempt(2),
+        retry=retry_if_not_result(lambda result: True if result else False),
+    )
+    def get_leader(self) -> str:
+        """Attempts to find the current ZK quorum leader.
+
+        In the case when there is a leadership election, this may fail.
+        When this happens, we attempt 1 retry after 3 seconds.
+
+        Returns:
+            String of the host for the quorum leader
+
+        Raises:
+            tenacity.RetryError: if the leader can't be found during the retry conditions
+        """
+        leader = None
+        for host in self.hosts:
+            try:
+                with ZooKeeperClient(
+                    host=host,
+                    client_port=self.client_port,
+                    username=self.username,
+                    password=self.password,
+                ) as zk:
+                    response = zk.srvr
+                    if response.get("Mode") == "leader":
+                        leader = host
+                        break
+            except KazooTimeoutError:  # in the case of having a dead unit in relation data
+                logger.debug(f"TIMEOUT - {host}")
                 continue
 
-        if not self.leader:
-            raise QuorumLeaderNotFoundError("quorum leader not found")
+        return leader or ""
 
     @property
     def server_members(self) -> Set[str]:
@@ -213,7 +234,7 @@ class ZooKeeperClient:
 
     @property
     def config(self) -> Tuple[List[str], int]:
-        """Retreives the dynamic config for a ZooKeeper service.
+        """Retrieves the dynamic config for a ZooKeeper service.
 
         Returns:
             Tuple of the decoded config list, and decoded config version
@@ -229,7 +250,7 @@ class ZooKeeperClient:
 
     @property
     def srvr(self) -> Dict[str, Any]:
-        """Retreives attributes returned from the 'srvr' 4lw command.
+        """Retrieves attributes returned from the 'srvr' 4lw command.
 
         Returns:
             Mapping of field and setting returned from `mntr`
@@ -246,7 +267,7 @@ class ZooKeeperClient:
 
     @property
     def mntr(self) -> Dict[str, Any]:
-        """Retreives attributes returned from the 'mntr' 4lw command.
+        """Retrieves attributes returned from the 'mntr' 4lw command.
 
         Returns:
             Mapping of field and setting returned from `mntr`
