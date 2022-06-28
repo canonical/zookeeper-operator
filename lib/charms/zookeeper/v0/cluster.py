@@ -103,9 +103,41 @@ class ZooKeeperCluster:
 
         return started_units
 
+    @property
+    def active_hosts(self) -> List[str]:
+        """Grabs all the hosts of the started units.
+
+        Returns:
+            List of hosts for started units
+        """
+        active_hosts = []
+        # grabs all currently 'started' units from unit data
+        # failed units will be absent
+        for unit in self.started_units:
+            config = self.unit_config(unit=unit)
+            active_hosts.append(config["host"])
+
+        return active_hosts
+
+    @property
+    def active_servers(self) -> Set[str]:
+        """Grabs all the server strings of the started units.
+
+        Returns:
+            List of ZK server strings for started units
+        """
+        active_servers = set()
+        # grabs all currently 'started' units from unit data
+        # failed units will be absent
+        for unit in self.started_units:
+            config = self.unit_config(unit=unit)
+            active_servers.add(config["server_string"])
+
+        return active_servers
+
     @staticmethod
     def get_unit_id(unit: Unit) -> int:
-        """Grabs the unit's ID as definied by Juju.
+        """Grabs the unit's ID as defined by Juju.
 
         Args:
             unit: The target `Unit`
@@ -204,7 +236,7 @@ class ZooKeeperCluster:
         return updated_servers
 
     def update_cluster(self) -> Dict[str, str]:
-        """Adds and removes members from the current ZK quroum.
+        """Adds and removes members from the current ZK quorum.
 
         To be ran by the Juju leader.
 
@@ -217,35 +249,24 @@ class ZooKeeperCluster:
             To be used in updating the app data
                 e.g {"0": "added", "1": "removed"}
         """
-        active_hosts = []
-        active_servers = set()
-
-        # grabs all currently 'started' units from unit data
-        # failed units will be absent
-        for unit in self.started_units:
-            config = self.unit_config(unit=unit)
-            active_hosts.append(config["host"])
-            active_servers.add(config["server_string"])
-
-        logger.info(f"{active_servers=}")
-
         super_password, _ = self.passwords
 
         try:
             zk = ZooKeeperManager(
-                hosts=active_hosts,
+                hosts=self.active_hosts,
                 client_port=self.client_port,
                 username="super",
                 password=super_password,
             )
-            zk_members = zk.server_members
 
             # remove units first, faster due to no startup/sync delay
-            servers_to_remove = list(zk_members - active_servers)
+            zk_members = zk.server_members
+            servers_to_remove = list(zk_members - self.active_servers)
             zk.remove_members(members=servers_to_remove)
 
             # sorting units to ensure units are added in id order
-            servers_to_add = sorted(active_servers - zk_members)
+            zk_members = zk.server_members
+            servers_to_add = sorted(self.active_servers - zk_members)
             zk.add_members(members=servers_to_add)
 
             self.status = ActiveStatus()
@@ -262,7 +283,7 @@ class ZooKeeperCluster:
             KazooTimeoutError,
             UnitNotFoundError,
         ) as e:
-            logger.info(str(e))
+            logger.warning(str(e))
             self.status = MaintenanceStatus(str(e))
             return {}
 
@@ -303,12 +324,6 @@ class ZooKeeperCluster:
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        # double-checks all units are in the relation data
-        total_units = len(self.peer_units)
-        if total_units < int(unit_id):
-            self.status = MaintenanceStatus("can't find relation data")
-            raise UnitNotFoundError("can't find relation data")
-
         if not self.relation.data[self.charm.app].get("sync_password", None):
             raise NoPasswordError
 
@@ -329,10 +344,20 @@ class ZooKeeperCluster:
 
     @staticmethod
     def generate_password():
+        """Creates randomized string for use as app passwords.
+
+        Returns:
+            String of 32 randomized letter+digit characters
+        """
         return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
 
     @property
     def passwords(self) -> Tuple[str, str]:
+        """Gets the current super+sync passwords from the app relation data.
+
+        Returns:
+            Tuple of super_password, sync_password
+        """
         super_password = str(self.relation.data[self.charm.app].get("super_password", ""))
         sync_password = str(self.relation.data[self.charm.app].get("sync_password", ""))
 
@@ -340,7 +365,11 @@ class ZooKeeperCluster:
 
     @property
     def passwords_set(self) -> bool:
-        # checking existance of passwords for non-leader units
+        """Checks that the two desired passwords are in the app relation data.
+
+        Returns:
+            True if both passwords have been set. Otherwise False
+        """
         super_password, sync_password = self.passwords
         if not super_password or not sync_password:
             return False

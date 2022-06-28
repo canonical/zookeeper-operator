@@ -1,8 +1,12 @@
 import logging
 import re
-import time
 from typing import Any, Dict, Iterable, List, Set, Tuple
 from kazoo.client import KazooClient
+from kazoo.handlers.threading import KazooTimeoutError
+from tenacity import RetryError, retry
+from tenacity.retry import retry_if_not_result
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -37,33 +41,53 @@ class ZooKeeperManager:
         username: str,
         password: str,
         client_port: int = 2181,
-        tries=2,
-        retry_delay=3.0,
     ):
         self.hosts = hosts
         self.username = username
         self.password = password
         self.client_port = client_port
         self.leader = ""
-        self.tries = tries
-        self.retry_delay = retry_delay
 
-        # iterate through all hosts to find current leader
-        for attempt in range(self.tries):
-            for host in self.hosts:
+        try:
+            self.leader = self.get_leader()
+        except RetryError:
+            raise QuorumLeaderNotFoundError("quorum leader not found")
+
+    @retry(
+        wait=wait_fixed(3),
+        stop=stop_after_attempt(2),
+        retry=retry_if_not_result(lambda result: True if result else False),
+    )
+    def get_leader(self) -> str:
+        """Attempts to find the current ZK quorum leader.
+
+        In the case when there is a leadership election, this may fail.
+        When this happens, we attempt 1 retry after 3 seconds.
+
+        Returns:
+            String of the host for the quorum leader
+
+        Raises:
+            tenacity.RetryError: if the leader can't be found during the retry conditions
+        """
+        leader = None
+        for host in self.hosts:
+            try:
                 with ZooKeeperClient(
-                    host=host, client_port=client_port, username=username, password=password
+                    host=host,
+                    client_port=self.client_port,
+                    username=self.username,
+                    password=self.password,
                 ) as zk:
                     response = zk.srvr
                     if response.get("Mode") == "leader":
-                        self.leader = host
-            if not self.leader or attempt < self.tries:
-                time.sleep(self.retry_delay)
+                        leader = host
+                        break
+            except KazooTimeoutError:  # in the case of having a dead unit in relation data
+                logger.debug(f"TIMEOUT - {host}")
                 continue
-            break
 
-        if not self.leader:
-            raise QuorumLeaderNotFoundError("quorum leader not found, probably not ready yet")
+        return leader or ""
 
     @property
     def server_members(self) -> Set[str]:
@@ -134,15 +158,19 @@ class ZooKeeperManager:
         for member in members:
             host = member.split("=")[1].split(":")[0]
 
-            # individual connections to each server
-            with ZooKeeperClient(
-                host=host,
-                client_port=self.client_port,
-                username=self.username,
-                password=self.password,
-            ) as zk:
-                if not zk.is_ready:
-                    raise MemberNotReadyError(f"Server is not ready: {host}")
+            try:
+                # individual connections to each server
+                with ZooKeeperClient(
+                    host=host,
+                    client_port=self.client_port,
+                    username=self.username,
+                    password=self.password,
+                ) as zk:
+                    if not zk.is_ready:
+                        raise MemberNotReadyError(f"Server is not ready: {host}")
+            except KazooTimeoutError as e:  # for when units are departing
+                logger.warning(str(e))
+                continue
 
             # specific connection to leader
             with ZooKeeperClient(
@@ -190,7 +218,7 @@ class ZooKeeperClient:
         self.password = password
         self.client = KazooClient(
             hosts=f"{host}:{client_port}",
-            timeout=5.0,
+            timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
         )
         self.client.start()
@@ -206,7 +234,7 @@ class ZooKeeperClient:
 
     @property
     def config(self) -> Tuple[List[str], int]:
-        """Retreives the dynamic config for a ZooKeeper service.
+        """Retrieves the dynamic config for a ZooKeeper service.
 
         Returns:
             Tuple of the decoded config list, and decoded config version
@@ -222,7 +250,7 @@ class ZooKeeperClient:
 
     @property
     def srvr(self) -> Dict[str, Any]:
-        """Retreives attributes returned from the 'srvr' 4lw command.
+        """Retrieves attributes returned from the 'srvr' 4lw command.
 
         Returns:
             Mapping of field and setting returned from `mntr`
@@ -239,7 +267,7 @@ class ZooKeeperClient:
 
     @property
     def mntr(self) -> Dict[str, Any]:
-        """Retreives attributes returned from the 'mntr' 4lw command.
+        """Retrieves attributes returned from the 'mntr' 4lw command.
 
         Returns:
             Mapping of field and setting returned from `mntr`

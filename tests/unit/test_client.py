@@ -120,15 +120,13 @@ class TestManager(unittest.TestCase):
     @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
     @patch.object(DummyClient, "reconfig")
     def test_add_members_runs_on_leader(self, _, client):
-        zk = ZooKeeperManager(
-            hosts=["server.1=bilbo.baggins"], tries=1, retry_delay=0.1, username="", password=""
-        )
+        zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
         zk.leader = "leader"
         zk.add_members(["server.2=sam.gamgee"])
 
         client.assert_called_with(
             hosts="leader:2181",
-            timeout=5.0,
+            timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
         )
 
@@ -157,6 +155,6 @@ class TestManager(unittest.TestCase):
 
         client.assert_called_with(
             hosts="leader:2181",
-            timeout=5.0,
+            timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
         )
