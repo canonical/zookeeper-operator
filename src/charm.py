@@ -35,6 +35,7 @@ class ZooKeeperCharm(CharmBase):
         self.name = CHARM_KEY
         self.snap = KafkaSnap()
         self.cluster = ZooKeeperCluster(self)
+        self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._on_start)
@@ -110,8 +111,8 @@ class ZooKeeperCharm(CharmBase):
 
         # KAFKA_OPTS env var gets loaded on snap start
         super_password, sync_password = self.cluster.passwords
-        self.snap.set_auth_config(sync_password=sync_password, super_password=super_password)
-        self.snap.set_kafka_opts()
+        self.snap.set_zookeeper_auth_config(sync_password=sync_password, super_password=super_password)
+        self.snap.set_zookeeper_kafka_opts()
 
         self.snap.start_snap_service(snap_service=CHARM_KEY)
         self.unit.status = ActiveStatus()

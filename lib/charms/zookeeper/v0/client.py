@@ -297,7 +297,7 @@ class ZooKeeperClient:
         if self.client.connected:
             return "broadcast" in self.mntr.get("zk_peer_state", "")
         return False
-    
+
     def get_all_znode_children(self, path: str) -> Set[str]:
         """Recursively gets all children for a given parent znode path.
 
@@ -322,7 +322,7 @@ class ZooKeeperClient:
         """Drop znode and all it's children from ZK tree.
 
         Args:
-            path: the desired znode path to delete 
+            path: the desired znode path to delete
         """
         if not self.client.exists(path):
             return
@@ -330,7 +330,7 @@ class ZooKeeperClient:
 
     def create_znode(self, path: str, acls: List[ACL]) -> None:
         """Create new znode.
-        
+
         Args:
             path: the desired znode path to create
             acls: the acls for the new znode
@@ -347,7 +347,7 @@ class ZooKeeperClient:
             List of the acls set for the given znode
         """
         acl_list = self.client.get_acls(path)
-        
+
         return acl_list if acl_list else []
 
     def set_acls(self, path: str, acls: List[ACL]) -> None:
@@ -359,8 +359,3 @@ class ZooKeeperClient:
         """
         # TODO: bug maybe
         self.client.set_acls(path, acls)
-
-
-
-
-

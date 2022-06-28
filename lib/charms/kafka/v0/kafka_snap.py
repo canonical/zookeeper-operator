@@ -184,7 +184,7 @@ class KafkaSnap:
         return config_map
 
     @staticmethod
-    def set_auth_config(sync_password: str, super_password: str) -> None:
+    def set_zookeeper_auth_config(sync_password: str, super_password: str) -> None:
         """Sets the content of the auth ZooKeeper JAAS file with passwords on the unit."""
         auth_config = f"""
             QuorumServer {{
@@ -204,7 +204,7 @@ class KafkaSnap:
         """
         safe_write_to_file(content=str(auth_config), path=f"{AUTH_CONFIG_PATH}", mode="w")
 
-    def set_kafka_opts(self) -> None:
+    def set_zookeeper_kafka_opts(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         opt_properties = " ".join(
             [
