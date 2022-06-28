@@ -18,6 +18,7 @@ from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
+from charms.rolling_ops.v0.rollingops import RollingOpsManager
 
 logger = logging.getLogger(__name__)
 
