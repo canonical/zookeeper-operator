@@ -8,6 +8,7 @@ import logging
 import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
+from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.cluster import (
     NoPasswordError,
     NotUnitTurnError,
@@ -18,7 +19,6 @@ from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
-from charms.rolling_ops.v0.rollingops import RollingOpsManager
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,9 @@ class ZooKeeperCharm(CharmBase):
 
         # KAFKA_OPTS env var gets loaded on snap start
         super_password, sync_password = self.cluster.passwords
-        self.snap.set_zookeeper_auth_config(sync_password=sync_password, super_password=super_password)
+        self.snap.set_zookeeper_auth_config(
+            sync_password=sync_password, super_password=super_password
+        )
         self.snap.set_zookeeper_kafka_opts()
 
         self.snap.start_snap_service(snap_service=CHARM_KEY)

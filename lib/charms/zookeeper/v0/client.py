@@ -1,5 +1,4 @@
 import logging
-from os import pathsep
 import re
 from typing import Any, Dict, Iterable, List, Set, Tuple
 from kazoo.client import KazooClient
@@ -209,6 +208,44 @@ class ZooKeeperManager:
                     from_config=self.config_version,
                 )
 
+    def leader_znodes(self, path: str) -> Set[str]:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            all_znode_children = zk.get_all_znode_children(path=path)
+
+        return all_znode_children
+
+    def create_znode_leader(self, path: str, acls: List[ACL]) -> None:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            zk.create_znode(path=path, acls=acls)
+
+    def set_acls_znode_leader(self, path: str, acls: List[ACL]) -> None:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            zk.set_acls(path=path, acls=acls)
+
+    def delete_znode_leader(self, path: str) -> None:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            zk.delete_znode(path=path)
+
 
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
@@ -357,5 +394,4 @@ class ZooKeeperClient:
             path: the desired znode path
             acls: the acls to set to the given znode
         """
-        # TODO: bug maybe
         self.client.set_acls(path, acls)
