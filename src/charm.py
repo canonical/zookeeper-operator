@@ -20,6 +20,8 @@ from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
+from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +38,7 @@ class ZooKeeperCharm(CharmBase):
         self.snap = KafkaSnap()
         self.cluster = ZooKeeperCluster(self)
         self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
+        self.client_relation = ZooKeeperProvider(self)
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._on_start)

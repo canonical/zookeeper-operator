@@ -6,7 +6,7 @@ import logging
 import secrets
 import string
 import re
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 

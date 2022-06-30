@@ -11,8 +11,13 @@ from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import Object
 from ops.model import MaintenanceStatus, Relation
 
-from charms.zookeeper.v0.client import MemberNotReadyError, MembersSyncingError, QuorumLeaderNotFoundError, ZooKeeperManager
-from charms.zookeeper.v0.cluster import UnitNotFoundError
+from charms.zookeeper.v0.client import (
+    MemberNotReadyError,
+    MembersSyncingError,
+    QuorumLeaderNotFoundError,
+    ZooKeeperManager,
+)
+from charms.zookeeper.v0.cluster import UnitNotFoundError, ZooKeeperCluster
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +42,24 @@ class ZooKeeperProvider(Object):
         )
 
     @property
-    def app_relation(self):
+    def app_relation(self) -> Relation:
         """Gets the current ZK peer relation."""
         return self.charm.model.get_relation(PEER)
 
     @property
-    def client_relations(self):
+    def client_relations(self) -> List[Relation]:
         """Gets the relations for all related client applications."""
-        return self.model.relations[REL_NAME]
+        return self.charm.model.relations[REL_NAME]
 
-    def relation_config(self, relation: Relation, event: Optional[RelationEvent] = None) -> Optional[Dict[str, str]]:
+    def relation_config(
+        self, relation: Relation, event: Optional[RelationEvent] = None
+    ) -> Optional[Dict[str, str]]:
         """Gets the auth config for a currently related application."""
 
         # If RelationBrokenEvent, skip, we don't want it in the live-data
         if isinstance(event, RelationBrokenEvent):
             return None
-        
+
         # generating username
         relation_id = relation.id
         username = f"relation-{relation_id}"
@@ -84,7 +91,7 @@ class ZooKeeperProvider(Object):
 
         for relation in self.client_relations:
             config = self.relation_config(relation=relation, event=event)
-    
+
             # in the case of RelationBroken or unset chroot
             if not config:
                 continue
@@ -98,7 +105,7 @@ class ZooKeeperProvider(Object):
         """Gets ACLs for all currently related applications."""
         acls = defaultdict(list)
 
-        for _, relation_config in self.relations_config.items():
+        for _, relation_config in self.relations_config().items():
             chroot = relation_config["chroot"]
             generated_acl = make_acl(
                 scheme="sasl",
@@ -112,9 +119,11 @@ class ZooKeeperProvider(Object):
 
             acls[chroot].append(generated_acl)
 
-        return acls
+        return dict(acls)
 
-    def relations_config_values_for_key(self, key: str, event: Optional[RelationEvent] = None) -> Set[str]:
+    def relations_config_values_for_key(
+        self, key: str, event: Optional[RelationEvent] = None
+    ) -> Set[str]:
         """Grabs a specific auth config value from all related applications."""
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
@@ -134,7 +143,7 @@ class ZooKeeperProvider(Object):
         acls = self.build_acls()
         logger.info(f"{acls=}")
 
-        # Looks for newly related applications not in config yet 
+        # Looks for newly related applications not in config yet
         for chroot in relation_chroots - leader_chroots:
             logger.info(f"CREATE CHROOT - {chroot}")
             zk.create_znode_leader(chroot, acls[chroot])
@@ -146,14 +155,30 @@ class ZooKeeperProvider(Object):
 
         # Looks for applications no longer in the relation but still in config
         for chroot in leader_chroots - relation_chroots:
-            # TODO: is_child_of
-            logger.info(f"DROP CHROOT - {chroot}")
-            zk.delete_znode_leader(chroot)
+            if not self._is_child_of(chroot, relation_chroots):
+                logger.info(f"DROP CHROOT - {chroot}")
+                zk.delete_znode_leader(chroot)
+
+    @staticmethod
+    def _is_child_of(path: str, chroots: Set[str]) -> bool:
+        for chroot in chroots:
+            if path.startswith(chroot.rstrip("/") + "/"):
+                return True
+
+        return False
+
+    @staticmethod
+    def build_uris(active_hosts: Set[str], chroot: str, client_port: int = 2181) -> List[str]:
+        uris = []
+        for host in active_hosts:
+            uris.append(f"{host}:{client_port}{chroot}")
+
+        return uris
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
         if not self.charm.unit.is_leader():
             return
-        
+
         try:
             self.update_acls()
         except (
@@ -167,11 +192,28 @@ class ZooKeeperProvider(Object):
             self.charm.unit.status = MaintenanceStatus(str(e))
             return
 
-        for relation_id, config in self.relations_config(event=event).items():
-            self.client_relations.data[REL_NAME, relation_id].update(config)
-            # TODO: generate password
-            # TODO: add uris, endpoints
-            # TODO: confirm passwords setting
+        return
+
+    def apply_relation_data(self) -> None:
+        relations_config = self.relations_config()
+
+        for relation_id, config in relations_config.items():
+            hosts = self.charm.cluster.active_hosts
+
+            relation_data = {}
+            relation_data["username"] = config["username"]
+            relation_data["password"] = config["password"] or ZooKeeperCluster.generate_password()
+            relation_data["chroot"] = config["chroot"]
+            relation_data["endpoints"] = ",".join(list(hosts))
+            relation_data["uris"] = ",".join(
+                [f"{host}:{self.charm.cluster.client_port}{config['chroot']}" for host in hosts]
+            )
+
+            self.app_relation.data[self.charm.app].update({config["username"]: config["password"]})
+
+            self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
+                relation_data
+            )
 
     def _on_client_relation_broken(self, event: RelationBrokenEvent):
         if not self.charm.unit.is_leader():
@@ -185,6 +227,6 @@ class ZooKeeperProvider(Object):
         if username in self.charm.cluster.relation.data[self.charm.app]:
             logger.info(f"DELETING - {username}")
             del self.charm.cluster.relation.data[self.charm.app][username]
-        
+
         # call normal updated handler
         self._on_client_relation_updated(event=event)
