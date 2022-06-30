@@ -41,15 +41,6 @@ class TestCluster(unittest.TestCase):
         self.harness.add_relation("database", "application")
         self.harness.begin_with_initial_hooks()
 
-    def print_relation_data(self):
-        print("\n")
-        print(f"{self.harness.charm.client_relation.app_relation=}")
-        print(f"{self.harness.charm.client_relation.client_relations=}")
-        print(f"{self.harness.charm.cluster.relation.data[self.harness.charm.app]=}")
-        print("\n")
-        print(f"{self.provider.client_relations=}")
-        print(f"{self.provider.app_relation=}")
-
     @property
     def provider(self):
         return self.harness.charm.client_relation
