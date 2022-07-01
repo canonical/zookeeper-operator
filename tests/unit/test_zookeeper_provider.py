@@ -2,15 +2,15 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import logging
 import re
 import unittest
-from ops.charm import CharmBase, RelationBrokenEvent
-from charms.zookeeper.v0.cluster import ZooKeeperCluster
-from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
-from ops.testing import Harness
-import logging
 
 import ops.testing
+from charms.zookeeper.v0.cluster import ZooKeeperCluster
+from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
+from ops.charm import CharmBase, RelationBrokenEvent
+from ops.testing import Harness
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -234,7 +234,7 @@ class TestCluster(unittest.TestCase):
         usernames = []
         for relation in self.provider.client_relations:
 
-            # checking existance of all necessary keys
+            # checking existence of all necessary keys
             self.assertEqual(
                 sorted(relation.data[self.harness.charm.app].keys()),
                 ["chroot", "endpoints", "password", "uris", "username"],

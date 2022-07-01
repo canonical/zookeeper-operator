@@ -115,6 +115,27 @@ class KafkaSnap:
             logger.error(str(e))
             return False
 
+    def restart_snap_service(self, snap_service: str) -> bool:
+        """Restarts snap service process.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
+        Args:
+            snap_service: The desired service to run on the unit
+                `kafka` or `zookeeper`
+
+        Returns:
+            True if service successfully restarts. False otherwise.
+        """
+        try:
+            self.kafka.restart(services=[snap_service])
+            return True
+            # TODO: check if the service is actually running (i.e not failed silently)
+        except snap.SnapError as e:
+            logger.error(str(e))
+            return False
+
     def write_properties(self, properties: str, property_label: str) -> None:
         """Writes to the expected config file location for the Kafka Snap.
 
@@ -184,7 +205,7 @@ class KafkaSnap:
         return config_map
 
     @staticmethod
-    def set_zookeeper_auth_config(sync_password: str, super_password: str) -> None:
+    def set_zookeeper_auth_config(sync_password: str, super_password: str, users: str) -> None:
         """Sets the content of the auth ZooKeeper JAAS file with passwords on the unit."""
         auth_config = f"""
             QuorumServer {{

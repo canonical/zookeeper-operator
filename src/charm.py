@@ -15,12 +15,11 @@ from charms.zookeeper.v0.cluster import (
     UnitNotFoundError,
     ZooKeeperCluster,
 )
+from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
-
-from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
 
 logger = logging.getLogger(__name__)
 

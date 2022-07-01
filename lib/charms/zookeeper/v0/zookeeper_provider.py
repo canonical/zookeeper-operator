@@ -54,7 +54,18 @@ class ZooKeeperProvider(Object):
     def relation_config(
         self, relation: Relation, event: Optional[RelationEvent] = None
     ) -> Optional[Dict[str, str]]:
-        """Gets the auth config for a currently related application."""
+        """Gets the auth config for a currently related application.
+
+        Args:
+            relation: the relation you want to build config for
+            event (optional): the corresponding event.
+                If passed and is `RelationBrokenEvent`, will skip and return `None`
+
+        Returns:
+            Dict containing relation `username`, `password`, `chroot` and `acl`
+
+            `None` if `RelationBrokenEvent` is passed as event
+        """
 
         # If RelationBrokenEvent, skip, we don't want it in the live-data
         if isinstance(event, RelationBrokenEvent):
@@ -86,7 +97,15 @@ class ZooKeeperProvider(Object):
         return {"username": username, "password": password, "chroot": chroot, "acl": acl}
 
     def relations_config(self, event: Optional[RelationEvent] = None) -> Dict[str, Dict[str, str]]:
-        """Gets auth configs for all currently related applications."""
+        """Gets auth configs for all currently related applications.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+
+        Returns:
+            Dict of key = `relation_id`, value = `relations_config()` for all related apps
+
+        """
         relations_config = {}
 
         for relation in self.client_relations:
@@ -101,11 +120,18 @@ class ZooKeeperProvider(Object):
 
         return relations_config
 
-    def build_acls(self) -> Dict[str, List[ACL]]:
-        """Gets ACLs for all currently related applications."""
+    def build_acls(self, event: Optional[RelationEvent]) -> Dict[str, List[ACL]]:
+        """Gets ACLs for all currently related applications.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+
+        Returns:
+            Dict of `chroot`s with value as list of ACLs for the `chroot`
+        """
         acls = defaultdict(list)
 
-        for _, relation_config in self.relations_config().items():
+        for _, relation_config in self.relations_config(event=event).items():
             chroot = relation_config["chroot"]
             generated_acl = make_acl(
                 scheme="sasl",
@@ -124,11 +150,22 @@ class ZooKeeperProvider(Object):
     def relations_config_values_for_key(
         self, key: str, event: Optional[RelationEvent] = None
     ) -> Set[str]:
-        """Grabs a specific auth config value from all related applications."""
+        """Grabs a specific auth config value from all related applications.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+
+        Returns:
+            Set of all app values matching a specific key from `relations_config()`
+        """
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
-    def update_acls(self):
-        """Compares leader auth config to incoming relation config, applies necessary add/update/remove actions."""
+    def update_acls(self, event: Optional[RelationEvent]) -> None:
+        """Compares leader auth config to incoming relation config, applies necessary add/update/remove actions.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+        """
         super_password, _ = self.charm.cluster.passwords
         zk = ZooKeeperManager(
             hosts=self.charm.cluster.active_hosts, username="super", password=super_password
@@ -137,10 +174,10 @@ class ZooKeeperProvider(Object):
         leader_chroots = zk.leader_znodes(path="/")
         logger.info(f"{leader_chroots=}")
 
-        relation_chroots = self.relations_config_values_for_key("chroot")
+        relation_chroots = self.relations_config_values_for_key("chroot", event=event)
         logger.info(f"{relation_chroots=}")
 
-        acls = self.build_acls()
+        acls = self.build_acls(event=event)
         logger.info(f"{acls=}")
 
         # Looks for newly related applications not in config yet
@@ -161,6 +198,15 @@ class ZooKeeperProvider(Object):
 
     @staticmethod
     def _is_child_of(path: str, chroots: Set[str]) -> bool:
+        """Checks if given path is a child znode from a set of chroot paths.
+
+        Args:
+            path: the desired znode path to check parenthood of
+            chroots: the potential parent znode paths
+
+        Returns:
+            True if `path` is a child of a znode in `chroots`. Otherwise False.
+        """
         for chroot in chroots:
             if path.startswith(chroot.rstrip("/") + "/"):
                 return True
@@ -169,6 +215,16 @@ class ZooKeeperProvider(Object):
 
     @staticmethod
     def build_uris(active_hosts: Set[str], chroot: str, client_port: int = 2181) -> List[str]:
+        """Builds connection uris for passing to the client relation data.
+
+        Args:
+            active_hosts: all ZK hosts in the peer relation
+            chroot: the chroot to append to the host IP
+            client_port: the client_port to append to the host IP
+
+        Returns:
+            List of chroot appended connection uris
+        """
         uris = []
         for host in active_hosts:
             uris.append(f"{host}:{client_port}{chroot}")
@@ -176,11 +232,16 @@ class ZooKeeperProvider(Object):
         return uris
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
+        """Updates ACLs while handling `client_relation_changed` and `client_relation_joined` events.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+        """
         if not self.charm.unit.is_leader():
             return
 
         try:
-            self.update_acls()
+            self.update_acls(event=event)
         except (
             MembersSyncingError,
             MemberNotReadyError,
@@ -195,6 +256,7 @@ class ZooKeeperProvider(Object):
         return
 
     def apply_relation_data(self) -> None:
+        """Updates relation data with new auth values upon concluded client_relation events."""
         relations_config = self.relations_config()
 
         for relation_id, config in relations_config.items():
@@ -215,7 +277,12 @@ class ZooKeeperProvider(Object):
                 relation_data
             )
 
-    def _on_client_relation_broken(self, event: RelationBrokenEvent):
+    def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
+        """Removes user from ZK app data on `client_relation_departed`.
+
+        Args:
+            event: used for passing `RelationBrokenEvent` to subequent methods
+        """
         if not self.charm.unit.is_leader():
             return
 
