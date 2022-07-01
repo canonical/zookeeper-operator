@@ -14,7 +14,7 @@ peers:
   cluster:
     interface: cluster
   restart:
-    rolling_op
+    rolling_ops
 
 provides:
   zookeeper:

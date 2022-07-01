@@ -120,7 +120,7 @@ class ZooKeeperProvider(Object):
 
         return relations_config
 
-    def build_acls(self, event: Optional[RelationEvent]) -> Dict[str, List[ACL]]:
+    def build_acls(self, event: Optional[RelationEvent] = None) -> Dict[str, List[ACL]]:
         """Gets ACLs for all currently related applications.
 
         Args:
@@ -160,7 +160,7 @@ class ZooKeeperProvider(Object):
         """
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
-    def update_acls(self, event: Optional[RelationEvent]) -> None:
+    def update_acls(self, event: Optional[RelationEvent] = None) -> None:
         """Compares leader auth config to incoming relation config, applies necessary add/update/remove actions.
 
         Args:
