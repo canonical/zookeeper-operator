@@ -65,7 +65,13 @@ class TestCluster(unittest.TestCase):
 
         self.assertEqual(
             config,
-            {"username": "relation-0", "password": "password", "chroot": "/app", "acl": "cdrwa"},
+            {
+                "username": "relation-0",
+                "password": "password",
+                "chroot": "/app",
+                "acl": "cdrwa",
+                "jaas_user": 'user_relation-0="password"',
+            },
         )
 
     def test_relation_config_new_relation_defaults_to_database(self):
@@ -82,7 +88,13 @@ class TestCluster(unittest.TestCase):
 
         self.assertEqual(
             config,
-            {"username": "relation-0", "password": "password", "chroot": "/app", "acl": "cdrwa"},
+            {
+                "username": "relation-0",
+                "password": "password",
+                "chroot": "/app",
+                "acl": "cdrwa",
+                "jaas_user": 'user_relation-0="password"',
+            },
         )
 
     def test_relation_config_new_relation_empty_password(self):
@@ -95,7 +107,14 @@ class TestCluster(unittest.TestCase):
         )
 
         self.assertEqual(
-            config, {"username": "relation-0", "password": "", "chroot": "/app", "acl": "cdrwa"}
+            config,
+            {
+                "username": "relation-0",
+                "password": "",
+                "chroot": "/app",
+                "acl": "cdrwa",
+                "jaas_user": 'user_relation-0=""',
+            },
         )
 
     def test_relation_config_new_relation_app_permissions(self):
@@ -110,7 +129,14 @@ class TestCluster(unittest.TestCase):
         )
 
         self.assertEqual(
-            config, {"username": "relation-0", "password": "", "chroot": "/app", "acl": "rw"}
+            config,
+            {
+                "username": "relation-0",
+                "password": "",
+                "chroot": "/app",
+                "acl": "rw",
+                "jaas_user": 'user_relation-0=""',
+            },
         )
 
     def test_relation_config_new_relation_skips_relation_broken(self):
@@ -141,12 +167,19 @@ class TestCluster(unittest.TestCase):
         self.assertEqual(
             relations_config,
             {
-                "0": {"username": "relation-0", "password": "", "chroot": "/app", "acl": "cdrwa"},
+                "0": {
+                    "username": "relation-0",
+                    "password": "",
+                    "chroot": "/app",
+                    "acl": "cdrwa",
+                    "jaas_user": 'user_relation-0=""',
+                },
                 "2": {
                     "username": "relation-2",
                     "password": "",
                     "chroot": "/new_app",
                     "acl": "cdrwa",
+                    "jaas_user": 'user_relation-2=""',
                 },
             },
         )
@@ -237,7 +270,7 @@ class TestCluster(unittest.TestCase):
             # checking existence of all necessary keys
             self.assertEqual(
                 sorted(relation.data[self.harness.charm.app].keys()),
-                ["chroot", "endpoints", "password", "uris", "username"],
+                sorted(["chroot", "endpoints", "password", "uris", "username"]),
             )
 
             # checking unique passwords and usernames for all relations

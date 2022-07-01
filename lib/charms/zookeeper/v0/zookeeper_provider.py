@@ -62,7 +62,7 @@ class ZooKeeperProvider(Object):
                 If passed and is `RelationBrokenEvent`, will skip and return `None`
 
         Returns:
-            Dict containing relation `username`, `password`, `chroot` and `acl`
+            Dict containing relation `username`, `password`, `chroot`, `acl` and `jaas_user`
 
             `None` if `RelationBrokenEvent` is passed as event
         """
@@ -94,7 +94,13 @@ class ZooKeeperProvider(Object):
         if not str(chroot).startswith("/"):
             chroot = f"/{chroot}"
 
-        return {"username": username, "password": password, "chroot": chroot, "acl": acl}
+        return {
+            "username": username,
+            "password": password,
+            "chroot": chroot,
+            "acl": acl,
+            "jaas_user": f'user_{username}="{password}"',
+        }
 
     def relations_config(self, event: Optional[RelationEvent] = None) -> Dict[str, Dict[str, str]]:
         """Gets auth configs for all currently related applications.
@@ -212,24 +218,6 @@ class ZooKeeperProvider(Object):
                 return True
 
         return False
-
-    @staticmethod
-    def build_uris(active_hosts: Set[str], chroot: str, client_port: int = 2181) -> List[str]:
-        """Builds connection uris for passing to the client relation data.
-
-        Args:
-            active_hosts: all ZK hosts in the peer relation
-            chroot: the chroot to append to the host IP
-            client_port: the client_port to append to the host IP
-
-        Returns:
-            List of chroot appended connection uris
-        """
-        uris = []
-        for host in active_hosts:
-            uris.append(f"{host}:{client_port}{chroot}")
-
-        return uris
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_changed` and `client_relation_joined` events.

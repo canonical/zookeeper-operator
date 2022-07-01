@@ -206,20 +206,29 @@ class KafkaSnap:
 
     @staticmethod
     def set_zookeeper_auth_config(sync_password: str, super_password: str, users: str) -> None:
-        """Sets the content of the auth ZooKeeper JAAS file with passwords on the unit."""
+        """Sets the content of the auth ZooKeeper JAAS file with passwords on the unit.
+
+        Args:
+            sync_password: the ZK server-server auth password
+            super_password: the ZK super user password
+            users: the users to give access to
+                Format `user_username="password"\\n`
+        """
         auth_config = f"""
             QuorumServer {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
                 user_sync="{sync_password}";
             }};
+
             QuorumLearner {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
                 username="sync"
                 password="{sync_password}";
             }};
-            
+
             Server {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
+                {users}
                 user_super="{super_password}";
             }};
         """
