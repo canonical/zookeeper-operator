@@ -23,7 +23,7 @@ METADATA = """
             interface: cluster
     provides:
         database:
-            interface: database-client
+            interface: zookeeper
 """
 
 
@@ -232,6 +232,14 @@ class TestCluster(unittest.TestCase):
             self.harness.charm.client_relation._is_child_of(path=chroot, chroots=chroots)
         )
 
+    def test_is_child_of_not(self):
+        chroot = "/the/one/ring"
+        chroots = {"/gandalf", "/saruman"}
+
+        self.assertFalse(
+            self.harness.charm.client_relation._is_child_of(path=chroot, chroots=chroots)
+        )
+
     def test_apply_relation_data(self):
         self.harness.set_leader(True)
         self.harness.add_relation("database", "new_application")
@@ -263,19 +271,38 @@ class TestCluster(unittest.TestCase):
 
         self.harness.charm.client_relation.apply_relation_data()
 
+        self.assertIsNotNone(
+            self.harness.charm.cluster.relation.data[self.harness.charm.app].get(
+                "relation-0", None
+            )
+        )
+        self.assertIsNotNone(
+            self.harness.charm.cluster.relation.data[self.harness.charm.app].get(
+                "relation-2", None
+            )
+        )
+
+        
+        app_data = self.harness.charm.cluster.relation.data[self.harness.charm.app]
         passwords = []
         usernames = []
         for relation in self.provider.client_relations:
-
             # checking existence of all necessary keys
             self.assertEqual(
                 sorted(relation.data[self.harness.charm.app].keys()),
                 sorted(["chroot", "endpoints", "password", "uris", "username"]),
             )
 
+            username = relation.data[self.harness.charm.app]["username"]
+            password = relation.data[self.harness.charm.app]["password"]
+            
+            # checking ZK app data got updated
+            self.assertIn(username, app_data)
+            self.assertEqual(password, app_data.get(username, None))
+
             # checking unique passwords and usernames for all relations
-            self.assertNotIn(relation.data[self.harness.charm.app]["password"], passwords)
-            self.assertNotIn(relation.data[self.harness.charm.app]["username"], usernames)
+            self.assertNotIn(username, usernames)
+            self.assertNotIn(password, passwords)
 
             # checking multiple endpoints and uris
             self.assertEqual(len(relation.data[self.harness.charm.app]["endpoints"].split(",")), 2)
@@ -287,5 +314,5 @@ class TestCluster(unittest.TestCase):
                 # checking client_port in uri
                 self.assertTrue(re.search(r":[\d]+\/", uri))
 
-            passwords.append(relation.data[self.harness.charm.app]["password"])
-            usernames.append(relation.data[self.harness.charm.app]["username"])
+            passwords.append(username)
+            usernames.append(password)

@@ -32,9 +32,6 @@ class ZooKeeperProvider(Object):
         self.charm = charm
 
         self.framework.observe(
-            self.charm.on[REL_NAME].relation_joined, self._on_client_relation_updated
-        )
-        self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
         )
         self.framework.observe(
@@ -121,8 +118,7 @@ class ZooKeeperProvider(Object):
             if not config:
                 continue
 
-            relation_id: int = relation.id
-            relations_config[str(relation_id)] = config
+            relations_config[str(relation.id)] = config
 
         return relations_config
 
@@ -220,7 +216,7 @@ class ZooKeeperProvider(Object):
         return False
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
-        """Updates ACLs while handling `client_relation_changed` and `client_relation_joined` events.
+        """Updates ACLs while handling `client_relation_changed`.
 
         Args:
             event (optional): used for checking `RelationBrokenEvent`
@@ -259,7 +255,7 @@ class ZooKeeperProvider(Object):
                 [f"{host}:{self.charm.cluster.client_port}{config['chroot']}" for host in hosts]
             )
 
-            self.app_relation.data[self.charm.app].update({config["username"]: config["password"]})
+            self.app_relation.data[self.charm.app].update({relation_data["username"]: relation_data["password"]})
 
             self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
                 relation_data
