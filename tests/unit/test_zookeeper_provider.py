@@ -22,7 +22,7 @@ METADATA = """
         cluster:
             interface: cluster
     provides:
-        database:
+        zookeeper:
             interface: zookeeper
 """
 
@@ -34,11 +34,11 @@ class DummyZooKeeperCharm(CharmBase):
         self.client_relation = ZooKeeperProvider(self)
 
 
-class TestCluster(unittest.TestCase):
+class TestProvider(unittest.TestCase):
     def setUp(self):
         self.harness = Harness(DummyZooKeeperCharm, meta=METADATA)
         self.addCleanup(self.harness.cleanup)
-        self.harness.add_relation("database", "application")
+        self.harness.add_relation("zookeeper", "application")
         self.harness.begin_with_initial_hooks()
 
     @property
@@ -154,7 +154,7 @@ class TestCluster(unittest.TestCase):
         self.assertIsNone(config)
 
     def test_relations_config_multiple_relations(self):
-        self.harness.add_relation("database", "new_application")
+        self.harness.add_relation("zookeeper", "new_application")
         self.harness.update_relation_data(
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
@@ -185,7 +185,7 @@ class TestCluster(unittest.TestCase):
         )
 
     def test_build_acls(self):
-        self.harness.add_relation("database", "new_application")
+        self.harness.add_relation("zookeeper", "new_application")
         self.harness.update_relation_data(
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
@@ -208,7 +208,7 @@ class TestCluster(unittest.TestCase):
         self.assertEqual(new_app_acl.id.id, "relation-2")
 
     def test_relations_config_values_for_key(self):
-        self.harness.add_relation("database", "new_application")
+        self.harness.add_relation("zookeeper", "new_application")
         self.harness.update_relation_data(
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
@@ -242,7 +242,7 @@ class TestCluster(unittest.TestCase):
 
     def test_apply_relation_data(self):
         self.harness.set_leader(True)
-        self.harness.add_relation("database", "new_application")
+        self.harness.add_relation("zookeeper", "new_application")
         self.harness.update_relation_data(
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
@@ -282,7 +282,6 @@ class TestCluster(unittest.TestCase):
             )
         )
 
-        
         app_data = self.harness.charm.cluster.relation.data[self.harness.charm.app]
         passwords = []
         usernames = []
@@ -295,7 +294,7 @@ class TestCluster(unittest.TestCase):
 
             username = relation.data[self.harness.charm.app]["username"]
             password = relation.data[self.harness.charm.app]["password"]
-            
+
             # checking ZK app data got updated
             self.assertIn(username, app_data)
             self.assertEqual(password, app_data.get(username, None))

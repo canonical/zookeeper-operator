@@ -14,10 +14,9 @@ peers:
   cluster:
     interface: cluster
   restart:
-    interface:
-      rolling_op
+    interface: rolling_op
 
 provides:
-  database:
+  zookeeper:
     interface: zookeeper
     limit: 1 

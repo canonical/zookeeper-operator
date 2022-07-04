@@ -21,7 +21,7 @@ from charms.zookeeper.v0.cluster import UnitNotFoundError, ZooKeeperCluster
 
 logger = logging.getLogger(__name__)
 
-REL_NAME = "database"
+REL_NAME = "zookeeper"
 PEER = "cluster"
 
 
@@ -255,7 +255,9 @@ class ZooKeeperProvider(Object):
                 [f"{host}:{self.charm.cluster.client_port}{config['chroot']}" for host in hosts]
             )
 
-            self.app_relation.data[self.charm.app].update({relation_data["username"]: relation_data["password"]})
+            self.app_relation.data[self.charm.app].update(
+                {relation_data["username"]: relation_data["password"]}
+            )
 
             self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
                 relation_data
