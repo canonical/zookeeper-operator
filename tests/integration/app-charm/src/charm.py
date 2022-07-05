@@ -50,6 +50,7 @@ class ApplicationCharm(CharmBase):
         if not self.unit.is_leader():
             return
 
+        # reasonable confidence there won't be conflicting chroots
         self.relation.data[self.app].update({"chroot": f"{CHARM_KEY}_{random.randrange(1,99)}"})
 
     def _log(self, event: RelationEvent):

@@ -9,6 +9,7 @@ from typing import Dict
 
 import yaml
 from kazoo.client import KazooClient
+from pytest_operator.plugin import OpsTest
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
@@ -23,8 +24,14 @@ def get_password(model_full_name: str) -> str:
         universal_newlines=True,
     )
     response = yaml.safe_load(show_unit)
-    password = response[f"{APP_NAME}/0"]["relation-info"][0]["application-data"]["super_password"]
-    return password
+    relations_info = response[f"{APP_NAME}/0"]["relation-info"]
+
+    for info in relations_info:
+        if info["endpoint"] == "cluster":
+            password = info["application-data"]["super_password"]
+            return password
+    else:
+        raise
 
 
 def restart_unit(model_full_name: str, unit: str) -> None:
@@ -98,3 +105,30 @@ def srvr(host: str) -> Dict:
         result[k] = v
 
     return result
+
+
+async def ping_servers(ops_test: OpsTest) -> bool:
+    for unit in ops_test.model.applications[APP_NAME].units:
+        host = unit.public_address
+        mode = srvr(host)["Mode"]
+        if mode not in ["leader", "follower"]:
+            return False
+
+    return True
+
+
+def check_jaas_config(model_full_name: str, unit: str):
+    config = check_output(
+        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/kafka/common/zookeeper-jaas.cfg --unit {unit}",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    user_lines = {}
+    for line in config.splitlines():
+        matched = re.search(pattern=r"user_([a-zA-Z\-\d]+)=\"([a-zA-Z0-9]+)\"", string=line)
+        if matched:
+            user_lines[matched[1]] = matched[2]
+
+    return user_lines
