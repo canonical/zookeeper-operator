@@ -8,12 +8,14 @@ import logging
 import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
+from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.cluster import (
     NoPasswordError,
     NotUnitTurnError,
     UnitNotFoundError,
     ZooKeeperCluster,
 )
+from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
@@ -34,6 +36,8 @@ class ZooKeeperCharm(CharmBase):
         self.name = CHARM_KEY
         self.snap = KafkaSnap()
         self.cluster = ZooKeeperCluster(self)
+        self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
+        self.provider = ZooKeeperProvider(self)
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._on_start)
@@ -107,10 +111,14 @@ class ZooKeeperCharm(CharmBase):
         # servers properties needs to be written to dynamic config
         self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic")
 
-        # KAFKA_OPTS env var gets loaded on snap start
         super_password, sync_password = self.cluster.passwords
-        self.snap.set_auth_config(sync_password=sync_password, super_password=super_password)
-        self.snap.set_kafka_opts()
+        users = "\n".join(self.provider.relations_config_values_for_key(key="jaas_user"))
+        self.snap.set_zookeeper_auth_config(
+            sync_password=sync_password, super_password=super_password, users=users
+        )
+
+        # KAFKA_OPTS env var gets loaded on snap start
+        self.snap.set_zookeeper_kafka_opts()
 
         self.snap.start_snap_service(snap_service=CHARM_KEY)
         self.unit.status = ActiveStatus()

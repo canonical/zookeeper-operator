@@ -115,6 +115,27 @@ class KafkaSnap:
             logger.error(str(e))
             return False
 
+    def restart_snap_service(self, snap_service: str) -> bool:
+        """Restarts snap service process.
+
+        If fails with expected errors, it will block the KafkaSnap instance from executing
+        additional non-idempotent methods.
+
+        Args:
+            snap_service: The desired service to run on the unit
+                `kafka` or `zookeeper`
+
+        Returns:
+            True if service successfully restarts. False otherwise.
+        """
+        try:
+            self.kafka.restart(services=[snap_service])
+            return True
+            # TODO: check if the service is actually running (i.e not failed silently)
+        except snap.SnapError as e:
+            logger.error(str(e))
+            return False
+
     def write_properties(self, properties: str, property_label: str) -> None:
         """Writes to the expected config file location for the Kafka Snap.
 
@@ -184,27 +205,36 @@ class KafkaSnap:
         return config_map
 
     @staticmethod
-    def set_auth_config(sync_password: str, super_password: str) -> None:
-        """Sets the content of the auth ZooKeeper JAAS file with passwords on the unit."""
+    def set_zookeeper_auth_config(sync_password: str, super_password: str, users: str) -> None:
+        """Sets the content of the auth ZooKeeper JAAS file with passwords on the unit.
+
+        Args:
+            sync_password: the ZK server-server auth password
+            super_password: the ZK super user password
+            users: the users to give access to
+                Format `user_username="password"\\n`
+        """
         auth_config = f"""
             QuorumServer {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
                 user_sync="{sync_password}";
             }};
+
             QuorumLearner {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
                 username="sync"
                 password="{sync_password}";
             }};
-            
+
             Server {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
+                {users}
                 user_super="{super_password}";
             }};
         """
         safe_write_to_file(content=str(auth_config), path=f"{AUTH_CONFIG_PATH}", mode="w")
 
-    def set_kafka_opts(self) -> None:
+    def set_zookeeper_kafka_opts(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         opt_properties = " ".join(
             [

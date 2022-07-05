@@ -7,6 +7,7 @@ from tenacity import RetryError, retry
 from tenacity.retry import retry_if_not_result
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_fixed
+from kazoo.client import ACL, KazooClient
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +208,44 @@ class ZooKeeperManager:
                     from_config=self.config_version,
                 )
 
+    def leader_znodes(self, path: str) -> Set[str]:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            all_znode_children = zk.get_all_znode_children(path=path)
+
+        return all_znode_children
+
+    def create_znode_leader(self, path: str, acls: List[ACL]) -> None:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            zk.create_znode(path=path, acls=acls)
+
+    def set_acls_znode_leader(self, path: str, acls: List[ACL]) -> None:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            zk.set_acls(path=path, acls=acls)
+
+    def delete_znode_leader(self, path: str) -> None:
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+        ) as zk:
+            zk.delete_znode(path=path)
+
 
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
@@ -295,3 +334,64 @@ class ZooKeeperClient:
         if self.client.connected:
             return "broadcast" in self.mntr.get("zk_peer_state", "")
         return False
+
+    def get_all_znode_children(self, path: str) -> Set[str]:
+        """Recursively gets all children for a given parent znode path.
+
+        Args:
+            path: the desired parent znode path to recurse
+
+        Returns:
+            Set of all nested children znode paths for the given parent
+        """
+        children = self.client.get_children(path) or []
+
+        result = set()
+        for child in children:
+            if path + child != "zookeeper":
+                result.update(self.get_all_znode_children(path.rstrip("/") + "/" + child))
+        if path != "/":
+            result.add(path)
+
+        return result
+
+    def delete_znode(self, path: str) -> None:
+        """Drop znode and all it's children from ZK tree.
+
+        Args:
+            path: the desired znode path to delete
+        """
+        if not self.client.exists(path):
+            return
+        self.client.delete(path, recursive=True)
+
+    def create_znode(self, path: str, acls: List[ACL]) -> None:
+        """Create new znode.
+
+        Args:
+            path: the desired znode path to create
+            acls: the acls for the new znode
+        """
+        self.client.create(path, acl=acls, makepath=True)
+
+    def get_acls(self, path: str) -> List[ACL]:
+        """Gets acls for a desired znode path.
+
+        Args:
+            path: the desired znode path
+
+        Returns:
+            List of the acls set for the given znode
+        """
+        acl_list = self.client.get_acls(path)
+
+        return acl_list if acl_list else []
+
+    def set_acls(self, path: str, acls: List[ACL]) -> None:
+        """Sets acls for a desired znode path.
+
+        Args:
+            path: the desired znode path
+            acls: the acls to set to the given znode
+        """
+        self.client.set_acls(path, acls)
