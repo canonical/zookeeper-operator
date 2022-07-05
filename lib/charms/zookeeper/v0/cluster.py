@@ -336,7 +336,7 @@ class ZooKeeperCluster:
 
         if not self._is_unit_turn(unit_id=int(unit_id)):
             self.status = MaintenanceStatus("other units not yet added")
-            raise NotUnitTurnError("other units not yet added")
+            raise NotUnitTurnError
 
         servers = self._generate_units(unit_string=unit_string)
 
