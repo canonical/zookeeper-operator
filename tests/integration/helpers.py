@@ -31,7 +31,7 @@ def get_password(model_full_name: str) -> str:
             password = info["application-data"]["super_password"]
             return password
     else:
-        raise
+        raise Exception("no relations found")
 
 
 def restart_unit(model_full_name: str, unit: str) -> None:

@@ -31,7 +31,6 @@ class ApplicationCharm(CharmBase):
         self.name = CHARM_KEY
 
         self.framework.observe(getattr(self.on, "start"), self._on_start)
-        self.framework.observe(getattr(self.on, "leader_elected"), self._on_leader_elected)
         self.framework.observe(self.on[REL_NAME].relation_changed, self._log)
         self.framework.observe(self.on[REL_NAME].relation_broken, self._log)
         self.framework.observe(self.on[REL_NAME].relation_joined, self._set_data)
@@ -42,9 +41,6 @@ class ApplicationCharm(CharmBase):
 
     def _on_start(self, _) -> None:
         self.unit.status = ActiveStatus()
-
-    def _on_leader_elected(self, _) -> None:
-        return
 
     def _set_data(self, _) -> None:
         if not self.unit.is_leader():
