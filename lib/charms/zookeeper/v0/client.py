@@ -348,7 +348,7 @@ class ZooKeeperClient:
 
         result = set()
         for child in children:
-            if path + child != "zookeeper":
+            if path + child != "/zookeeper":
                 result.update(self.get_all_znode_children(path.rstrip("/") + "/" + child))
         if path != "/":
             result.add(path)

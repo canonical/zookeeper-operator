@@ -19,4 +19,3 @@ peers:
 provides:
   zookeeper:
     interface: zookeeper
-    limit: 1 

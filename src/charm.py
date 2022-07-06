@@ -36,7 +36,7 @@ class ZooKeeperCharm(CharmBase):
         self.name = CHARM_KEY
         self.snap = KafkaSnap()
         self.cluster = ZooKeeperCluster(self)
-        self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
+        self.restart = RollingOpsManager(self, relation="restart", callback=self._restart)
         self.provider = ZooKeeperProvider(self)
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
@@ -111,8 +111,9 @@ class ZooKeeperCharm(CharmBase):
         # servers properties needs to be written to dynamic config
         self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic")
 
+        # grabbing up-to-date jaas users from the relations
         super_password, sync_password = self.cluster.passwords
-        users = "\n".join(self.provider.relations_config_values_for_key(key="jaas_user"))
+        users = self.provider.build_jaas_users(event=event)
         self.snap.set_zookeeper_auth_config(
             sync_password=sync_password, super_password=super_password, users=users
         )
@@ -120,7 +121,7 @@ class ZooKeeperCharm(CharmBase):
         # KAFKA_OPTS env var gets loaded on snap start
         self.snap.set_zookeeper_kafka_opts()
 
-        self.snap.start_snap_service(snap_service=CHARM_KEY)
+        self.snap.restart_snap_service(snap_service=CHARM_KEY)
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
@@ -170,6 +171,15 @@ class ZooKeeperCharm(CharmBase):
             # in the event some unit wasn't started/ready
             event.defer()
             return
+
+    def _restart(self, event: EventBase):
+        """Handler for rolling restart events triggered by zookeeper_relation_changed/broken."""
+        # for when relations trigger during start-up of the cluster
+        if not self.cluster.relation.data[self.unit].get("state", None) == "started":
+            event.defer()
+            return
+
+        self._on_start(event=event)
 
 
 if __name__ == "__main__":

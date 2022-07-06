@@ -10,11 +10,11 @@ import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.scaling_helpers import (
+from tests.integration.helpers import (
     check_key,
     get_password,
+    ping_servers,
     restart_unit,
-    srvr,
     write_key,
 )
 
@@ -22,15 +22,6 @@ logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
-
-
-async def ping_servers(ops_test: OpsTest):
-    logger.info("pinging servers")
-    for unit in ops_test.model.applications[APP_NAME].units:
-        host = unit.public_address
-        logger.info(f"{srvr(host)=}")
-        mode = srvr(host)["Mode"]
-        assert mode in ["leader", "follower"]
 
 
 @pytest.mark.abort_on_fail
@@ -51,7 +42,7 @@ async def test_simple_scale_up(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=3)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 6)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
-    await ping_servers(ops_test)
+    assert ping_servers(ops_test)
 
 
 @pytest.mark.abort_on_fail
@@ -61,13 +52,13 @@ async def test_simple_scale_down(ops_test: OpsTest):
     )
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
-    await ping_servers(ops_test)
+    assert ping_servers(ops_test)
 
 
 @pytest.mark.abort_on_fail
 async def test_scale_up_replication(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
-    await ping_servers(ops_test)
+    assert ping_servers(ops_test)
     host = ops_test.model.applications[APP_NAME].units[0].public_address
     model_full_name = ops_test.model_full_name
     password = get_password(model_full_name or "")
@@ -84,7 +75,7 @@ async def test_kill_quorum_leader_remove(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].destroy_units(f"{APP_NAME}/0")
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
-    await ping_servers(ops_test)
+    assert ping_servers(ops_test)
 
 
 @pytest.mark.abort_on_fail
@@ -102,7 +93,7 @@ async def test_kill_juju_leader_remove(ops_test: OpsTest):
             lambda: len(ops_test.model.applications[APP_NAME].units) == 2
         )
         await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
-        await ping_servers(ops_test)
+        assert ping_servers(ops_test)
 
 
 @pytest.mark.abort_on_fail
@@ -126,6 +117,6 @@ async def test_kill_juju_leader_restart(ops_test: OpsTest):
         if model_full_name:
             restart_unit(model_full_name=model_full_name, unit=leader)
             time.sleep(10)
-            await ping_servers(ops_test)
+            assert ping_servers(ops_test)
         else:
             raise

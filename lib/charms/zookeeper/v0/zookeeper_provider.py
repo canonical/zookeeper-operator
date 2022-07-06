@@ -6,9 +6,9 @@ import logging
 from typing import Dict, List, Optional, Set
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
-from ops.charm import RelationBrokenEvent, RelationEvent
+from ops.charm import RelationBrokenEvent
 
-from ops.framework import Object
+from ops.framework import EventBase, Object
 from ops.model import MaintenanceStatus, Relation
 
 from charms.zookeeper.v0.client import (
@@ -49,7 +49,7 @@ class ZooKeeperProvider(Object):
         return self.charm.model.relations[REL_NAME]
 
     def relation_config(
-        self, relation: Relation, event: Optional[RelationEvent] = None
+        self, relation: Relation, event: Optional[EventBase] = None
     ) -> Optional[Dict[str, str]]:
         """Gets the auth config for a currently related application.
 
@@ -59,18 +59,14 @@ class ZooKeeperProvider(Object):
                 If passed and is `RelationBrokenEvent`, will skip and return `None`
 
         Returns:
-            Dict containing relation `username`, `password`, `chroot`, `acl` and `jaas_user`
-
+            Dict containing relation `username`, `password`, `chroot`, `acl`
             `None` if `RelationBrokenEvent` is passed as event
         """
-
-        # If RelationBrokenEvent, skip, we don't want it in the live-data
-        if isinstance(event, RelationBrokenEvent):
+        if isinstance(event, RelationBrokenEvent) and event.relation.id == relation.id:
             return None
 
         # generating username
-        relation_id = relation.id
-        username = f"relation-{relation_id}"
+        username = f"relation-{relation.id}"
 
         # Default to empty string in case passwords not set
         password = self.app_relation.data[self.charm.app].get(username, "")
@@ -85,7 +81,6 @@ class ZooKeeperProvider(Object):
 
         # If chroot is unset, skip, we don't want it part of the config
         if not chroot:
-            logger.info("CHROOT NOT SET")
             return None
 
         if not str(chroot).startswith("/"):
@@ -96,10 +91,31 @@ class ZooKeeperProvider(Object):
             "password": password,
             "chroot": chroot,
             "acl": acl,
-            "jaas_user": f'user_{username}="{password}"',
         }
 
-    def relations_config(self, event: Optional[RelationEvent] = None) -> Dict[str, Dict[str, str]]:
+    def build_jaas_users(self, event: Optional[EventBase] = None) -> str:
+        """Builds the necessary user strings to add to ZK JAAS config files.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+
+        Returns:
+            Newline delimited string of JAAS users from relation data
+        """
+        jaas_users = []
+        for relation in self.relations_config(event=event).values():
+            username = relation.get("username", None)
+            password = relation.get("password", None)
+
+            # For during restarts when passwords are unset for departed relations
+            if username and not password:
+                continue
+
+            jaas_users.append(f"user_{username}=\"{password}\"")
+
+        return "\n".join(jaas_users)
+
+    def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:
         """Gets auth configs for all currently related applications.
 
         Args:
@@ -107,10 +123,8 @@ class ZooKeeperProvider(Object):
 
         Returns:
             Dict of key = `relation_id`, value = `relations_config()` for all related apps
-
         """
         relations_config = {}
-
         for relation in self.client_relations:
             config = self.relation_config(relation=relation, event=event)
 
@@ -122,7 +136,7 @@ class ZooKeeperProvider(Object):
 
         return relations_config
 
-    def build_acls(self, event: Optional[RelationEvent] = None) -> Dict[str, List[ACL]]:
+    def build_acls(self, event: Optional[EventBase] = None) -> Dict[str, List[ACL]]:
         """Gets ACLs for all currently related applications.
 
         Args:
@@ -150,7 +164,7 @@ class ZooKeeperProvider(Object):
         return dict(acls)
 
     def relations_config_values_for_key(
-        self, key: str, event: Optional[RelationEvent] = None
+        self, key: str, event: Optional[EventBase] = None
     ) -> Set[str]:
         """Grabs a specific auth config value from all related applications.
 
@@ -162,7 +176,7 @@ class ZooKeeperProvider(Object):
         """
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
-    def update_acls(self, event: Optional[RelationEvent] = None) -> None:
+    def update_acls(self, event: Optional[EventBase] = None) -> None:
         """Compares leader auth config to incoming relation config, applies necessary add/update/remove actions.
 
         Args:
@@ -174,28 +188,28 @@ class ZooKeeperProvider(Object):
         )
 
         leader_chroots = zk.leader_znodes(path="/")
-        logger.info(f"{leader_chroots=}")
+        logger.debug(f"{leader_chroots=}")
 
         relation_chroots = self.relations_config_values_for_key("chroot", event=event)
-        logger.info(f"{relation_chroots=}")
+        logger.debug(f"{relation_chroots=}")
 
         acls = self.build_acls(event=event)
-        logger.info(f"{acls=}")
+        logger.debug(f"{acls=}")
 
         # Looks for newly related applications not in config yet
         for chroot in relation_chroots - leader_chroots:
-            logger.info(f"CREATE CHROOT - {chroot}")
+            logger.debug(f"CREATE CHROOT - {chroot}")
             zk.create_znode_leader(chroot, acls[chroot])
 
         # Looks for existing related applications
         for chroot in relation_chroots & leader_chroots:
-            logger.info(f"UPDATE CHROOT - {chroot}")
+            logger.debug(f"UPDATE CHROOT - {chroot}")
             zk.set_acls_znode_leader(chroot, acls[chroot])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in leader_chroots - relation_chroots:
             if not self._is_child_of(chroot, relation_chroots):
-                logger.info(f"DROP CHROOT - {chroot}")
+                logger.debug(f"DROP CHROOT - {chroot}")
                 zk.delete_znode_leader(chroot)
 
     @staticmethod
@@ -215,34 +229,13 @@ class ZooKeeperProvider(Object):
 
         return False
 
-    def _on_client_relation_updated(self, event: RelationEvent) -> None:
-        """Updates ACLs while handling `client_relation_changed`.
+    def apply_relation_data(self, event: Optional[EventBase] = None) -> None:
+        """Updates relation data with new auth values upon concluded client_relation events.
 
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
-        if not self.charm.unit.is_leader():
-            return
-
-        try:
-            self.update_acls(event=event)
-        except (
-            MembersSyncingError,
-            MemberNotReadyError,
-            QuorumLeaderNotFoundError,
-            KazooTimeoutError,
-            UnitNotFoundError,
-        ) as e:
-            logger.warning(str(e))
-            self.charm.unit.status = MaintenanceStatus(str(e))
-            return
-
-        return
-
-    def apply_relation_data(self) -> None:
-        """Updates relation data with new auth values upon concluded client_relation events."""
-        relations_config = self.relations_config()
-
+        relations_config = self.relations_config(event=event)
         for relation_id, config in relations_config.items():
             hosts = self.charm.cluster.active_hosts
 
@@ -263,23 +256,42 @@ class ZooKeeperProvider(Object):
                 relation_data
             )
 
+    def _on_client_relation_updated(self, event: EventBase) -> None:
+        """Updates ACLs while handling `client_relation_changed`.
+
+        Args:
+            event (optional): used for checking `RelationBrokenEvent`
+        """
+        if self.charm.unit.is_leader():
+            try:
+                self.update_acls(event=event)
+            except (
+                MembersSyncingError,
+                MemberNotReadyError,
+                QuorumLeaderNotFoundError,
+                KazooTimeoutError,
+                UnitNotFoundError,
+            ) as e:
+                logger.warning(str(e))
+                self.charm.unit.status = MaintenanceStatus(str(e))
+                event.defer()
+                return
+
+            self.apply_relation_data(event=event)
+
+        # All units restart after relation changed event to add new users
+        self.charm.on[self.charm.restart.name].acquire_lock.emit()
+
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
-        """Removes user from ZK app data on `client_relation_departed`.
+        """Removes user from ZK app data on `client_relation_broken`.
 
         Args:
             event: used for passing `RelationBrokenEvent` to subequent methods
         """
-        if not self.charm.unit.is_leader():
-            return
-
-        # TODO: maybe remove departing app from event relation data?
-
-        config = self.relation_config(relation=event.relation)
-        username = config["username"] if config else ""
-
-        if username in self.charm.cluster.relation.data[self.charm.app]:
-            logger.info(f"DELETING - {username}")
-            del self.charm.cluster.relation.data[self.charm.app][username]
+        if self.charm.unit.is_leader():
+            username = f"relation-{event.relation.id}"
+            if username in self.charm.cluster.relation.data[self.charm.app]:
+                del self.charm.cluster.relation.data[self.charm.app][username]
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)

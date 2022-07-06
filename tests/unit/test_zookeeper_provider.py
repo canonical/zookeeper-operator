@@ -5,8 +5,10 @@
 import logging
 import re
 import unittest
+from collections import namedtuple
 
 import ops.testing
+from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.cluster import ZooKeeperCluster
 from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
 from ops.charm import CharmBase, RelationBrokenEvent
@@ -21,10 +23,14 @@ METADATA = """
     peers:
         cluster:
             interface: cluster
+        restart:
+            interface: rolling_op
     provides:
         zookeeper:
             interface: zookeeper
 """
+
+CustomRelation = namedtuple("Relation", ["id"])
 
 
 class DummyZooKeeperCharm(CharmBase):
@@ -32,6 +38,7 @@ class DummyZooKeeperCharm(CharmBase):
         super().__init__(*args)
         self.cluster = ZooKeeperCluster(self)
         self.client_relation = ZooKeeperProvider(self)
+        self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
 
 
 class TestProvider(unittest.TestCase):
@@ -70,7 +77,6 @@ class TestProvider(unittest.TestCase):
                 "password": "password",
                 "chroot": "/app",
                 "acl": "cdrwa",
-                "jaas_user": 'user_relation-0="password"',
             },
         )
 
@@ -93,7 +99,6 @@ class TestProvider(unittest.TestCase):
                 "password": "password",
                 "chroot": "/app",
                 "acl": "cdrwa",
-                "jaas_user": 'user_relation-0="password"',
             },
         )
 
@@ -113,7 +118,6 @@ class TestProvider(unittest.TestCase):
                 "password": "",
                 "chroot": "/app",
                 "acl": "cdrwa",
-                "jaas_user": 'user_relation-0=""',
             },
         )
 
@@ -135,7 +139,6 @@ class TestProvider(unittest.TestCase):
                 "password": "",
                 "chroot": "/app",
                 "acl": "rw",
-                "jaas_user": 'user_relation-0=""',
             },
         )
 
@@ -146,9 +149,11 @@ class TestProvider(unittest.TestCase):
             {"chroot": "app", "chroot-acl": "rw"},
         )
 
+        custom_relation = CustomRelation(id=self.provider.client_relations[0].id)
+
         config = self.harness.charm.client_relation.relation_config(
             relation=self.provider.client_relations[0],
-            event=RelationBrokenEvent(handle="", relation=""),
+            event=RelationBrokenEvent(handle="", relation=custom_relation),
         )
 
         self.assertIsNone(config)
@@ -172,14 +177,12 @@ class TestProvider(unittest.TestCase):
                     "password": "",
                     "chroot": "/app",
                     "acl": "cdrwa",
-                    "jaas_user": 'user_relation-0=""',
                 },
-                "2": {
-                    "username": "relation-2",
+                "3": {
+                    "username": "relation-3",
                     "password": "",
                     "chroot": "/new_app",
                     "acl": "cdrwa",
-                    "jaas_user": 'user_relation-2=""',
                 },
             },
         )
@@ -205,7 +208,7 @@ class TestProvider(unittest.TestCase):
 
         self.assertEqual(new_app_acl.acl_list, ["READ", "WRITE"])
         self.assertEqual(new_app_acl.id.scheme, "sasl")
-        self.assertEqual(new_app_acl.id.id, "relation-2")
+        self.assertEqual(new_app_acl.id.id, "relation-3")
 
     def test_relations_config_values_for_key(self):
         self.harness.add_relation("zookeeper", "new_application")
@@ -222,7 +225,7 @@ class TestProvider(unittest.TestCase):
             key="username"
         )
 
-        self.assertEqual(config_values, {"relation-2", "relation-0"})
+        self.assertEqual(config_values, {"relation-3", "relation-0"})
 
     def test_is_child_of(self):
         chroot = "/gandalf/the/white"
@@ -278,7 +281,7 @@ class TestProvider(unittest.TestCase):
         )
         self.assertIsNotNone(
             self.harness.charm.cluster.relation.data[self.harness.charm.app].get(
-                "relation-2", None
+                "relation-3", None
             )
         )
 
