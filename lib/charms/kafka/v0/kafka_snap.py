@@ -1,13 +1,39 @@
+#!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""## Overview
+"""KafkaSnap class and methods
 
-`kafka_snap.py` provides a collection of common functions for managing snap installation and
-config parsing common to both the Kafka and ZooKeeper charms
+`KafkaSnap` provides a collection of common functions for managing the Kafka Snap and
+config management common to both the Kafka and ZooKeeper charms.
 
+The [Kafka Snap](https://snapcraft.io/kafka) tracks the upstream binaries released by
+The Apache Software Foundation that comes with [Apache Kafka](https://github.com/apache/kafka).
+Currently the snap channel is hard-coded to `rock/edge`.
+
+Exposed methods includes snap installation, starting/restarting the snap service, writing properties and JAAS files
+to the machines, setting KAFKA_OPTS env-vars to be loaded at runtime.
+
+Example usage for `KafkaSnap`:
+
+```python
+
+class KafkaCharm(CharmBase):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.snap =  KafkaSnap()
+
+        self.framework.observe(getattr(self.on, "start"), self._on_start)
+
+    def _on_start(self, event):
+        self.snap.install()
+        self.snap.write_properties(
+            properties=self.config["server-properties"],
+            property_label="server"
+        )
+        self.snap.start_snap_service(snap_service="kafka")
+```
 """
-
 import logging
 import os
 from typing import Dict, List
@@ -18,14 +44,14 @@ from charms.operator_libs_linux.v1 import snap
 logger = logging.getLogger(__name__)
 
 # The unique Charmhub library identifier, never change it
-LIBID = "73d0f23286dd469596d358905406dcab"
+LIBID = "db3c8438a0fc435895a2f6a1cccf03a2"
 
 # Increment this major API version when introducing breaking changes
 LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 4
+LIBPATCH = 1
 
 
 SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
@@ -145,7 +171,7 @@ class KafkaSnap:
         Args:
             properties: A multiline string containing the properties to be set
             property_label: The file prefix for the config file
-                `server` for Kafka, `zookeeper` for ZooKeeper
+                `server` for Kafka, `zookeeper` or `zookeeper-dynamic` for ZooKeeper
             mode: The write mode. Usually "w" for write, or "a" for append. Default "w"
         """
 
