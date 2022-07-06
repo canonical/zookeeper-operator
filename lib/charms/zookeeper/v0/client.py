@@ -1,3 +1,60 @@
+#!/usr/bin/env python3
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+"""ZooKeeperManager and ZooKeeperClient classes
+
+`ZooKeeperManager` provides an interface for performing actions that requires 
+a connection to the current ZK quorum leader, e.g updating zNodes, ACLs and quorum members.
+On `__init__`, it loops through all passed hosts, attempts a `ZooKeeperClient` connection, and 
+checks leadership of each unit, storing the current quorum leader host as an attribute.
+
+In most cases, custom `Exception`s raised by `ZooKeeperManager` should trigger an `event.defer()`,
+as they indicate that the servers are not ready to have actions performed upon them just yet.
+
+`ZooKeeperClient` serves as a handler for managing a ZooKeeper client connection to a
+single unit. It's methods contain common 4lw commands, and functionality to read/write
+to specific zNodes.
+It is not expected to use this class from directly from charm code,
+but to instead use the `ZooKeeperManager` class to perform it's actions on the ZK servers.
+
+
+Instances of `ZooKeeperManager` are to be created by methods in either the `Charm` itself,
+or from another library.
+
+Example usage for `ZooKeeperManager`:
+
+```python
+
+def update_cluster(new_members: List[str], event: EventBase) -> None:
+    
+    try:
+        zk = ZooKeeperManager(
+            hosts=["10.141.73.20", "10.141.73.21"],
+            client_port=2181,
+            username="super",
+            password="password"
+        )
+        
+        current_quorum_members = zk.server_members
+
+        servers_to_remove = list(current_quorum_members - new_members)
+        zk.remove_members(servers_to_remove)
+        
+        servers_to_add = sorted(new_members - current_quorum_members)
+        zk.add_members(servers_to_add)
+
+    except (
+        MembersSyncingError,
+        MemberNotReadyError,
+        QuorumLeaderNotFoundError,
+    ) as e:
+        logger.warning(str(e))
+        event.defer()
+        return
+```
+"""
+
 import logging
 import re
 from typing import Any, Dict, Iterable, List, Set, Tuple
@@ -8,6 +65,17 @@ from tenacity.retry import retry_if_not_result
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_fixed
 from kazoo.client import ACL, KazooClient
+
+# The unique Charmhub library identifier, never change it
+LIBID = "4dc4430e6e5d492699391f57bd697fce"
+
+# Increment this major API version when introducing breaking changes
+LIBAPI = 0
+
+# Increment this PATCH version before using `charmcraft publish-lib` or reset
+# to 0 if you are raising the major API version
+LIBPATCH = 1
+
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +277,14 @@ class ZooKeeperManager:
                 )
 
     def leader_znodes(self, path: str) -> Set[str]:
+        """Grabs all children zNodes for a path on the current quorum leader.
+
+        Args:
+            path: the 'root' path to search from
+
+        Returns:
+            Set of all nested child zNodes
+        """
         with ZooKeeperClient(
             host=self.leader,
             client_port=self.client_port,
@@ -220,6 +296,12 @@ class ZooKeeperManager:
         return all_znode_children
 
     def create_znode_leader(self, path: str, acls: List[ACL]) -> None:
+        """Creates a new zNode on the current quorum leader with given ACLs.
+
+        Args:
+            path: the zNode path to set
+            acls: the ACLs to be set on that path
+        """
         with ZooKeeperClient(
             host=self.leader,
             client_port=self.client_port,
@@ -229,6 +311,12 @@ class ZooKeeperManager:
             zk.create_znode(path=path, acls=acls)
 
     def set_acls_znode_leader(self, path: str, acls: List[ACL]) -> None:
+        """Updates ACLs for an existing zNode on the current quorum leader.
+
+        Args:
+            path: the zNode path to update
+            acls: the new ACLs to be set on that path
+        """
         with ZooKeeperClient(
             host=self.leader,
             client_port=self.client_port,
@@ -238,6 +326,11 @@ class ZooKeeperManager:
             zk.set_acls(path=path, acls=acls)
 
     def delete_znode_leader(self, path: str) -> None:
+        """Deletes a zNode path from the current quorum leader.
+
+        Args:
+            path: the zNode path to delete
+        """
         with ZooKeeperClient(
             host=self.leader,
             client_port=self.client_port,
