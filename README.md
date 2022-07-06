@@ -1,26 +1,25 @@
-# operator-template
+## ZooKeeper Operator - a Charmed Operator for running ZooKeeper from Canonical
 
-## Description
+This repository hosts the Machine Python Operator for [Apache ZooKeeper](https://zookeeper.apache.org/index.html).
+The ZooKeeper Operator is a Python script that uses the latest upstream ZooKeeper binaries released by the The Apache Software Foundation that comes with [Apache Kafka](https://github.com/apache/kafka), made available using the [Kafka Snap](https://snapcraft.io/kafka) distrubted by Canonical.
 
-TODO: Describe your charm in a few paragraphs of Markdown
+### Usage
+
+The ZooKeeper Operator may be deployed using the Juju command line as follows:
+
+```bash
+$ juju deploy zookeeper -n 3
+```
+
+## A scalable, secure distributed coordinator for Apache Kafka, Apache Hadoop and more!
+
+Manual, Day 2 operations for deploying and operating Apache ZooKeeper, scaling-up/retiring servers, updating users and distributing ACL permissions are handled automatically using the [Juju Operator Lifecycle Manager](https://juju.is/docs/olm).
+
+### Key Features
+- Horizontal scaling for high-availability out-of-the-box
+- Server-Server and Client-Server authentication both enabled by default
+- Access control management supported with user-provided ACL lists.
 
 ## Usage
 
-TODO: Provide high-level usage, such as required config or relations
-
-## Relations
-
-TODO: Provide any relations which are provided or required by your charm
-
-## OCI Images
-
-TODO: Include a link to the default image your charm uses
-
-## Contributing
-
-<!-- TEMPLATE-TODO: Change this URL to be the full Github path to CONTRIBUTING.md-->
-
-Please see the [Juju SDK docs](https://juju.is/docs/sdk) for guidelines on enhancements to this
-charm following best practice guidelines, and
-[CONTRIBUTING.md](https://github.com/<name>/<operator>/blob/main/CONTRIBUTING.md) for developer
-guidance.
+This charm is still in active development. If you would like to contribute, please refer to [CONTRIBUTING.md](https://github.com/canonical/zookeeper-operator/blob/main/CONTRIBUTING.md)
