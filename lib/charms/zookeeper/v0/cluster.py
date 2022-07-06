@@ -24,7 +24,7 @@ Example minimal usage for `ZooKeeperCluster`:
 ```python
 
 class ZooKeeperCharm(CharmBase):
-    def __init(self, *args):
+    def __init__(self, *args):
         super().__init__(*args)
         self.cluster =  ZooKeeperCluster(self)
 

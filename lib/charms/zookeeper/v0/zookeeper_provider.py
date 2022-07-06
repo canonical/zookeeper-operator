@@ -1,6 +1,40 @@
+#!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+"""ZooKeeperProvider class and methods.
+
+`ZooKeeperProvider` handles the provider side abstraction for ZooKeeper client relations.
+
+It abstracts the updating the ZK quorum of authorised users and their ACLs during
+`zookeeper_relation_updated/joined` and `zookeeper_relation_broken` events.
+
+During these events, ACLs and user zNodes are updated on the leader for all related applications,
+client and peer relation data is set with the necessary information on both side, and new users are
+added to the unit's JAAS config file, whereupon which a rolling restart of the ZooKeeper service is
+triggered.
+
+Example usage for `ZooKeeperProvider`:
+
+```python
+
+class ZooKeeperCharm(CharmBase):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.provider = ZooKeeperProvider(self)
+        self.restart = RollingOpsManager(self, relation="restart", callback=self._on_start)
+
+    def _on_start(self, event):
+
+        # event is passed here to check for RelationBrokenEvents
+        # in which case that relation will be removed
+        users = self.provider.build_jaas_users(event=event)
+
+        # get_passwords()
+        # set_zookeeper_auth_config(passwords, users)
+        # restart_snap_service()
+```
+"""
 from collections import defaultdict
 import logging
 from typing import Dict, List, Optional, Set
@@ -18,6 +52,16 @@ from charms.zookeeper.v0.client import (
     ZooKeeperManager,
 )
 from charms.zookeeper.v0.cluster import UnitNotFoundError, ZooKeeperCluster
+
+# The unique Charmhub library identifier, never change it
+LIBID = "9b1b988c397e4b6da4e1575fdb15dfa6"
+
+# Increment this major API version when introducing breaking changes
+LIBAPI = 0
+
+# Increment this PATCH version before using `charmcraft publish-lib` or reset
+# to 0 if you are raising the major API version
+LIBPATCH = 1
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +155,7 @@ class ZooKeeperProvider(Object):
             if username and not password:
                 continue
 
-            jaas_users.append(f"user_{username}=\"{password}\"")
+            jaas_users.append(f'user_{username}="{password}"')
 
         return "\n".join(jaas_users)
 
