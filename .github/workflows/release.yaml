@@ -24,9 +24,6 @@ jobs:
     name: Release to CharmHub
     needs:
       - lib-check
-      - lint
-      - unit-test
-      - integration-test-lxd
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
