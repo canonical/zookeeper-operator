@@ -496,4 +496,3 @@ class ZooKeeperCluster:
             return False
         else:
             return True
-
