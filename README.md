@@ -1,7 +1,7 @@
 ## ZooKeeper Operator - a Charmed Operator for running ZooKeeper from Canonical
 
 This repository hosts the Machine Python Operator for [Apache ZooKeeper](https://zookeeper.apache.org/index.html).
-The ZooKeeper Operator is a Python script that uses the latest upstream ZooKeeper binaries released by the The Apache Software Foundation that comes with [Apache Kafka](https://github.com/apache/kafka), made available using the [Kafka Snap](https://snapcraft.io/kafka) distrubted by Canonical.
+The ZooKeeper Operator is a Python script that uses the latest upstream ZooKeeper binaries released by the The Apache Software Foundation that comes with [Apache Kafka](https://github.com/apache/kafka), made available using the [Kafka Snap](https://snapcraft.io/kafka) distributed by Canonical.
 
 ### Usage
 
