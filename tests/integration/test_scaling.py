@@ -72,15 +72,18 @@ async def test_scale_up_replication(ops_test: OpsTest):
 @pytest.mark.abort_on_fail
 async def test_kill_quorum_leader_remove(ops_test: OpsTest):
     """Gracefully removes ZK quorum leader using `juju remove`."""
+    await ops_test.model.set_config({"update-status-hook-interval": "1m"})
     await ops_test.model.applications[APP_NAME].destroy_units(f"{APP_NAME}/0")
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
     assert ping_servers(ops_test)
+    await ops_test.model.set_config({"update-status-hook-interval": "60m"})
 
 
 @pytest.mark.abort_on_fail
 async def test_kill_juju_leader_remove(ops_test: OpsTest):
     """Gracefully removes Juju leader using `juju remove`."""
+    await ops_test.model.set_config({"update-status-hook-interval": "1m"})
     leader = None
     for unit in ops_test.model.applications[APP_NAME].units:
         if await unit.is_leader_from_status():
@@ -94,11 +97,13 @@ async def test_kill_juju_leader_remove(ops_test: OpsTest):
         )
         await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
         assert ping_servers(ops_test)
+    await ops_test.model.set_config({"update-status-hook-interval": "60m"})
 
 
 @pytest.mark.abort_on_fail
 async def test_kill_juju_leader_restart(ops_test: OpsTest):
     """Rudely removes Juju leader by restarting the LXD container."""
+    await ops_test.model.set_config({"update-status-hook-interval": "1m"})
     leader = None
     for unit in ops_test.model.applications[APP_NAME].units:
         if await unit.is_leader_from_status():
