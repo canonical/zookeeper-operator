@@ -21,6 +21,8 @@ from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
+from zookeeper_config import ZooKeeperConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +40,7 @@ class ZooKeeperCharm(CharmBase):
         self.cluster = ZooKeeperCluster(self)
         self.restart = RollingOpsManager(self, relation="restart", callback=self._restart)
         self.provider = ZooKeeperProvider(self)
+        self.zookeeper_config = ZooKeeperConfig()
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._on_start)
@@ -114,12 +117,12 @@ class ZooKeeperCharm(CharmBase):
         # grabbing up-to-date jaas users from the relations
         super_password, sync_password = self.cluster.passwords
         users = self.provider.build_jaas_users(event=event)
-        self.snap.set_zookeeper_auth_config(
+        self.zookeeper_config.set_jaas_config(
             sync_password=sync_password, super_password=super_password, users=users
         )
 
         # KAFKA_OPTS env var gets loaded on snap start
-        self.snap.set_zookeeper_kafka_opts()
+        self.zookeeper_config.set_kafka_opts()
 
         self.snap.restart_snap_service(snap_service=CHARM_KEY)
         self.unit.status = ActiveStatus()

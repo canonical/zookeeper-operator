@@ -311,10 +311,14 @@ class TestProvider(unittest.TestCase):
             self.assertEqual(len(relation.data[self.harness.charm.app]["uris"].split(",")), 2)
 
             for uri in relation.data[self.harness.charm.app]["uris"].split(","):
-                # checking chroot in uri
-                self.assertTrue(uri.endswith(relation.data[self.harness.charm.app]["chroot"]))
                 # checking client_port in uri
-                self.assertTrue(re.search(r":[\d]+\/", uri))
+                self.assertTrue(re.search(r":[\d]+", uri))
+
+            self.assertTrue(
+                relation.data[self.harness.charm.app]["uris"].endswith(
+                    relation.data[self.harness.charm.app]["chroot"]
+                )
+            )
 
             passwords.append(username)
             usernames.append(password)

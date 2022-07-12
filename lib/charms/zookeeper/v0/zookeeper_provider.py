@@ -288,8 +288,9 @@ class ZooKeeperProvider(Object):
             relation_data["password"] = config["password"] or ZooKeeperCluster.generate_password()
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
-            relation_data["uris"] = ",".join(
-                [f"{host}:{self.charm.cluster.client_port}{config['chroot']}" for host in hosts]
+            relation_data["uris"] = (
+                ",".join([f"{host}:{self.charm.cluster.client_port}" for host in hosts])
+                + config["chroot"]
             )
 
             self.app_relation.data[self.charm.app].update(
@@ -316,7 +317,7 @@ class ZooKeeperProvider(Object):
                 KazooTimeoutError,
                 UnitNotFoundError,
             ) as e:
-                logger.warning(str(e))
+                logger.debug(str(e))
                 self.charm.unit.status = MaintenanceStatus(str(e))
                 event.defer()
                 return
