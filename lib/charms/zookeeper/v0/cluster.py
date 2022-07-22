@@ -86,8 +86,8 @@ class ZooKeeperCharm(CharmBase):
             current_value = self.cluster.relation.data[self.app].get(str(unit_id), None)
 
             # sets to "added" for init quorum leader, if not already exists
-            # may already exist if during the case of a failover of unit 0
-            if unit_id == 0:
+            # may already exist if during the case of a failover of the first unit
+            if unit_id == self.cluster.lowest_unit_id:
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
@@ -116,7 +116,7 @@ import logging
 import secrets
 import string
 import re
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 
@@ -143,7 +143,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 
 logger = logging.getLogger(__name__)
@@ -206,6 +206,20 @@ class ZooKeeperCluster:
             Set of units in the current peer relation, including the running unit
         """
         return set([self.charm.unit] + list(self.relation.units))
+
+    @property
+    def lowest_unit_id(self) -> Optional[int]:
+        """Grabs the first unit in the currently deployed application.
+
+        Returns:
+            Integer of lowest unit-id in the app.
+            None if not all planned units are related to the currently running unit.
+        """
+        # in the case that not all units are related yet
+        if len(self.peer_units) != self.charm.app.planned_units():
+            return None
+
+        return min([self.get_unit_id(unit) for unit in self.peer_units])
 
     @property
     def started_units(self) -> Set[Unit]:
@@ -348,7 +362,7 @@ class ZooKeeperCluster:
 
         updated_servers = {}
         for server in servers_to_update:
-            unit_id = str(int(re.findall(r"server.([1-9]+)", server)[0]) - 1)
+            unit_id = str(int(re.findall(r"server.([0-9]+)", server)[0]) - 1)
             if server in added_servers:
                 updated_servers[unit_id] = "added"
             elif server in removed_servers:
@@ -410,7 +424,11 @@ class ZooKeeperCluster:
 
     def _is_unit_turn(self, unit_id: int) -> bool:
         """Checks if all units with a lower id than the current unit has been added/removed to the ZK quorum."""
-        for peer_id in range(0, unit_id):
+        if self.lowest_unit_id == None:
+            # not all units have related yet
+            return False
+
+        for peer_id in range(self.lowest_unit_id, unit_id):
             if not self.relation.data[self.charm.app].get(str(peer_id), None):
                 return False
         return True
@@ -448,10 +466,10 @@ class ZooKeeperCluster:
         if not self.relation.data[self.charm.app].get("sync_password", None):
             raise NoPasswordError
 
-        # during cluster startup, we want unit id 0 to start as a solo participant
-        # if unit 0 fails and restarts after that, we want it to start as a normal unit
+        # during cluster startup, we want the first unit to start as a solo participant
+        # if the first unit fails and restarts after that, we want it to start as a normal unit
         # with all current members
-        if int(unit_id) == 0 and not self.relation.data[self.charm.app].get("0", None):
+        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(str(self.lowest_unit_id), None):
             unit_string = unit_string.replace("observer", "participant")
             return unit_string.replace("observer", "participant"), unit_config
 

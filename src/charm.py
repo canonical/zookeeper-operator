@@ -5,7 +5,6 @@
 """Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
-import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
@@ -107,7 +106,6 @@ class ZooKeeperCharm(CharmBase):
         except (NotUnitTurnError, UnitNotFoundError, NoPasswordError) as e:
             logger.info(str(e))
             self.unit.status = self.cluster.status
-            time.sleep(2)  # accounts for when defers are used up before leader updates config
             event.defer()
             return
 
@@ -152,8 +150,8 @@ class ZooKeeperCharm(CharmBase):
             current_value = self.cluster.relation.data[self.app].get(str(unit_id), None)
 
             # sets to "added" for init quorum leader, if not already exists
-            # may already exist if during the case of a failover of unit 0
-            if unit_id == 0:
+            # may already exist if during the case of a failover of the first unit
+            if unit_id == self.cluster.lowest_unit_id:
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
