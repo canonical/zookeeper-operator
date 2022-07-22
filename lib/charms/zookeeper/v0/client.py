@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 2
+LIBPATCH = 3
 
 
 logger = logging.getLogger(__name__)
@@ -262,7 +262,7 @@ class ZooKeeperManager:
             raise MembersSyncingError("Unable to remove members - some members are syncing")
 
         for member in members:
-            member_id = re.findall(r"server.([1-9]+)", member)[0]
+            member_id = re.findall(r"server.([0-9]+)", member)[0]
             with ZooKeeperClient(
                 host=self.leader,
                 client_port=self.client_port,
