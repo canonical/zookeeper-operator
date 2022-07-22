@@ -58,7 +58,7 @@ class TestClient(unittest.TestCase):
         result, version = client.config
         servers = [server.split("=")[0] for server in result]
 
-        self.assertEquals(version, 4294967296)
+        self.assertEqual(version, 4294967296)
         self.assertIn("server.1", servers)
         self.assertIn("server.2", servers)
 
@@ -144,6 +144,27 @@ class TestManager(unittest.TestCase):
 
         reconfig.assert_called_with(
             joining=None, leaving="2", new_members=None, from_config=4294967296
+        )
+
+    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
+    @patch.object(DummyClient, "reconfig")
+    def test_remove_members_handles_zeroes(self, reconfig, _):
+        zk = ZooKeeperManager(
+            hosts=[
+                "server.1=bilbo.baggins",
+                "server.10=pippin.took",
+                "server.300=merry.brandybuck",
+            ],
+            username="",
+            password="",
+        )
+        zk.remove_members(["server.2=sam.gamgee"])
+        reconfig.assert_called_with(
+            joining=None, leaving="2", new_members=None, from_config=4294967296
+        )
+        zk.remove_members(["server.300=merry.brandybuck"])
+        reconfig.assert_called_with(
+            joining=None, leaving="300", new_members=None, from_config=4294967296
         )
 
     @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
