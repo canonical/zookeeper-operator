@@ -25,13 +25,9 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 
 
-@pytest.fixture
-async def charm(ops_test: OpsTest):
-    return await ops_test.build_charm(".")
-
-
 @pytest.mark.abort_on_fail
-async def test_deploy_active(ops_test: OpsTest, charm):
+async def test_deploy_active(ops_test: OpsTest):
+    charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.set_config({"update-status-hook-interval": "10s"})
@@ -133,9 +129,10 @@ async def test_kill_juju_leader_restart(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
-async def test_same_model_application_deploys(ops_test: OpsTest, charm):
+async def test_same_model_application_deploys(ops_test: OpsTest):
     """Ensures that re-deployments of the charm starts on the same model."""
     await asyncio.gather(ops_test.model.applications[APP_NAME].remove())
+    charm = await ops_test.build_charm(".")
     time.sleep(10)
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
