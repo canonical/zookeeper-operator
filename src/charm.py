@@ -131,6 +131,12 @@ class ZooKeeperCharm(CharmBase):
         self.cluster.relation.data[self.unit].update({"state": "started"})
 
     def _on_config_changed(self, event):
+        """Handler for the `config-changed` event.
+
+        This includes:
+            - Writing config to config files\
+            - Restarting zookeeper service
+        """
         self.snap.write_properties(
             properties=self.config["zookeeper-properties"], property_label="zookeeper"
         )
