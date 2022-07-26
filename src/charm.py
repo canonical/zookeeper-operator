@@ -46,6 +46,7 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_updated
         )
+        self.framework.observe(getattr(self.on, "config_changed"), self._on_config_changed)
         self.framework.observe(
             getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_updated
         )
@@ -128,6 +129,11 @@ class ZooKeeperCharm(CharmBase):
         # unit flags itself as 'started' so it can be retrieved by the leader
         self.cluster.relation.data[self.unit].update(unit_config)
         self.cluster.relation.data[self.unit].update({"state": "started"})
+
+    def _on_config_changed(self, event):
+        self.snap.write_properties(
+            properties=self.config["zookeeper-properties"], property_label="zookeeper"
+        )
 
     def _on_cluster_relation_updated(self, event: EventBase) -> None:
         """Handler for events triggered by changing units.
