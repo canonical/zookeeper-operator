@@ -187,7 +187,7 @@ class KafkaSnap:
         """
         properties = self.get_properties(property_label=property_label)
         try:
-            myid_path = f"{properties['dataDir']}/myid"
+            myid_path = "/var/snap/kafka/common/data/myid"
         except KeyError as e:
             logger.error(str(e))
             raise ConfigError("dataDir is not set in the config")
