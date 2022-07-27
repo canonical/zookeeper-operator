@@ -3,22 +3,23 @@
 # See LICENSE file for licensing details.
 
 options:
-  additional-options:
-    description: "Newline-delimited list of additional custom options"
-    type: string
   client-port:
     description: ""
     type: int
     default: 2181
-  data-dir:
+  init-limit:
     description: ""
-    type: string
-    default: /var/snap/kafka/common/data
-  data-log-dir:
-    description: ""
-    type: string
-    default: /var/snap/kafka/common/log
+    type: int
+    default: 5
   secure-client-port:
     description: ""
     type: int
     default: 2182
+  sync-limit:
+    description: ""
+    type: int
+    default: 2
+  tick-time:
+    description: ""
+    type: int
+    default: 2000

@@ -7,7 +7,6 @@
 import logging
 
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH, safe_write_to_file
-from jproperties import Properties
 
 logger = logging.getLogger(__name__)
 
@@ -59,35 +58,36 @@ class ZooKeeperConfig:
         opts_string = " ".join(OPTS)
         safe_write_to_file(content=f"KAFKA_OPTS={opts_string}", path="/etc/environment", mode="a")
 
-    def create_properties(self, charm_config):
+    def create_properties(self, config):
         """Parses properties file and inserts charm config."""
-        configs = {
-            "client-port": "clientPort",
-            "data-dir": "dataDir",
-            "data-log-dir": "dataLogDir",
-            "secure-client-port": "secureClientPort",
+        props = f"""
+        clientPort={config['client-port']}
+        dataDir=/var/snap/kafka/common/data
+        dataLogDir=/var/snap/kafka/common/log
+        dynamicConfigFile=/var/snap/kafka/common/zookeeper-dynamic.properties
+        maxClientCnxns=60
+        minSessionTimeout=4000
+        maxSessionTimeout=40000
+        autopurge.snapRetainCount=3
+        autopurge.purgeInterval=0
+        reconfigEnabled=true
+        standaloneEnabled=false
+        4lw.commands.whitelist=*
+        DigestAuthenticationProvider.digestAlg=SHA3-256
+        quorum.auth.enableSasl=true
+        quorum.auth.learnerRequireSasl=true
+        quorum.auth.serverRequireSasl=true
+        authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+        audit.enable=true"""
+
+        keys = {
+            "init-limit": "initLimit",
+            "sync-limit": "syncLimit",
+            "tick-time": "tickTime",
         }
 
-        props = Properties()
+        for k, v in keys.items():
+            if config.get(k, None) is not None:
+                props += f"\n{v}={config[k]}"
 
-        with open("templates/zookeeper.properties", "rb") as f:
-            props.load(f, "utf-8")
-
-            for k, v in configs.items():
-                props[v] = str(charm_config[k])
-
-            f.close()
-
-        with open("tempfile.properties", "wb") as f:
-            props.store(f, encoding="utf-8")
-            f.close()
-
-        text_file = open("tempfile.properties", "a")
-        text_file.write(charm_config.get("additional-options", ""))
-        text_file.close()
-
-        text_file = open("tempfile.properties", "r")
-        data = text_file.read()
-        text_file.close()
-
-        return data
+        return props
