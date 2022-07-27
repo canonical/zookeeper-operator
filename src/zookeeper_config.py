@@ -20,6 +20,26 @@ OPTS = [
     f"-Djava.security.auth.login.config={ZOOKEEPER_AUTH_CONFIG_PATH}",
 ]
 
+ZOOKEEPER_PROPERTIES = """
+clientPort=2181
+dataDir=/var/snap/kafka/common/data
+dataLogDir=/var/snap/kafka/common/log
+dynamicConfigFile=/var/snap/kafka/common/zookeeper-dynamic.properties
+maxClientCnxns=60
+minSessionTimeout=4000
+maxSessionTimeout=40000
+autopurge.snapRetainCount=3
+autopurge.purgeInterval=0
+reconfigEnabled=true
+standaloneEnabled=false
+4lw.commands.whitelist=*
+DigestAuthenticationProvider.digestAlg=SHA3-256
+quorum.auth.enableSasl=true
+quorum.auth.learnerRequireSasl=true
+quorum.auth.serverRequireSasl=true
+authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+audit.enable=true"""
+
 
 class ZooKeeperConfig:
     """Manager for handling ZooKeeper auth configuration."""
@@ -60,26 +80,7 @@ class ZooKeeperConfig:
 
     def create_properties(self, config):
         """Parses properties file and inserts charm config."""
-        props = f"""
-        clientPort={config['client-port']}
-        dataDir=/var/snap/kafka/common/data
-        dataLogDir=/var/snap/kafka/common/log
-        dynamicConfigFile=/var/snap/kafka/common/zookeeper-dynamic.properties
-        maxClientCnxns=60
-        minSessionTimeout=4000
-        maxSessionTimeout=40000
-        autopurge.snapRetainCount=3
-        autopurge.purgeInterval=0
-        reconfigEnabled=true
-        standaloneEnabled=false
-        4lw.commands.whitelist=*
-        DigestAuthenticationProvider.digestAlg=SHA3-256
-        quorum.auth.enableSasl=true
-        quorum.auth.learnerRequireSasl=true
-        quorum.auth.serverRequireSasl=true
-        authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-        audit.enable=true"""
-
+        props = ZOOKEEPER_PROPERTIES
         keys = {
             "init-limit": "initLimit",
             "sync-limit": "syncLimit",

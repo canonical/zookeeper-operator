@@ -142,7 +142,7 @@ class ZooKeeperCharm(CharmBase):
             properties=self.zookeeper_config.create_properties(self.config),
             property_label="zookeeper",
         )
-        self.snap.restart_snap_service("zookeeper")
+        self.on[self.restart.name].acquire_lock.emit()
 
     def _on_cluster_relation_updated(self, event: EventBase) -> None:
         """Handler for events triggered by changing units.
