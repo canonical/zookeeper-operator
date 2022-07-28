@@ -79,7 +79,7 @@ class ZooKeeperConfig:
         safe_write_to_file(content=f"KAFKA_OPTS={opts_string}", path="/etc/environment", mode="a")
 
     def create_properties(self, config):
-        """Parses properties file and inserts charm config."""
+        """Creates property file contents and inserts charm config values."""
         props = ZOOKEEPER_PROPERTIES
         keys = {
             "init-limit": "initLimit",
