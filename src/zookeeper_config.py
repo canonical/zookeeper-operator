@@ -6,7 +6,7 @@
 
 import logging
 
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH, safe_write_to_file
+from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH, safe_write_to_file, DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,9 @@ OPTS = [
     f"-Djava.security.auth.login.config={ZOOKEEPER_AUTH_CONFIG_PATH}",
 ]
 
-ZOOKEEPER_PROPERTIES = """
+ZOOKEEPER_PROPERTIES = f"""
 clientPort=2181
-dataDir=/var/snap/kafka/common/data
+dataDir={DATA_DIR}
 dataLogDir=/var/snap/kafka/common/log
 dynamicConfigFile=/var/snap/kafka/common/zookeeper-dynamic.properties
 maxClientCnxns=60
@@ -32,7 +32,7 @@ autopurge.snapRetainCount=3
 autopurge.purgeInterval=0
 reconfigEnabled=true
 standaloneEnabled=false
-4lw.commands.whitelist=*
+4lw.commands.whitelist=mntr
 DigestAuthenticationProvider.digestAlg=SHA3-256
 quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
