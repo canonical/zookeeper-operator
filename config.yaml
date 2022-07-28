@@ -3,23 +3,15 @@
 # See LICENSE file for licensing details.
 
 options:
-  client-port:
-    description: ""
-    type: int
-    default: 2181
   init-limit:
-    description: ""
+    description: "Amount of time, in ticks, to allow followers to connect and sync to a leader."
     type: int
     default: 5
-  secure-client-port:
-    description: ""
-    type: int
-    default: 2182
   sync-limit:
-    description: ""
+    description: "Amount of time, in ticks, to allow followers to sync with ZooKeeper."
     type: int
     default: 2
   tick-time:
-    description: ""
+    description: "the length of a single tick, which is the basic time unit used by ZooKeeper, as measured in milliseconds."
     type: int
     default: 2000
