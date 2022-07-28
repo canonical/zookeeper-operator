@@ -59,6 +59,7 @@ SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
 
 DATA_DIR = "/var/snap/kafka/common/data"
 
+
 class ConfigError(Exception):
     """Required field is missing from the config."""
 
