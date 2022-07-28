@@ -6,7 +6,7 @@
 
 import logging
 
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH, safe_write_to_file, DATA_DIR
+from charms.kafka.v0.kafka_snap import DATA_DIR, SNAP_CONFIG_PATH, safe_write_to_file
 
 logger = logging.getLogger(__name__)
 
