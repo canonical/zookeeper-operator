@@ -20,6 +20,6 @@ Manual, Day 2 operations for deploying and operating Apache ZooKeeper, scaling-u
 - Server-Server and Client-Server authentication both enabled by default
 - Access control management supported with user-provided ACL lists.
 
-## Usage
+## Contributing
 
 This charm is still in active development. If you would like to contribute, please refer to [CONTRIBUTING.md](https://github.com/canonical/zookeeper-operator/blob/main/CONTRIBUTING.md)
