@@ -57,6 +57,8 @@ LIBPATCH = 2
 
 SNAP_CONFIG_PATH = "/var/snap/kafka/common/"
 
+DATA_DIR = "/var/snap/kafka/common/data"
+
 
 class ConfigError(Exception):
     """Required field is missing from the config."""
@@ -187,7 +189,7 @@ class KafkaSnap:
         """
         properties = self.get_properties(property_label=property_label)
         try:
-            myid_path = f"{properties['dataDir']}/myid"
+            myid_path = f"{DATA_DIR}/myid"
         except KeyError as e:
             logger.error(str(e))
             raise ConfigError("dataDir is not set in the config")

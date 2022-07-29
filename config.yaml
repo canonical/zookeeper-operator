@@ -3,28 +3,15 @@
 # See LICENSE file for licensing details.
 
 options:
-  zookeeper-properties:
-    description: zookeeper.properties configuration file.
-    type: string
-    default: |
-      clientPort=2181
-      dataDir=/var/snap/kafka/common/data
-      dataLogDir=/var/snap/kafka/common/log
-      dynamicConfigFile=/var/snap/kafka/common/zookeeper-dynamic.properties
-      tickTime=2000
-      initLimit=5
-      syncLimit=2
-      maxClientCnxns=60
-      minSessionTimeout=4000
-      maxSessionTimeout=40000
-      autopurge.snapRetainCount=3
-      autopurge.purgeInterval=0
-      reconfigEnabled=true
-      standaloneEnabled=false
-      4lw.commands.whitelist=*
-      DigestAuthenticationProvider.digestAlg=SHA3-256
-      quorum.auth.enableSasl=true
-      quorum.auth.learnerRequireSasl=true
-      quorum.auth.serverRequireSasl=true
-      authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-      audit.enable=true
+  init-limit:
+    description: "Amount of time, in ticks, to allow followers to connect and sync to a leader."
+    type: int
+    default: 5
+  sync-limit:
+    description: "Amount of time, in ticks, to allow followers to sync with ZooKeeper."
+    type: int
+    default: 2
+  tick-time:
+    description: "the length of a single tick, which is the basic time unit used by ZooKeeper, as measured in milliseconds."
+    type: int
+    default: 2000
