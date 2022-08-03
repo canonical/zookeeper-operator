@@ -72,7 +72,8 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "certificates_relation_joined"), self._on_certificate_relation_joined
         )
         self.framework.observe(
-            getattr(self.on, "certificates_relation_departed"), self._on_certificate_relation_departed
+            getattr(self.on, "certificates_relation_departed"),
+            self._on_certificate_relation_departed,
         )
 
     def _on_install(self, _) -> None:
@@ -225,13 +226,14 @@ class ZooKeeperCharm(CharmBase):
         certificate_data = event.certificate_data
         path = Path(TLS_STORE_DIR)
         path.mkdir(parents=True, exist_ok=True)
-        for k,v in certificate_data.items():
+        for k, v in certificate_data.items():
             f = open(f"{TLS_STORE_DIR}/{k}", "w")
             f.write(v)
             f.close()
 
     def _on_certificate_relation_departed(self, event: EventBase):
         pass
+
 
 if __name__ == "__main__":
     main(ZooKeeperCharm)
