@@ -99,7 +99,7 @@ class KafkaSnap:
         """
         try:
             apt.update()
-            apt.add_package(["snapd", "openjdk-8-jre-headless"])
+            apt.add_package("snapd")
             cache = snap.SnapCache()
             kafka = cache["kafka"]
 
