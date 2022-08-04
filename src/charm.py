@@ -229,6 +229,11 @@ class ZooKeeperCharm(CharmBase):
             f = open(f"{TLS_STORE_DIR}/{k}", "w")
             f.write(v)
             f.close()
+        self.snap.write_properties(
+            properties=self.zookeeper_config.create_properties(self.config),
+            property_label="zookeeper",
+        )
+        self.on[self.restart.name].acquire_lock.emit()
 
     def _on_certificate_relation_departed(self, event: EventBase):
         pass
