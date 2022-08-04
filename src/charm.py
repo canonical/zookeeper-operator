@@ -6,9 +6,13 @@
 
 import logging
 import os
+from pathlib import Path
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
+from charms.tls_certificates_interface.v0.tls_certificates import (
+    TLSCertificatesRequires,
+)
 from charms.zookeeper.v0.cluster import (
     NoPasswordError,
     NotUnitTurnError,
@@ -16,15 +20,12 @@ from charms.zookeeper.v0.cluster import (
     ZooKeeperCluster,
 )
 from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
-from charms.tls_certificates_interface.v0.tls_certificates import TLSCertificatesRequires
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
-from charms.tls_certificates_interface.v0.tls_certificates import TLSCertificatesRequires
 
 from zookeeper_config import TLS_STORE_DIR, ZooKeeperConfig
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

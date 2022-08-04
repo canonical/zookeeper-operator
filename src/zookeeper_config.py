@@ -5,9 +5,9 @@
 """Manager for handling ZooKeeper auth configuration."""
 
 import logging
+from pathlib import Path
 
 from charms.kafka.v0.kafka_snap import DATA_DIR, SNAP_CONFIG_PATH, safe_write_to_file
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +111,9 @@ class ZooKeeperConfig:
             if config.get(k, None) is not None:
                 props += f"\n{v}={config[k]}"
 
-        keystore = Path(f"{TLS_STORE_DIR}/{TLS_KEYSTORE}")
         truststore = Path(f"{TLS_STORE_DIR}/{TLS_TRUSTSTORE}")
 
-        if keystore.is_file() and truststore.is_file():
+        if truststore.is_file():
             props += TLS_ZOOKEEPER_PROPERTIES
 
         return props
