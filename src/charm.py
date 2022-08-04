@@ -6,7 +6,6 @@
 
 import logging
 import os
-import subprocess
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
