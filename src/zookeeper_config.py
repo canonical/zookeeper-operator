@@ -55,7 +55,6 @@ ssl.trustStore.location={TLS_STORE_DIR}/{TLS_TRUSTSTORE}
 ssl.trustStore.password={TLS_STORE_PW}
 ssl.trustStore.type=PEM
 ssl.quorum.trustStore.type=PEM
-ssl.quorum.trustStore.type=PEM
 zookeeper.ssl.client.enable=true
 zookeeper.set.acl=true
 ssl.clientAuth=none"""
