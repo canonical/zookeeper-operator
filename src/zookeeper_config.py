@@ -45,22 +45,20 @@ TLS_STORE_DIR = "/var/snap/kafka/common/certs"
 
 TLS_STORE_PW = "test123"
 
-TLS_KEYSTORE = "cert"
-
 TLS_TRUSTSTORE = "ca"
 
 TLS_ZOOKEEPER_PROPERTIES = f"""
 secureClientPort=2182
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 authProvider.x509=org.apache.zookeeper.server.auth.X509AuthenticationProvider
-ssl.keyStore.location={TLS_STORE_DIR}/{TLS_KEYSTORE}
-ssl.keyStore.password={TLS_STORE_PW}
 ssl.trustStore.location={TLS_STORE_DIR}/{TLS_TRUSTSTORE}
 ssl.trustStore.password={TLS_STORE_PW}
-ssl.keyStore.type=PEM
-ssl.quorum.keyStore.type=PEM
 ssl.trustStore.type=PEM
-ssl.quorum.trustStore.type=PEM"""
+ssl.quorum.trustStore.type=PEM
+ssl.quorum.trustStore.type=PEM
+zookeeper.ssl.client.enable=true
+zookeeper.set.acl=true
+ssl.clientAuth=none"""
 
 
 class ZooKeeperConfig:
