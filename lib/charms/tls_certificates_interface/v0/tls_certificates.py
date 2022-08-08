@@ -458,7 +458,7 @@ class TLSCertificatesRequires(Object):
         Returns:
             None
         """
-        if self.model.unit.is_leader():
+        if True: #self.model.unit.is_leader():
             relation_data = _load_relation_data(event.relation.data[event.unit])
             if not self._relation_data_is_valid(relation_data):
                 logger.warning("Relation data did not pass JSON Schema validation - Deferring")
