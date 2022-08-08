@@ -89,7 +89,7 @@ class ZooKeeperCharm(CharmBase):
         # non-idempotent commands (e.g setting properties) will no longer run, returning None
         if self.snap.install():
             self.snap.write_properties(
-                properties=self.zookeeper_config.create_properties(self.config),
+                properties=self.zookeeper_config.create_properties(self.config, self.cluster),
                 property_label="zookeeper",
             )
 
@@ -158,7 +158,7 @@ class ZooKeeperCharm(CharmBase):
             - Restarting zookeeper service
         """
         self.snap.write_properties(
-            properties=self.zookeeper_config.create_properties(self.config),
+            properties=self.zookeeper_config.create_properties(self.config, self.cluster),
             property_label="zookeeper",
         )
         self.on[self.restart.name].acquire_lock.emit()
@@ -231,7 +231,7 @@ class ZooKeeperCharm(CharmBase):
             f.write(v)
             f.close()
         self.snap.write_properties(
-            properties=self.zookeeper_config.create_properties(self.config),
+            properties=self.zookeeper_config.create_properties(self.config, self.cluster),
             property_label="zookeeper",
         )
         self.on[self.restart.name].acquire_lock.emit()

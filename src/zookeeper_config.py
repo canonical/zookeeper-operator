@@ -97,7 +97,7 @@ class ZooKeeperConfig:
         opts_string = " ".join(OPTS)
         safe_write_to_file(content=f"KAFKA_OPTS={opts_string}", path="/etc/environment", mode="a")
 
-    def create_properties(self, config):
+    def create_properties(self, config, cluster):
         """Creates property file contents and inserts charm config values."""
         props = ZOOKEEPER_PROPERTIES
         keys = {
@@ -110,9 +110,18 @@ class ZooKeeperConfig:
             if config.get(k, None) is not None:
                 props += f"\n{v}={config[k]}"
 
+        if self.ssl_enabled():
+            props += TLS_ZOOKEEPER_PROPERTIES
+            props += f"\nzookeeper.connect="
+            for host in cluster.active_hosts:
+                props += f"{host}:2182,"
+
+        return props
+
+    def ssl_enabled(self):
         truststore = Path(f"{TLS_STORE_DIR}/{TLS_TRUSTSTORE}")
 
         if truststore.is_file():
-            props += TLS_ZOOKEEPER_PROPERTIES
-
-        return props
+            return True
+        else:
+            return False
