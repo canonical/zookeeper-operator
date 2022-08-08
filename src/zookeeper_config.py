@@ -112,13 +112,14 @@ class ZooKeeperConfig:
 
         if self.ssl_enabled():
             props += TLS_ZOOKEEPER_PROPERTIES
-            props += f"\nzookeeper.connect="
+            props += "\nzookeeper.connect="
             for host in cluster.active_hosts:
                 props += f"{host}:2182,"
 
         return props
 
     def ssl_enabled(self):
+        """Checks for the certificates needed for TLS."""
         truststore = Path(f"{TLS_STORE_DIR}/{TLS_TRUSTSTORE}")
 
         if truststore.is_file():
