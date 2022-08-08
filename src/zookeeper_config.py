@@ -43,8 +43,6 @@ audit.enable=true"""
 
 TLS_STORE_DIR = "/var/snap/kafka/common/certs"
 
-TLS_STORE_PW = "test123"
-
 TLS_TRUSTSTORE = "ca"
 
 TLS_ZOOKEEPER_PROPERTIES = f"""
@@ -52,7 +50,6 @@ secureClientPort=2182
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 authProvider.x509=org.apache.zookeeper.server.auth.X509AuthenticationProvider
 ssl.trustStore.location={TLS_STORE_DIR}/{TLS_TRUSTSTORE}
-ssl.trustStore.password={TLS_STORE_PW}
 ssl.trustStore.type=PEM
 ssl.quorum.trustStore.type=PEM
 zookeeper.ssl.client.enable=true
