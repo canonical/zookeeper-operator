@@ -7,6 +7,10 @@ options:
     description: "Amount of time, in ticks, to allow followers to connect and sync to a leader."
     type: int
     default: 5
+  retain-certs:
+    description: "Retain certs from TLS certificates relation if departed or broken."
+    type: boolean
+    default: false
   sync-limit:
     description: "Amount of time, in ticks, to allow followers to sync with ZooKeeper."
     type: int

@@ -75,6 +75,10 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "certificates_relation_departed"),
             self._on_certificate_relation_departed,
         )
+        self.framework.observe(
+            getattr(self.on, "certificates_relation_broken"),
+            self._on_certificate_relation_departed,
+        )
 
     def _on_install(self, _) -> None:
         """Handler for the `on_install` event.
@@ -237,7 +241,9 @@ class ZooKeeperCharm(CharmBase):
         self.on[self.restart.name].acquire_lock.emit()
 
     def _on_certificate_relation_departed(self, event: EventBase):
-        pass
+        for file in ["ca", "cert", "key", "common_name"]:
+            if os.path.exists(f"{TLS_STORE_DIR}/{file}"):
+                os.remove(f"{TLS_STORE_DIR}/{file}")
 
 
 if __name__ == "__main__":
