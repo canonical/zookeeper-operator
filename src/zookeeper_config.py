@@ -116,7 +116,4 @@ class ZooKeeperConfig:
         """Checks for the certificates needed for TLS."""
         truststore = Path(f"{TLS_STORE_DIR}/{TLS_TRUSTSTORE}")
 
-        if truststore.is_file():
-            return True
-        else:
-            return False
+        return truststore.is_file()
