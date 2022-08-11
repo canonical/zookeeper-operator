@@ -128,6 +128,9 @@ class TestManager(unittest.TestCase):
             hosts="leader:2181",
             timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
+            certfile="/var/snap/kafka/common/certs/cert",
+            ca="/var/snap/kafka/common/certs/ca",
+            use_ssl=False,
         )
 
     @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True))
@@ -178,4 +181,7 @@ class TestManager(unittest.TestCase):
             hosts="leader:2181",
             timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
+            certfile="/var/snap/kafka/common/certs/cert",
+            ca="/var/snap/kafka/common/certs/ca",
+            use_ssl=False,
         )

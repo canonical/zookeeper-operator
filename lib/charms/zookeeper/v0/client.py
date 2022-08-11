@@ -65,6 +65,7 @@ from tenacity.retry import retry_if_not_result
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_fixed
 from kazoo.client import ACL, KazooClient
+from zookeeper_config import ZooKeeperConfig, TLS_STORE_DIR, TLS_TRUSTSTORE
 
 # The unique Charmhub library identifier, never change it
 LIBID = "4dc4430e6e5d492699391f57bd697fce"
@@ -348,10 +349,14 @@ class ZooKeeperClient:
         self.client_port = client_port
         self.username = username
         self.password = password
+        self.zk_config = ZooKeeperConfig()
         self.client = KazooClient(
             hosts=f"{host}:{client_port}",
             timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
+            certfile=f"{TLS_STORE_DIR}/cert",
+            ca=f"{TLS_STORE_DIR}/ca",
+            use_ssl=self.zk_config.ssl_enabled(),
         )
         self.client.start()
 
