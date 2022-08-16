@@ -43,7 +43,7 @@ audit.enable=true"""
 
 TLS_STORE_DIR = "/var/snap/kafka/common/certs"
 
-TLS_TRUSTSTORE = "ca"
+TLS_TRUSTSTORE = "cert"
 
 TLS_ZOOKEEPER_PROPERTIES = f"""
 secureClientPort=2182

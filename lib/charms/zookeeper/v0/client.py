@@ -111,17 +111,24 @@ class ZooKeeperManager:
         username: str,
         password: str,
         client_port: int = 2181,
+        secure_client_port: int = 2182
     ):
         self.hosts = hosts
         self.username = username
         self.password = password
         self.client_port = client_port
+        self.secure_client_port = secure_client_port
         self.leader = ""
+        self.config = ZooKeeperConfig()
 
         try:
             self.leader = self.get_leader()
         except RetryError:
             raise QuorumLeaderNotFoundError("quorum leader not found")
+
+    def _get_port(self):
+        """Returns the port that the client needs to connect."""
+        return secure_client_port if self.config.ssl_enabled() else client_port
 
     @retry(
         wait=wait_fixed(3),
@@ -145,7 +152,7 @@ class ZooKeeperManager:
             try:
                 with ZooKeeperClient(
                     host=host,
-                    client_port=self.client_port,
+                    client_port=self._get_port(),
                     username=self.username,
                     password=self.password,
                 ) as zk:
@@ -169,7 +176,7 @@ class ZooKeeperManager:
         """
         with ZooKeeperClient(
             host=self.leader,
-            client_port=self.client_port,
+            client_port=self._get_port(),
             username=self.username,
             password=self.password,
         ) as zk:
@@ -203,7 +210,7 @@ class ZooKeeperManager:
         """
         with ZooKeeperClient(
             host=self.leader,
-            client_port=self.client_port,
+            client_port=self._get_port(),
             username=self.username,
             password=self.password,
         ) as zk:
@@ -232,7 +239,7 @@ class ZooKeeperManager:
                 # individual connections to each server
                 with ZooKeeperClient(
                     host=host,
-                    client_port=self.client_port,
+                    client_port=self._get_port(),
                     username=self.username,
                     password=self.password,
                 ) as zk:
@@ -245,7 +252,7 @@ class ZooKeeperManager:
             # specific connection to leader
             with ZooKeeperClient(
                 host=self.leader,
-                client_port=self.client_port,
+                client_port=self._get_port(),
                 username=self.username,
                 password=self.password,
             ) as zk:
@@ -266,7 +273,7 @@ class ZooKeeperManager:
             member_id = re.findall(r"server.([0-9]+)", member)[0]
             with ZooKeeperClient(
                 host=self.leader,
-                client_port=self.client_port,
+                client_port=self._get_port(),
                 username=self.username,
                 password=self.password,
             ) as zk:
@@ -288,7 +295,7 @@ class ZooKeeperManager:
         """
         with ZooKeeperClient(
             host=self.leader,
-            client_port=self.client_port,
+            client_port=self._get_port(),
             username=self.username,
             password=self.password,
         ) as zk:
@@ -305,7 +312,7 @@ class ZooKeeperManager:
         """
         with ZooKeeperClient(
             host=self.leader,
-            client_port=self.client_port,
+            client_port=self._get_port(),
             username=self.username,
             password=self.password,
         ) as zk:
@@ -320,7 +327,7 @@ class ZooKeeperManager:
         """
         with ZooKeeperClient(
             host=self.leader,
-            client_port=self.client_port,
+            client_port=self._get_port(),
             username=self.username,
             password=self.password,
         ) as zk:
@@ -334,7 +341,7 @@ class ZooKeeperManager:
         """
         with ZooKeeperClient(
             host=self.leader,
-            client_port=self.client_port,
+            client_port=self._get_port(),
             username=self.username,
             password=self.password,
         ) as zk:
