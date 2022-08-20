@@ -2,6 +2,8 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+"""General purpose helper functions for manaing common charm functions."""
+
 import os
 import secrets
 import string
@@ -41,6 +43,7 @@ def safe_get_file(filepath: str) -> Optional[List[str]]:
 
     return content
 
+
 def generate_password():
     """Creates randomized string for use as app passwords.
 
@@ -48,4 +51,3 @@ def generate_password():
         String of 32 randomized letter+digit characters
     """
     return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
-
