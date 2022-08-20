@@ -71,30 +71,18 @@ class ZooKeeperConfig:
         return jaas_users
 
     @property
-    def zookeeper_properties(self) -> List[str]:
-        return (
-            [
-                f"initLimit={self.charm.config['init-limit']}",
-                f"syncLimit={self.charm.config['sync-limit']}",
-                f"tickTime={self.charm.config['tick-time']}",
-            ]
-            + DEFAULT_PROPERTIES.split("\n")
-            + [
-                f"dataDir={self.default_config_path}/data",
-                f"dataLogDir={self.default_config_path}/log",
-                f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties",
-            ]
-        )
+    def jaas_config(self) -> str:
+        """Builds the JAAS config.
 
-    def set_jaas_config(self) -> None:
-        """Sets the ZooKeeper JAAS config."""
-
+        Returns:
+            String of JAAS config for super/user config
+        """
         cluster = self.charm.model.get_relation(PEER)
         sync_password = cluster.data[self.charm.app].get("sync-password", None)
         super_password = cluster.data[self.charm.app].get("super-password", None)
         users = self.jaas_users
 
-        auth_config = f"""
+        return f"""
             QuorumServer {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
                 user_sync="{sync_password}";
@@ -112,7 +100,32 @@ class ZooKeeperConfig:
                 user_super="{super_password}";
             }};
         """
-        safe_write_to_file(content=auth_config, path=self.jaas_filepath, mode="w")
+
+
+    @property
+    def zookeeper_properties(self) -> List[str]:
+        """Build the zookeeper.properties content.
+
+        Returns:
+            List of properties to be set to zookeeper.properties config file
+        """
+        return (
+            [
+                f"initLimit={self.charm.config['init-limit']}",
+                f"syncLimit={self.charm.config['sync-limit']}",
+                f"tickTime={self.charm.config['tick-time']}",
+            ]
+            + DEFAULT_PROPERTIES.split("\n")
+            + [
+                f"dataDir={self.default_config_path}/data",
+                f"dataLogDir={self.default_config_path}/log",
+                f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties",
+            ]
+        )
+
+    def set_jaas_config(self) -> None:
+        """Sets the ZooKeeper JAAS config."""
+        safe_write_to_file(content=self.jaas_config, path=self.jaas_filepath, mode="w")
 
     def set_kafka_opts(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
