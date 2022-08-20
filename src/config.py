@@ -10,12 +10,12 @@ from typing import List
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from ops.charm import CharmBase
 
-from utils import safe_write_to_file
 from literals import PEER
+from utils import safe_write_to_file
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PROPERTIES = f"""
+DEFAULT_PROPERTIES = """
 clientPort=2181
 maxClientCnxns=60
 minSessionTimeout=4000
@@ -45,6 +45,7 @@ class ZooKeeperConfig:
 
     @property
     def kafka_opts(self) -> List[str]:
+        """Builds necessary JVM config env vars for the Kafka snap."""
         return [
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
@@ -101,7 +102,6 @@ class ZooKeeperConfig:
             }};
         """
 
-
     @property
     def zookeeper_properties(self) -> List[str]:
         """Build the zookeeper.properties content.
@@ -133,6 +133,7 @@ class ZooKeeperConfig:
         safe_write_to_file(content=f"KAFKA_OPTS='{opts}'", path="/etc/environment", mode="w")
 
     def set_zookeeper_properties(self) -> None:
+        """Writes built zookeeper.properties file."""
         safe_write_to_file(
             content="\n".join(self.zookeeper_properties),
             path=self.properties_filepath,
@@ -140,9 +141,11 @@ class ZooKeeperConfig:
         )
 
     def set_zookeeper_dynamic_properties(self, servers: str) -> None:
+        """Writes zookeeper-dynamic.properties containing server connection strings."""
         safe_write_to_file(content=servers, path=self.dynamic_filepath, mode="w")
 
     def set_zookeeper_myid(self) -> None:
+        """Writes ZooKeeper myid file to config/data."""
         safe_write_to_file(
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
             path=f"{self.default_config_path}/data/myid",

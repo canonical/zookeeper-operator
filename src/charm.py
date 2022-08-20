@@ -15,7 +15,7 @@ from charms.zookeeper.v0.cluster import (
     ZooKeeperCluster,
 )
 from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
-from ops.charm import CharmBase, ConfigChangedEvent
+from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
@@ -69,8 +69,8 @@ class ZooKeeperCharm(CharmBase):
         install = self.snap.install()
         if not install:
             self.unit.status = BlockedStatus("unalbe to install Kafka snap")
-        
-        # setting default propeties
+
+        # setting default properties
         self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_zookeeper_myid()
 
