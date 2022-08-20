@@ -15,12 +15,12 @@ from charms.zookeeper.v0.cluster import (
     ZooKeeperCluster,
 )
 from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
-from ops.charm import CharmBase
+from ops.charm import CharmBase, ConfigChangedEvent
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
-from zookeeper_config import ZooKeeperConfig
+from config import ZooKeeperConfig
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class ZooKeeperCharm(CharmBase):
         self.cluster = ZooKeeperCluster(self)
         self.restart = RollingOpsManager(self, relation="restart", callback=self._restart)
         self.provider = ZooKeeperProvider(self)
-        self.zookeeper_config = ZooKeeperConfig()
+        self.zookeeper_config = ZooKeeperConfig(self)
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._on_start)
@@ -66,18 +66,13 @@ class ZooKeeperCharm(CharmBase):
         """
         self.unit.status = MaintenanceStatus("installing Kafka snap")
 
-        # if any snap method calls fail, Snap.status is set to BlockedStatus
-        # non-idempotent commands (e.g setting properties) will no longer run, returning None
-        if self.snap.install():
-            self.snap.write_properties(
-                properties=self.zookeeper_config.create_properties(self.config),
-                property_label="zookeeper",
-            )
-
-            # zk servers index at 1
-            self.snap.write_zookeeper_myid(myid=self.cluster.get_unit_id(self.unit) + 1)
-        else:
-            self.unit.status = BlockedStatus("unable to install Kafka snap")
+        install = self.snap.install()
+        if not install:
+            self.unit.status = BlockedStatus("unalbe to install Kafka snap")
+        
+        # setting default propeties
+        self.zookeeper_config.set_zookeeper_properties()
+        self.zookeeper_config.set_zookeeper_myid()
 
     def _on_start(self, event: EventBase) -> None:
         """Handler for the `on_start` event.
@@ -112,14 +107,11 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # servers properties needs to be written to dynamic config
-        self.snap.write_properties(properties=servers, property_label="zookeeper-dynamic")
+        self.zookeeper_config.set_zookeeper_properties()
+        self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
 
         # grabbing up-to-date jaas users from the relations
-        super_password, sync_password = self.cluster.passwords
-        users = self.provider.build_jaas_users(event=event)
-        self.zookeeper_config.set_jaas_config(
-            sync_password=sync_password, super_password=super_password, users=users
-        )
+        self.zookeeper_config.set_jaas_config()
 
         # KAFKA_OPTS env var gets loaded on snap start
         self.zookeeper_config.set_kafka_opts()
@@ -131,17 +123,13 @@ class ZooKeeperCharm(CharmBase):
         self.cluster.relation.data[self.unit].update(unit_config)
         self.cluster.relation.data[self.unit].update({"state": "started"})
 
-    def _on_config_changed(self, event):
+    def _on_config_changed(self, _):
         """Handler for the `config-changed` event.
 
         This includes:
-            - Writing config to config files\
+            - Writing config to config files
             - Restarting zookeeper service
         """
-        self.snap.write_properties(
-            properties=self.zookeeper_config.create_properties(self.config),
-            property_label="zookeeper",
-        )
         self.on[self.restart.name].acquire_lock.emit()
 
     def _on_cluster_relation_updated(self, event: EventBase) -> None:
