@@ -8,7 +8,7 @@ import logging
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
+from provider import ZooKeeperProvider
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
