@@ -6,7 +6,7 @@ import re
 import unittest
 
 import ops.testing
-from charms.zookeeper.v0.cluster import (
+from cluster import (
     NoPasswordError,
     NotUnitTurnError,
     UnitNotFoundError,
