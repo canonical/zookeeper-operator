@@ -6,15 +6,16 @@ import re
 import unittest
 
 import ops.testing
+from ops.charm import CharmBase
+from ops.model import Unit
+from ops.testing import Harness
+
 from cluster import (
     NoPasswordError,
     NotUnitTurnError,
     UnitNotFoundError,
     ZooKeeperCluster,
 )
-from ops.charm import CharmBase
-from ops.model import Unit
-from ops.testing import Harness
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 

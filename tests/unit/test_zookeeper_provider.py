@@ -9,10 +9,11 @@ from collections import namedtuple
 
 import ops.testing
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from cluster import ZooKeeperCluster
-from provider import ZooKeeperProvider
 from ops.charm import CharmBase, RelationBrokenEvent
 from ops.testing import Harness
+
+from cluster import ZooKeeperCluster
+from provider import ZooKeeperProvider
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 

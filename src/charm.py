@@ -8,7 +8,6 @@ import logging
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from provider import ZooKeeperProvider
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
@@ -21,13 +20,11 @@ from cluster import (
     ZooKeeperCluster,
 )
 from config import ZooKeeperConfig
+from literals import CHARM_KEY
+from provider import ZooKeeperProvider
 from utils import generate_password
 
 logger = logging.getLogger(__name__)
-
-
-CHARM_KEY = "zookeeper"
-PEER = "cluster"
 
 
 class ZooKeeperCharm(CharmBase):
@@ -69,7 +66,7 @@ class ZooKeeperCharm(CharmBase):
 
         install = self.snap.install()
         if not install:
-            self.unit.status = BlockedStatus("unalbe to install Kafka snap")
+            self.unit.status = BlockedStatus("unable to install Kafka snap")
 
         # setting default properties
         self.zookeeper_config.set_zookeeper_properties()
