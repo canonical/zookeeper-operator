@@ -59,6 +59,10 @@ class ZooKeeperConfig:
         Returns:
             Newline delimited string of JAAS users from relation data
         """
+        client_relations = self.charm.model.get_relation("zookeeper", None)
+        if not client_relations:
+            return []
+
         jaas_users = []
         for relation in self.charm.model.get_relation("zookeeper"):
             username = relation.data[self.charm.app].get("username", None)
