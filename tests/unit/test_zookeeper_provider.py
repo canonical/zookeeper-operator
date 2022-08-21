@@ -9,8 +9,8 @@ from collections import namedtuple
 
 import ops.testing
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from charms.zookeeper.v0.cluster import ZooKeeperCluster
-from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
+from cluster import ZooKeeperCluster
+from provider import ZooKeeperProvider
 from ops.charm import CharmBase, RelationBrokenEvent
 from ops.testing import Harness
 
