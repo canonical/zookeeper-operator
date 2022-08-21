@@ -8,19 +8,20 @@ import logging
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from charms.zookeeper.v0.cluster import (
-    NoPasswordError,
-    NotUnitTurnError,
-    UnitNotFoundError,
-    ZooKeeperCluster,
-)
 from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
+from cluster import (
+    NoPasswordError,
+    NotUnitTurnError,
+    UnitNotFoundError,
+    ZooKeeperCluster,
+)
 from config import ZooKeeperConfig
+from utils import generate_password
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class ZooKeeperCharm(CharmBase):
             for password in ["super_password", "sync_password"]:
                 current_value = self.cluster.relation.data[self.app].get(password, None)
                 self.cluster.relation.data[self.app].update(
-                    {password: current_value or self.cluster.generate_password()}
+                    {password: current_value or generate_password()}
                 )
 
         if not self.cluster.passwords_set:
