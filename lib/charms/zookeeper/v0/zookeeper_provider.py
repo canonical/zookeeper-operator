@@ -51,7 +51,8 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from charms.zookeeper.v0.cluster import UnitNotFoundError, ZooKeeperCluster
+from cluster import UnitNotFoundError
+from utils import generate_password
 
 # The unique Charmhub library identifier, never change it
 LIBID = "9b1b988c397e4b6da4e1575fdb15dfa6"
@@ -285,7 +286,7 @@ class ZooKeeperProvider(Object):
 
             relation_data = {}
             relation_data["username"] = config["username"]
-            relation_data["password"] = config["password"] or ZooKeeperCluster.generate_password()
+            relation_data["password"] = config["password"] or generate_password()
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
             relation_data["uris"] = (

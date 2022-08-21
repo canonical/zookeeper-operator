@@ -2,131 +2,12 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""ZooKeeperCluster class and methods.
-
-`ZooKeeperCluster` is a general-purpose handler for managing the ZooKeeper peer-relation data,
-and scale-up/down orchestration.
-
-Exposed attributes include a reference to the `cluster` peer relation for ZooKeeper, as well as wrappers
-for grabbing units that have started the ZooKeeper service, found from the peer unit data.
-Exposed methods include the setting of passwords for the cluster, ensuring units start up in increasing order
-with the correct servers config, and handling the adding/removing of members from the ZooKeeper quorum.
-
-
-Instances of `ZooKeeperCluster` are to be created during the `__init__` for the target `Charm`. 
-or from another library. It does not set any relation data itself, and as such is reliant on the calling `Charm`
-to set required relation data where necessary during life-cycle events.
-It maintains a `status` attribute for passing success/failure of called methods back to the calling `Charm`.
-
-Example minimal usage for `ZooKeeperCluster`:
-
-
-```python
-
-class ZooKeeperCharm(CharmBase):
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.cluster =  ZooKeeperCluster(self)
-
-        self.framework.observe(getattr(self.on, "install"), self._on_install)
-        self.framework.observe(getattr(self.on, "start"), self._on_start)
-        self.framework.observe(
-            getattr(self.on, "leader_elected"), self._on_cluster_relation_updated
-        )
-        self.framework.observe(
-            getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_updated
-        )
-        self.framework.observe(
-            getattr(self.on, "cluster_relation_joined"), self._on_cluster_relation_updated
-        )
-        self.framework.observe(
-            getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
-        )
-
-    def _on_install(self, event):
-        unit_myid = self.cluster.get_unit_id(self.unit) + 1 
-
-        # write_unit_id(id=unit_myid)
-
-    def _on_start(self, event):
-        # setting cluster passwords during first deployment
-        if self.unit.is_leader():
-            self.cluster.relation.data[self.app].update({"super_password": self.cluster.generate_password()})
-            self.cluster.relation.data[self.app].update({"sync_password": self.cluster.generate_password()})
-
-        # checking passwords have been set by leader on other units, in case they started first
-        if not self.cluster.passwords_set():
-            event.defer()
-            return
-        
-        # units must be started in increasing unit.id order
-        try:
-            servers, unit_config = self.cluster.ready_to_start(self.unit)
-        except (NotUnitTurnError, UnitNotFoundError, NoPasswordError) as e:
-            self.unit.status = self.cluster.status
-            event.defer()
-            return
-
-        # start_zookeeper_service()
-
-
-        # set useful metadata for each unit
-        self.cluster.relation.data[self.unit].update(unit_config)
-        
-        # NECESSARY - set data so that subsequent `self.cluster` commands pick up this unit as a 'started' one
-        self.cluster.relation.data[self.unit].update({"state": "started"})
-    
-    def _on_cluster_relation_updated(self, event):
-        if not self.unit.is_leader():
-            return
-
-        # units need to exist in the app data to be iterated through for next_turn
-        for unit in self.cluster.started_units:
-            unit_id = self.cluster.get_unit_id(unit)
-            current_value = self.cluster.relation.data[self.app].get(str(unit_id), None)
-
-            # sets to "added" for init quorum leader, if not already exists
-            # may already exist if during the case of a failover of the first unit
-            if unit_id == self.cluster.lowest_unit_id:
-                self.cluster.relation.data[self.app].update(
-                    {str(unit_id): current_value or "added"}
-                )
-
-        if not self.cluster.passwords_set:
-            event.defer()
-            return
-
-        # adds + removes members for all self-confirmed started units
-        updated_servers = self.cluster.update_cluster()
-
-        # either Active if successful, else Maintenance
-        self.unit.status = self.cluster.status
-
-        if self.cluster.status == ActiveStatus():
-            self.cluster.relation.data[self.app].update(updated_servers)
-        else:
-            # in the event some unit wasn't started/ready
-            event.defer()
-            return
-```
-"""
+"""ZooKeeperCluster class and methods."""
 
 
 import logging
-import secrets
-import string
 import re
 from typing import Dict, List, Optional, Set, Tuple, Union
-from kazoo.handlers.threading import KazooTimeoutError
-from ops.charm import CharmBase
-
-from ops.model import (
-    ActiveStatus,
-    MaintenanceStatus,
-    Relation,
-    StatusBase,
-    Unit,
-)
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -134,22 +15,12 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-
-# The unique Charmhub library identifier, never change it
-LIBID = "8cb992e4287945c5a1efc89ca5a27cdb"
-
-# Increment this major API version when introducing breaking changes
-LIBAPI = 0
-
-# Increment this PATCH version before using `charmcraft publish-lib` or reset
-# to 0 if you are raising the major API version
-LIBPATCH = 2
-
+from kazoo.handlers.threading import KazooTimeoutError
+from ops.charm import CharmBase
+from ops.model import ActiveStatus, MaintenanceStatus, Relation, StatusBase, Unit
+from literals import PEER
 
 logger = logging.getLogger(__name__)
-
-CHARM_KEY = "zookeeper"
-PEER = "cluster"
 
 
 class UnitNotFoundError(Exception):
@@ -284,7 +155,7 @@ class ZooKeeperCluster:
         return int(unit.name.split("/")[1])
 
     def get_unit_from_id(self, unit_id: int) -> Unit:
-        """Grabs the corresponding Unit for a given Juju unit ID
+        """Grabs the corresponding Unit for a given Juju unit ID.
 
         Args:
             unit_id: The target unit id
@@ -317,7 +188,8 @@ class ZooKeeperCluster:
 
                 {
                     "host": 10.121.23.23,
-                    "server_string": "server.1=host:server_port:election_port:role;localhost:clientport",
+                    "server_string":
+                        "server.1=host:server_port:election_port:role;localhost:clientport",
                     "server_id": "2",
                     "unit_id": "1",
                     "unit_name": "zookeeper/1",
@@ -325,7 +197,8 @@ class ZooKeeperCluster:
                 }
 
         Raises:
-            UnitNotFoundError: When the target unit can't be found in the unit relation data, and/or cannot extract the private-address
+            UnitNotFoundError: When the target unit can't be found in the unit relation data,
+                and/or cannot extract the private-address
         """
         unit_id = None
         server_id = None
@@ -375,7 +248,8 @@ class ZooKeeperCluster:
 
         To be ran by the Juju leader.
 
-        After grabbing all the "started" units that the leader can see in the peer relation unit data.
+        After grabbing all the "started" units that the leader can see in the peer relation
+            unit data.
         Removes members not in the quorum anymore (i.e `relation_departed`/`leader_elected` event)
         Adds new members to the quorum (i.e `relation_joined` event).
 
@@ -423,8 +297,8 @@ class ZooKeeperCluster:
             return {}
 
     def _is_unit_turn(self, unit_id: int) -> bool:
-        """Checks if all units with a lower id than the current unit has been added/removed to the ZK quorum."""
-        if self.lowest_unit_id == None:
+        """Checks if all units with a lower id than the unit has updated in the ZK quorum."""
+        if self.lowest_unit_id == None:  # noqa: E711
             # not all units have related yet
             return False
 
@@ -469,7 +343,9 @@ class ZooKeeperCluster:
         # during cluster startup, we want the first unit to start as a solo participant
         # if the first unit fails and restarts after that, we want it to start as a normal unit
         # with all current members
-        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(str(self.lowest_unit_id), None):
+        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(
+            str(self.lowest_unit_id), None
+        ):
             unit_string = unit_string.replace("observer", "participant")
             return unit_string.replace("observer", "participant"), unit_config
 
@@ -480,15 +356,6 @@ class ZooKeeperCluster:
         servers = self._generate_units(unit_string=unit_string)
 
         return servers, unit_config
-
-    @staticmethod
-    def generate_password():
-        """Creates randomized string for use as app passwords.
-
-        Returns:
-            String of 32 randomized letter+digit characters
-        """
-        return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
 
     @property
     def passwords(self) -> Tuple[str, str]:
