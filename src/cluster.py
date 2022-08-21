@@ -18,6 +18,7 @@ from charms.zookeeper.v0.client import (
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 from ops.model import ActiveStatus, MaintenanceStatus, Relation, StatusBase, Unit
+
 from literals import PEER
 
 logger = logging.getLogger(__name__)
