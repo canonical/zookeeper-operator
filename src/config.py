@@ -9,8 +9,9 @@ from typing import List
 
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from ops.charm import CharmBase
+from ops.model import Relation
 
-from literals import PEER
+from literals import PEER, REL_NAME
 from utils import safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,15 @@ class ZooKeeperConfig:
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
 
     @property
+    def cluster(self) -> Relation:
+        """Relation property to be used by both the instance and charm.
+
+        Returns:
+            The peer relation instance
+        """
+        return self.charm.model.get_relation(PEER)
+
+    @property
     def kafka_opts(self) -> List[str]:
         """Builds necessary JVM config env vars for the Kafka snap."""
         return [
@@ -59,20 +69,19 @@ class ZooKeeperConfig:
         Returns:
             Newline delimited string of JAAS users from relation data
         """
-        client_relations = self.charm.model.get_relation("zookeeper", None)
+        client_relations = self.charm.model.relations[REL_NAME]
         if not client_relations:
             return []
 
         jaas_users = []
-        for relation in self.charm.model.get_relation("zookeeper"):
-            username = relation.data[self.charm.app].get("username", None)
-            password = relation.data[self.charm.app].get("password", None)
+        for relation in client_relations:
+            username = f"relation-{relation.id}"
+            password = self.cluster.data[self.charm.app].get(username, None)
 
             if not (username and password):
                 continue
 
             jaas_users.append(f'user_{username}="{password}"')
-
         return jaas_users
 
     @property
@@ -82,10 +91,9 @@ class ZooKeeperConfig:
         Returns:
             String of JAAS config for super/user config
         """
-        cluster = self.charm.model.get_relation(PEER)
-        sync_password = cluster.data[self.charm.app].get("sync-password", None)
-        super_password = cluster.data[self.charm.app].get("super-password", None)
-        users = self.jaas_users or ""
+        sync_password = self.cluster.data[self.charm.app].get("sync-password", None)
+        super_password = self.cluster.data[self.charm.app].get("super-password", None)
+        users = "\n".join(self.jaas_users) or ""
 
         return f"""
             QuorumServer {{
@@ -127,6 +135,15 @@ class ZooKeeperConfig:
             ]
         )
 
+    @property
+    def static_properties(self) -> List[str]:
+        """Build the zookeeper.properties content, without dynamic options.
+
+        Returns:
+            List of static properties to compared to current zookeeper.properties
+        """
+        return self.build_static_properties(self.zookeeper_properties)
+
     def set_jaas_config(self) -> None:
         """Sets the ZooKeeper JAAS config."""
         safe_write_to_file(content=self.jaas_config, path=self.jaas_filepath, mode="w")
@@ -154,3 +171,23 @@ class ZooKeeperConfig:
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
             path=f"{self.default_config_path}/data/myid",
         )
+
+    @staticmethod
+    def build_static_properties(properties: List[str]) -> List[str]:
+        """Removes dynamic config options from list of properties.
+
+        Running ZooKeeper cluster with `reconfigEnabled` moves dynamic options
+            to a dedicated dynamic file
+        These options are `dynamicConfigFile` and `clientPort`
+
+        Args:
+            properties: the properties to make static
+
+        Returns:
+            List of static properties
+        """
+        return [
+            prop
+            for prop in properties
+            if ("dynamicConfigFile" not in prop and "clientPort" not in prop)
+        ]

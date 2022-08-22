@@ -132,7 +132,6 @@ class ZooKeeperCharm(CharmBase):
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)
-        logger.info(f"{servers=}")
         self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
 
         self.zookeeper_config.set_zookeeper_properties()
@@ -147,31 +146,38 @@ class ZooKeeperCharm(CharmBase):
 
     def config_changed(self):
         """Compares expected vs actual config that would require a restart to apply."""
-        properties = safe_get_file(self.zookeeper_config.properties_filepath) or ""
-        properties_changed = set(properties) ^ set(self.zookeeper_config.zookeeper_properties)
+        properties = safe_get_file(self.zookeeper_config.properties_filepath) or []
+        server_properties = self.zookeeper_config.build_static_properties(properties)
+        config_properties = self.zookeeper_config.static_properties
 
-        jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or ""
-        jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config)
+        properties_changed = set(server_properties) ^ set(config_properties)
 
-        if not properties_changed or jaas_changed:
+        jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or []
+        jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
+
+        if not (properties_changed or jaas_changed):
             return False
 
         if properties_changed:
             logger.info(
                 (
                     f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating properties - "
-                    f"OLD PROPERTIES = {set(properties) - set(self.zookeeper_config.zookeeper_properties)=}, "
-                    f"NEW PROPERTIES = {set(self.zookeeper_config.zookeeper_properties) - set(properties)=}"
+                    f"OLD PROPERTIES = {set(server_properties) - set(config_properties)}, "
+                    f"NEW PROPERTIES = {set(config_properties) - set(server_properties)}"
                 )
             )
             self.zookeeper_config.set_zookeeper_properties()
 
         if jaas_changed:
+            clean_server_jaas = [conf.strip() for conf in jaas_config]
+            clean_config_jaas = [
+                conf.strip() for conf in self.zookeeper_config.jaas_config.splitlines()
+            ]
             logger.info(
                 (
                     f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating JAAS config - "
-                    f"OLD JAAS = {set(jaas_config) - set(self.zookeeper_config.jaas_config)=}, "
-                    f"NEW JAAS = {set(self.zookeeper_config.jaas_config) - set(jaas_config)=}"
+                    f"OLD JAAS = {set(clean_server_jaas) - set(clean_config_jaas)}, "
+                    f"NEW JAAS = {set(clean_config_jaas) - set(clean_server_jaas)}"
                 )
             )
             self.zookeeper_config.set_jaas_config()
