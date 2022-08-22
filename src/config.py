@@ -85,7 +85,7 @@ class ZooKeeperConfig:
         cluster = self.charm.model.get_relation(PEER)
         sync_password = cluster.data[self.charm.app].get("sync-password", None)
         super_password = cluster.data[self.charm.app].get("super-password", None)
-        users = self.jaas_users
+        users = self.jaas_users or ""
 
         return f"""
             QuorumServer {{
