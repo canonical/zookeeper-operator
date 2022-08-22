@@ -17,7 +17,7 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
-from ops.model import ActiveStatus, MaintenanceStatus, Relation, StatusBase, Unit
+from ops.model import Relation, Unit
 
 from literals import PEER
 
@@ -59,7 +59,6 @@ class ZooKeeperCluster:
         self.client_port = client_port
         self.server_port = server_port
         self.election_port = election_port
-        self.status: StatusBase = MaintenanceStatus("performing cluster operation")
 
     @property
     def relation(self) -> Relation:
@@ -279,8 +278,6 @@ class ZooKeeperCluster:
             servers_to_add = sorted(self.active_servers - zk_members)
             zk.add_members(members=servers_to_add)
 
-            self.status = ActiveStatus()
-
             return self._get_updated_servers(
                 added_servers=servers_to_add, removed_servers=servers_to_remove
             )
@@ -294,19 +291,41 @@ class ZooKeeperCluster:
             UnitNotFoundError,
         ) as e:
             logger.debug(str(e))
-            self.status = MaintenanceStatus(str(e))
             return {}
 
-    def _is_unit_turn(self, unit_id: int) -> bool:
-        """Checks if all units with a lower id than the unit has updated in the ZK quorum."""
+    def is_unit_turn(self, unit_id: int) -> bool:
+        """Checks if all units with a lower id than the unit has updated in the ZK quorum.
+
+        Args:
+            unit_id: The unit id to check turn for
+
+        Returns:
+            True if unit is cleared to start. Otherwise False.
+        """
         if self.lowest_unit_id == None:  # noqa: E711
             # not all units have related yet
             return False
 
+        # the init leader does not need servers to start, so good to go
+        if self._is_init_leader(unit_id=unit_id):
+            return True
+
         for peer_id in range(self.lowest_unit_id, unit_id):
+            # missing relation data unit ids means that they are not yet added to quorum
             if not self.relation.data[self.charm.app].get(str(peer_id), None):
                 return False
+
         return True
+
+    def _is_init_leader(self, unit_id: int) -> bool:
+        """Checks if the passed unit should be the first unit to start."""
+        # if lowest_unit_id, and it exists in the relation data already, it's a restart, fail
+        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(
+            str(self.lowest_unit_id), None
+        ):
+            return True
+
+        return False
 
     def _generate_units(self, unit_string: str) -> str:
         """Gets valid start-up server strings for current ZK quorum units found in the app data."""
@@ -319,15 +338,14 @@ class ZooKeeperCluster:
         servers = servers + "\n" + unit_string
         return servers
 
-    def ready_to_start(self, unit: Union[Unit, int]) -> Tuple[str, Dict]:
+    def startup_servers(self, unit: Union[Unit, int]) -> str:
         """Decides whether a unit should start the ZK service, and with what configuration.
 
         Args:
             unit: the `Unit` or Juju unit ID to evaluate startability
 
         Returns:
-            `servers`: a new-line delimited string of servers to add to a config file
-            `unit_config`: a mapping of configuration for the given unit to be added to unit data
+            New-line delimited string of servers to add to a config file
 
         Raises:
             `UnitNotFoundError`: if a lower ID unit is missing from the app/unit data
@@ -338,25 +356,16 @@ class ZooKeeperCluster:
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        if not self.relation.data[self.charm.app].get("sync_password", None):
-            raise NoPasswordError
-
         # during cluster startup, we want the first unit to start as a solo participant
         # if the first unit fails and restarts after that, we want it to start as a normal unit
         # with all current members
-        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(
-            str(self.lowest_unit_id), None
-        ):
+        if self._is_init_leader(unit_id=int(unit_id)):
             unit_string = unit_string.replace("observer", "participant")
-            return unit_string.replace("observer", "participant"), unit_config
-
-        if not self._is_unit_turn(unit_id=int(unit_id)):
-            self.status = MaintenanceStatus("other units not yet added")
-            raise NotUnitTurnError
+            return unit_string.replace("observer", "participant")
 
         servers = self._generate_units(unit_string=unit_string)
 
-        return servers, unit_config
+        return servers
 
     @property
     def passwords(self) -> Tuple[str, str]:
@@ -365,8 +374,8 @@ class ZooKeeperCluster:
         Returns:
             Tuple of super_password, sync_password
         """
-        super_password = str(self.relation.data[self.charm.app].get("super_password", ""))
-        sync_password = str(self.relation.data[self.charm.app].get("sync_password", ""))
+        super_password = str(self.relation.data[self.charm.app].get("super-password", ""))
+        sync_password = str(self.relation.data[self.charm.app].get("sync-password", ""))
 
         return super_password, sync_password
 

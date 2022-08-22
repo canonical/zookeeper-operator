@@ -13,16 +13,11 @@ from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
-from cluster import (
-    NoPasswordError,
-    NotUnitTurnError,
-    UnitNotFoundError,
-    ZooKeeperCluster,
-)
+from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
 from literals import CHARM_KEY
 from provider import ZooKeeperProvider
-from utils import generate_password
+from utils import generate_password, safe_get_file
 
 logger = logging.getLogger(__name__)
 
@@ -40,109 +35,171 @@ class ZooKeeperCharm(CharmBase):
         self.zookeeper_config = ZooKeeperConfig(self)
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
-        self.framework.observe(getattr(self.on, "start"), self._on_start)
         self.framework.observe(
-            getattr(self.on, "leader_elected"), self._on_cluster_relation_updated
-        )
-        self.framework.observe(getattr(self.on, "config_changed"), self._on_config_changed)
-        self.framework.observe(
-            getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_updated
+            getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
         self.framework.observe(
-            getattr(self.on, "cluster_relation_joined"), self._on_cluster_relation_updated
+            getattr(self.on, "config_changed"), self._on_cluster_relation_changed
         )
         self.framework.observe(
-            getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
+            getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_changed
+        )
+        self.framework.observe(
+            getattr(self.on, "cluster_relation_joined"), self._on_cluster_relation_changed
+        )
+        self.framework.observe(
+            getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_changed
         )
 
-    def _on_install(self, _) -> None:
-        """Handler for the `on_install` event.
-
-        This includes:
-            - Installing the snap
-            - Writing config to config files
-        """
+    def _on_install(self, event) -> None:
+        """Handler for the `on_install` event."""
         self.unit.status = MaintenanceStatus("installing Kafka snap")
 
         install = self.snap.install()
         if not install:
             self.unit.status = BlockedStatus("unable to install Kafka snap")
 
-        # setting default properties
-        self.zookeeper_config.set_zookeeper_properties()
-        self.zookeeper_config.set_zookeeper_myid()
-
-    def _on_start(self, event: EventBase) -> None:
-        """Handler for the `on_start` event.
-
-        This includes:
-            - Setting unit readiness to relation data
-            - Checking if the unit is next in line to start
-            - Writing config to config files
-            - Starting the snap service
-        """
-        # setting default app passwords on leader start
         if self.unit.is_leader():
-            for password in ["super_password", "sync_password"]:
-                current_value = self.cluster.relation.data[self.app].get(password, None)
-                self.cluster.relation.data[self.app].update(
-                    {password: current_value or generate_password()}
-                )
+            # sometimes `install` triggers before peer_relation_joined
+            if not self.cluster.relation:
+                event.defer()
+                return
+            else:
+                self.set_passwords()
 
+    def _on_cluster_relation_changed(self, event: EventBase) -> None:
+        """Generic handler for all `config_changed` events across relations."""
+        # don't run if leader has not yet created passwords
         if not self.cluster.passwords_set:
+            return
+
+        # defer to ensure `cluster_relation_joined/departed` isn't lost on leader during scaling
+        if not self.cluster.relation:
             event.defer()
             return
 
-        self.unit.status = MaintenanceStatus("starting ZooKeeper unit")
+        # triggers a `cluster_relation_changed` to wake up following units
+        self.add_init_leader()
 
-        # checks if the unit is next, grabs the servers to add, and it's own config for debugging
-        try:
-            servers, unit_config = self.cluster.ready_to_start(self.unit)
-        except (NotUnitTurnError, UnitNotFoundError, NoPasswordError) as e:
-            logger.info(str(e))
-            self.unit.status = self.cluster.status
-            event.defer()
+        # this can help speed-up startup when the leader is last in the order to start
+        unit_id = self.cluster.get_unit_id(unit=self.unit)
+        if not self.cluster.is_unit_turn(unit_id=unit_id):
             return
+
+        # don't rolling restart if unit has not yet started
+        if not self.cluster.relation.data[self.unit].get("state", None) == "started":
+            self.init_server()
+            return
+
+        # ensures leader doesn't remove all units upon departure
+        if getattr(event, "departing_unit", None) == self.unit:
+            return
+        else:
+            # first run sets `quorum` to cluster app data
+            # triggers a `cluster_relation_changed` to wake up following units
+            self.update_quorum()
+
+        # avoids messing with the running quorum they have been updated
+        if self.cluster.relation.data[self.app].get("quorum", None) == "started":
+            self.on[self.restart.name].acquire_lock.emit()
+
+    def _restart(self, _):
+        """Handler for emitted restart events."""
+        # don't restart if unit not initialised
+        if not self.cluster.relation.data[self.unit].get("state") == "started":
+            return
+
+        # don't restart until quorum has been updated by leader
+        if not self.cluster.relation.data[self.app].get("quorum") == "started":
+            return
+
+        if self.config_changed():
+            self.snap.restart_snap_service(snap_service=CHARM_KEY)
+            self.unit.status = ActiveStatus()
+
+    def init_server(self):
+        """Calls startup functions for server start.
+
+        Sets myid, opts env_var, initial servers in dynamic properties,
+            default properties and jaas_config
+        """
+        self.unit.status = MaintenanceStatus("starting ZooKeeper server")
+        logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} initializing")
+
+        # setting default properties
+        self.zookeeper_config.set_zookeeper_myid()
+        self.zookeeper_config.set_kafka_opts()
 
         # servers properties needs to be written to dynamic config
-        self.zookeeper_config.set_zookeeper_properties()
+        servers = self.cluster.startup_servers(unit=self.unit)
+        logger.info(f"{servers=}")
         self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
 
-        # grabbing up-to-date jaas users from the relations
+        self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_jaas_config()
-
-        # KAFKA_OPTS env var gets loaded on snap start
-        self.zookeeper_config.set_kafka_opts()
 
         self.snap.restart_snap_service(snap_service=CHARM_KEY)
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
-        self.cluster.relation.data[self.unit].update(unit_config)
+        logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} started")
         self.cluster.relation.data[self.unit].update({"state": "started"})
 
-    def _on_config_changed(self, _):
-        """Handler for the `config-changed` event.
+    def config_changed(self):
+        """Compares expected vs actual config that would require a restart to apply."""
+        properties = safe_get_file(self.zookeeper_config.properties_filepath) or ""
+        properties_changed = set(properties) ^ set(self.zookeeper_config.zookeeper_properties)
 
-        This includes:
-            - Writing config to config files
-            - Restarting zookeeper service
-        """
-        self.on[self.restart.name].acquire_lock.emit()
+        jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or ""
+        jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config)
 
-    def _on_cluster_relation_updated(self, event: EventBase) -> None:
-        """Handler for events triggered by changing units.
+        if not properties_changed or jaas_changed:
+            return False
 
-        This includes:
-            - Adding ready-to-start units to app data
-            - Updating ZK quorum config
-            - Updating app data state
-        """
+        if properties_changed:
+            logger.info(
+                (
+                    f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating properties - "
+                    f"OLD PROPERTIES = {set(properties) - set(self.zookeeper_config.zookeeper_properties)=}, "
+                    f"NEW PROPERTIES = {set(self.zookeeper_config.zookeeper_properties) - set(properties)=}"
+                )
+            )
+            self.zookeeper_config.set_zookeeper_properties()
+
+        if jaas_changed:
+            logger.info(
+                (
+                    f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating JAAS config - "
+                    f"OLD JAAS = {set(jaas_config) - set(self.zookeeper_config.jaas_config)=}, "
+                    f"NEW JAAS = {set(self.zookeeper_config.jaas_config) - set(jaas_config)=}"
+                )
+            )
+            self.zookeeper_config.set_jaas_config()
+
+        return True
+
+    def set_passwords(self):
+        """Sets super-user and server-server auth user passwords to relation data."""
+        if not self.cluster.passwords_set:
+            self.cluster.relation.data[self.app].update({"sync-password": generate_password()})
+            self.cluster.relation.data[self.app].update({"super-password": generate_password()})
+
+    def update_quorum(self):
+        """Updates the server quorum members for all currently started units in the relation."""
         if not self.unit.is_leader():
             return
 
-        # ensures leader doesn't remove all units upon departure
-        if getattr(event, "departing_unit", None) == self.unit:
+        # triggers a `cluster_relation_changed` to wake up following units
+        updated_servers = self.cluster.update_cluster()
+        if updated_servers:
+            # flag to permit restarts only after first quorum update
+            self.cluster.relation.data[self.app].update({"quorum": "started"})
+
+        self.cluster.relation.data[self.app].update(updated_servers)
+
+    def add_init_leader(self):
+        """Adds the first leader server to the relation data for other units to ack."""
+        if not self.unit.is_leader():
             return
 
         # units need to exist in the app data to be iterated through for next_turn
@@ -156,32 +213,6 @@ class ZooKeeperCharm(CharmBase):
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
-
-        if not self.cluster.passwords_set:
-            event.defer()
-            return
-
-        # adds + removes members for all self-confirmed started units
-        updated_servers = self.cluster.update_cluster()
-
-        # either Active if successful, else Maintenance
-        self.unit.status = self.cluster.status
-
-        if self.cluster.status == ActiveStatus():
-            self.cluster.relation.data[self.app].update(updated_servers)
-        else:
-            # in the event some unit wasn't started/ready
-            event.defer()
-            return
-
-    def _restart(self, event: EventBase):
-        """Handler for rolling restart events triggered by zookeeper_relation_changed/broken."""
-        # for when relations trigger during start-up of the cluster
-        if not self.cluster.relation.data[self.unit].get("state", None) == "started":
-            event.defer()
-            return
-
-        self._on_start(event=event)
 
 
 if __name__ == "__main__":
