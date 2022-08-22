@@ -30,18 +30,6 @@ class UnitNotFoundError(Exception):
     pass
 
 
-class NotUnitTurnError(Exception):
-    """A desired unit isn't next in line to start safely."""
-
-    pass
-
-
-class NoPasswordError(Exception):
-    """Required passwords not yet set in the app data."""
-
-    pass
-
-
 class ZooKeeperCluster:
     """Handler for managing the ZK peer-relation.
 
@@ -346,10 +334,6 @@ class ZooKeeperCluster:
 
         Returns:
             New-line delimited string of servers to add to a config file
-
-        Raises:
-            `UnitNotFoundError`: if a lower ID unit is missing from the app/unit data
-            `NotUnitTurnError`: if a lower ID unit has not yet been added to the ZK quorum
         """
         servers = ""
         unit_config = self.unit_config(unit=unit, state="ready", role="observer")
