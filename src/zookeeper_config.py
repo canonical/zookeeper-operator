@@ -5,6 +5,7 @@
 """Manager for handling ZooKeeper auth configuration."""
 
 import logging
+import subprocess
 from pathlib import Path
 
 from charms.kafka.v0.kafka_snap import DATA_DIR, SNAP_CONFIG_PATH, safe_write_to_file
@@ -41,20 +42,29 @@ quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
 audit.enable=true"""
 
-TLS_STORE_DIR = "/var/snap/kafka/common/certs"
+TLS_STORE_DIR = "/var/snap/kafka/common"
 
-TLS_TRUSTSTORE = "cert"
+TLS_TRUSTSTORE = "truststore.jks"
+
+TLS_KEYSTORE = "keystore.jks"
 
 TLS_ZOOKEEPER_PROPERTIES = f"""
-secureClientPort=2182
+clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
-authProvider.x509=org.apache.zookeeper.server.auth.X509AuthenticationProvider
+secureClientPort=2182
+ssl.clientAuth=None
+ssl.keyStore.location={TLS_STORE_DIR}/{TLS_KEYSTORE}
 ssl.trustStore.location={TLS_STORE_DIR}/{TLS_TRUSTSTORE}
-ssl.trustStore.type=PEM
-ssl.quorum.trustStore.type=PEM
-zookeeper.ssl.client.enable=true
-zookeeper.set.acl=true
-ssl.clientAuth=none"""
+ssl.quorum.keyStore.password=password
+ssl.keyStore.password=password
+ssl.quorum.trustStore.password=password
+ssl.quorum.keyStore.location={TLS_STORE_DIR}/{TLS_KEYSTORE}
+ssl.quorum.hostnameVerification=false
+sslQuorum=true
+ssl.quorum.trustStore.location={TLS_STORE_DIR}/{TLS_TRUSTSTORE}
+ssl.client.enable=true
+ssl.trustStore.password=password
+"""
 
 
 class ZooKeeperConfig:
@@ -115,5 +125,65 @@ class ZooKeeperConfig:
     def ssl_enabled(self):
         """Checks for the certificates needed for TLS."""
         truststore = Path(f"{TLS_STORE_DIR}/{TLS_TRUSTSTORE}")
+        keystore = Path(f"{TLS_STORE_DIR}/{TLS_KEYSTORE}")
 
-        return truststore.is_file()
+        return truststore.is_file() and keystore.is_file()
+
+    def create_truststore(self, cluster):
+        """Create JKS truststore.
+
+        Loops through all available peer units, gets their certs,
+        adds it to current unit truststore.  Also creates the truststore.
+        """
+        for unit in cluster.peer_units:
+            certificate = cluster.relation.data[unit].get("certificate", None)
+
+            if not certificate:
+                continue
+
+            alias = f"{unit.name.replace('/','-')}"
+
+            with open(f"{TLS_STORE_DIR}/{alias}.pem", "w") as f:
+                f.write(certificate)
+                f.close()
+
+            try:
+                subprocess.check_output(
+                    f"keytool -import -v -alias {alias} -file {alias}.pem -keystore truststore.jks -storepass password -noprompt",
+                    stderr=subprocess.PIPE,
+                    shell=True,
+                    universal_newlines=True,
+                    cwd=TLS_STORE_DIR,
+                )
+            except subprocess.CalledProcessError as e:
+                logger.info("Truststore")
+                logger.info(e.output)
+                if "already exists" in e.output:
+                    continue
+                else:
+                    raise e
+
+    def create_p12_keystore(self, alias):
+        """Create P12 keystore from PEM files.
+
+        Converts cert.pem and server.key into a P12 keystore to be used by the charm.
+        Also creates they keystore
+        """
+        try:
+            subprocess.check_output(
+                f"openssl pkcs12 -export -in {alias}.pem -inkey server.key -passin pass:password -certfile {alias}.pem -out keystore.jks -password pass:password",
+                stderr=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+                cwd=TLS_STORE_DIR,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.info("P12 Keystore")
+            logger.info(e.output)
+            raise e
+
+    def set_private_key(self, private_key):
+        """Writes provided private key to filesystem."""
+        with open(f"{SNAP_CONFIG_PATH}/server.key", "w") as f:
+            f.write(private_key)
+            f.close()

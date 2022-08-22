@@ -56,6 +56,7 @@ def update_cluster(new_members: List[str], event: EventBase) -> None:
 """
 
 import logging
+import os
 import re
 from typing import Any, Dict, Iterable, List, Set, Tuple
 from kazoo.client import KazooClient
@@ -65,7 +66,7 @@ from tenacity.retry import retry_if_not_result
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_fixed
 from kazoo.client import ACL, KazooClient
-from zookeeper_config import ZooKeeperConfig, TLS_STORE_DIR, TLS_TRUSTSTORE
+from zookeeper_config import ZooKeeperConfig, TLS_STORE_DIR
 
 # The unique Charmhub library identifier, never change it
 LIBID = "4dc4430e6e5d492699391f57bd697fce"
@@ -128,7 +129,7 @@ class ZooKeeperManager:
 
     def _get_port(self):
         """Returns the port that the client needs to connect."""
-        return secure_client_port if self.config.ssl_enabled() else client_port
+        return self.secure_client_port if self.config.ssl_enabled() else self.client_port
 
     @retry(
         wait=wait_fixed(3),
@@ -361,9 +362,11 @@ class ZooKeeperClient:
             hosts=f"{host}:{client_port}",
             timeout=1.0,
             sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
-            certfile=f"{TLS_STORE_DIR}/cert",
-            ca=f"{TLS_STORE_DIR}/ca",
             use_ssl=self.zk_config.ssl_enabled(),
+            keyfile=f"{TLS_STORE_DIR}/server.key",
+            keyfile_password="password",
+            certfile=f"{TLS_STORE_DIR}/{host}.pem",
+            verify_certs=False,
         )
         self.client.start()
 
