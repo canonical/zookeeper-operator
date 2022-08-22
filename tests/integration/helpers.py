@@ -28,7 +28,7 @@ def get_password(model_full_name: str) -> str:
 
     for info in relations_info:
         if info["endpoint"] == "cluster":
-            password = info["application-data"]["super_password"]
+            password = info["application-data"]["super-password"]
             return password
     else:
         raise Exception("no relations found")
