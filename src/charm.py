@@ -68,7 +68,7 @@ class ZooKeeperCharm(CharmBase):
 
         # if any snap method calls fail, Snap.status is set to BlockedStatus
         # non-idempotent commands (e.g setting properties) will no longer run, returning None
-        if self.snap.install():
+        if self.snap.install(self.config["snap-channel"]):
             self.snap.write_properties(
                 properties=self.zookeeper_config.create_properties(self.config),
                 property_label="zookeeper",
@@ -138,6 +138,7 @@ class ZooKeeperCharm(CharmBase):
             - Writing config to config files\
             - Restarting zookeeper service
         """
+        self.snap.install(self.config["snap-channel"])
         self.snap.write_properties(
             properties=self.zookeeper_config.create_properties(self.config),
             property_label="zookeeper",
