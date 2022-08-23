@@ -138,7 +138,7 @@ class ZooKeeperCharm(CharmBase):
             - Writing config to config files\
             - Restarting zookeeper service
         """
-        self.snap.install(self.config["snap-channel"])
+        self.snap.refresh(self.config["snap-channel"])
         self.snap.write_properties(
             properties=self.zookeeper_config.create_properties(self.config),
             property_label="zookeeper",

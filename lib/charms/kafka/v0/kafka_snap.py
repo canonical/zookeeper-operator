@@ -103,7 +103,7 @@ class KafkaSnap:
             cache = snap.SnapCache()
             kafka = cache["kafka"]
 
-            if True: #not kafka.present:
+            if not kafka.present:
                 kafka.ensure(snap.SnapState.Latest, channel=channel)
 
             self.kafka = kafka
@@ -111,6 +111,18 @@ class KafkaSnap:
         except (snap.SnapError, apt.PackageNotFoundError) as e:
             logger.error(str(e))
             return False
+
+    def refresh(self, channel):
+        """Refreshes the Kafka snap to the specified channel.
+
+        Args:
+            channel: The desired snap channel for the kafka charm.
+                i.e. latest/stable, rock/edge, etc.
+        """
+        try:
+            self.kafka.ensure(snap.SnapState.Latest, channel=channel)
+        except snap.SnapError as e:
+            logger.exception(string(e))
 
     def start_snap_service(self, snap_service: str) -> bool:
         """Starts snap service process.
