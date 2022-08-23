@@ -81,23 +81,22 @@ class ZooKeeperCharm(CharmBase):
         # triggers a `cluster_relation_changed` to wake up following units
         self.add_init_leader()
 
-        # this can help speed-up startup when the leader is last in the order to start
-        unit_id = self.cluster.get_unit_id(unit=self.unit)
-        if not self.cluster.is_unit_turn(unit_id=unit_id):
-            return
-
         # don't rolling restart if unit has not yet started
         if not self.cluster.relation.data[self.unit].get("state", None) == "started":
-            self.init_server()
+            unit_id = self.cluster.get_unit_id(unit=self.unit)
+            if self.cluster.is_unit_turn(unit_id=unit_id):
+                self.init_server()
+
+            # return if init or not, as units should not do anything until started
             return
 
         # ensures leader doesn't remove all units upon departure
         if getattr(event, "departing_unit", None) == self.unit:
             return
-        else:
-            # first run sets `quorum` to cluster app data
-            # triggers a `cluster_relation_changed` to wake up following units
-            self.update_quorum()
+
+        # first run sets `quorum` to cluster app data
+        # triggers a `cluster_relation_changed` to wake up following units
+        self.update_quorum()
 
         # avoids messing with the running quorum they have been updated
         if self.cluster.relation.data[self.app].get("quorum", None) == "started":
