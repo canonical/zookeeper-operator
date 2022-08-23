@@ -11,13 +11,13 @@ from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from ops.charm import CharmBase
 from ops.model import Relation
 
-from literals import PEER, REL_NAME
+from literals import KEY_PASSWORD, PEER, REL_NAME
 from utils import safe_write_to_file
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROPERTIES = """
-clientPort=2181
+syncEnabled=true
 maxClientCnxns=60
 minSessionTimeout=4000
 maxSessionTimeout=40000
@@ -33,6 +33,20 @@ quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
 audit.enable=true"""
 
+TLS_PROPERTIES = """
+secureClientPort=2182
+ssl.clientAuth=none
+ssl.quorum.clientAuth=none
+ssl.client.enable=true
+clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
+sslQuorum=true
+serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
+ssl.quorum.hostnameVerification=false
+ssl.hostnameVerification=false
+ssl.trustStore.type=JKS
+ssl.keyStore.type=PKCS12
+"""
+
 
 class ZooKeeperConfig:
     """Manager for handling ZooKeeper auth configuration."""
@@ -43,6 +57,8 @@ class ZooKeeperConfig:
         self.properties_filepath = f"{self.default_config_path}/zookeeper.properties"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
+        self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
+        self.truststore_filepath = f"{self.default_config_path}/truststore.jks"
 
     @property
     def cluster(self) -> Relation:
@@ -60,6 +76,7 @@ class ZooKeeperConfig:
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
             f"-Djava.security.auth.login.config={self.jaas_filepath}",
+            "-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager",
         ]
 
     @property
@@ -121,7 +138,7 @@ class ZooKeeperConfig:
         Returns:
             List of properties to be set to zookeeper.properties config file
         """
-        return (
+        properties = (
             [
                 f"initLimit={self.charm.config['init-limit']}",
                 f"syncLimit={self.charm.config['sync-limit']}",
@@ -134,6 +151,25 @@ class ZooKeeperConfig:
                 f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties",
             ]
         )
+
+        if getattr(self.charm, "tls").certificate:
+            properties = (
+                properties
+                + TLS_PROPERTIES.split("\n")
+                + [
+                    f"ssl.quorum.keyStore.location={self.keystore_filepath}",
+                    f"ssl.quorum.trustStore.location={self.truststore_filepath}",
+                    f"ssl.keyStore.location={self.keystore_filepath}",
+                    f"ssl.trustStore.location={self.truststore_filepath}",
+                    f"ssl.keyStore.location={self.keystore_filepath}",
+                    f"ssl.quorum.keyStore.password={KEY_PASSWORD}",
+                    f"ssl.quorum.trustStore.password={KEY_PASSWORD}",
+                    f"ssl.keyStore.password={KEY_PASSWORD}",
+                    f"ssl.trustStore.password={KEY_PASSWORD}",
+                ]
+            )
+
+        return properties
 
     @property
     def static_properties(self) -> List[str]:
@@ -178,7 +214,7 @@ class ZooKeeperConfig:
 
         Running ZooKeeper cluster with `reconfigEnabled` moves dynamic options
             to a dedicated dynamic file
-        These options are `dynamicConfigFile` and `clientPort`
+        These options are `dynamicConfigFile`, `clientPort` and `secureClientPort`
 
         Args:
             properties: the properties to make static
@@ -189,5 +225,9 @@ class ZooKeeperConfig:
         return [
             prop
             for prop in properties
-            if ("dynamicConfigFile" not in prop and "clientPort" not in prop)
+            if (
+                "dynamicConfigFile" not in prop
+                and "clientPort" not in prop
+                and "secureClientPort" not in prop
+            )
         ]

@@ -15,6 +15,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
+from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.charm import CharmBase
 from ops.model import Relation, Unit
@@ -40,11 +41,13 @@ class ZooKeeperCluster:
         self,
         charm: CharmBase,
         client_port: int = 2181,
+        secure_client_port: int = 2182,
         server_port: int = 2888,
         election_port: int = 3888,
     ) -> None:
         self.charm = charm
         self.client_port = client_port
+        self.secure_client_port = secure_client_port
         self.server_port = server_port
         self.election_port = election_port
 
@@ -177,7 +180,7 @@ class ZooKeeperCluster:
                 {
                     "host": 10.121.23.23,
                     "server_string":
-                        "server.1=host:server_port:election_port:role;localhost:clientport",
+                        "server.1=host:server_port:election_port:role;client_port",
                     "server_id": "2",
                     "unit_id": "1",
                     "unit_name": "zookeeper/1",
@@ -251,9 +254,10 @@ class ZooKeeperCluster:
         try:
             zk = ZooKeeperManager(
                 hosts=self.active_hosts,
-                client_port=self.client_port,
+                client_port=self.secure_client_port,
                 username="super",
                 password=super_password,
+                alias=f"{self.charm.unit.name.replace('/','-')}",
             )
 
             # remove units first, faster due to no startup/sync delay
@@ -277,19 +281,20 @@ class ZooKeeperCluster:
             QuorumLeaderNotFoundError,
             KazooTimeoutError,
             UnitNotFoundError,
+            BadArgumentsError,
         ) as e:
             logger.debug(str(e))
             return {}
 
-    def is_unit_turn(self, unit_id: int) -> bool:
+    @property
+    def is_unit_turn(self) -> bool:
         """Checks if all units with a lower id than the unit has updated in the ZK quorum.
-
-        Args:
-            unit_id: The unit id to check turn for
 
         Returns:
             True if unit is cleared to start. Otherwise False.
         """
+        unit_id = self.get_unit_id(unit=self.charm.unit)
+
         if self.lowest_unit_id == None:  # noqa: E711
             # not all units have related yet
             return False
@@ -350,7 +355,7 @@ class ZooKeeperCluster:
         # with all current members
         if self._is_init_leader(unit_id=int(unit_id)):
             unit_string = unit_string.replace("observer", "participant")
-            return unit_string.replace("observer", "participant")
+            return unit_string
 
         servers = self._generate_units(unit_string=unit_string)
 
@@ -395,3 +400,11 @@ class ZooKeeperCluster:
             return False
         else:
             return True
+
+    @property
+    def started(self):
+        return self.relation.data[self.charm.unit].get("state", None) == "started"
+
+    @property
+    def quorum(self):
+        return self.relation.data[self.charm.unit].get("quorum", None) == "started"
