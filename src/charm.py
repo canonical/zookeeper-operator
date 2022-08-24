@@ -86,9 +86,7 @@ class ZooKeeperCharm(CharmBase):
             unit_id = self.cluster.get_unit_id(unit=self.unit)
             if self.cluster.is_unit_turn(unit_id=unit_id):
                 self.init_server()
-
-            # return if init or not, as units should not do anything until started
-            return
+                return
 
         # ensures leader doesn't remove all units upon departure
         if getattr(event, "departing_unit", None) == self.unit:
