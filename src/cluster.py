@@ -320,7 +320,12 @@ class ZooKeeperCluster:
         servers = ""
         for unit_id, state in self.relation.data[self.charm.app].items():
             if state == "added":
-                server_string = self.unit_config(unit=int(unit_id))["server_string"]
+                try:
+                    server_string = self.unit_config(unit=int(unit_id))["server_string"]
+                except UnitNotFoundError as e:
+                    logger.debug(str(e))
+                    continue
+
                 servers = servers + "\n" + server_string
 
         servers = servers + "\n" + unit_string

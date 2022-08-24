@@ -30,7 +30,6 @@ async def test_deploy_active(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.set_config({"update-status-hook-interval": "10s"})
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
 
     assert ops_test.model.applications[APP_NAME].status == "active"
@@ -136,7 +135,6 @@ async def test_same_model_application_deploys(ops_test: OpsTest):
     time.sleep(10)
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.set_config({"update-status-hook-interval": "10s"})
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
 
     assert ops_test.model.applications[APP_NAME].status == "active"
