@@ -69,13 +69,15 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all `config_changed` events across relations."""
-        # don't run if leader has not yet created passwords
-        if not self.cluster.passwords_set:
-            return
-
         # defer to ensure `cluster_relation_joined/departed` isn't lost on leader during scaling
         if not self.cluster.relation:
             event.defer()
+            return
+
+        # don't run if leader has not yet created passwords
+        if not self.cluster.passwords_set:
+            if self.unit.is_leader():
+                self.set_passwords()
             return
 
         # triggers a `cluster_relation_changed` to wake up following units
@@ -83,9 +85,15 @@ class ZooKeeperCharm(CharmBase):
 
         # don't rolling restart if unit has not yet started
         if not self.cluster.relation.data[self.unit].get("state", None) == "started":
-            unit_id = self.cluster.get_unit_id(unit=self.unit)
-            if self.cluster.is_unit_turn(unit_id=unit_id):
-                self.init_server()
+            try:
+                unit_id = self.cluster.get_unit_id(unit=self.unit)
+                if self.cluster.is_unit_turn(unit_id=unit_id):
+                    # every unit should try to start if it's their turn
+                    self.init_server()
+                    return
+            finally:
+                # ensures quorum still gets updated by leader so new units start
+                self.update_quorum()
                 return
 
         # ensures leader doesn't remove all units upon departure
