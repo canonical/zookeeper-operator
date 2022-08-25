@@ -8,3 +8,4 @@ PEER = "cluster"
 REL_NAME = "zookeeper"
 STATE = "state"
 CHARM_KEY = "zookeeper"
+CHARM_USERS = ["super", "sync"]

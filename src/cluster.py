@@ -356,6 +356,21 @@ class ZooKeeperCluster:
 
         return servers
 
+    def _all_rotated(self) -> bool:
+        """Check if all units have rotated their passwords.
+
+        All units need to have `password-rotated` for the process to be finished.
+
+        Returns:
+            result : bool
+        """
+        all_finished = True
+        for unit in self.peer_units:
+            if self.relation.data[unit].get("password-rotated") is None:
+                all_finished = False
+                break
+        return all_finished
+
     @property
     def passwords(self) -> Tuple[str, str]:
         """Gets the current super+sync passwords from the app relation data.
