@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 import json
-import logging
 import re
 from pathlib import Path
 from subprocess import PIPE, check_output
@@ -16,8 +15,6 @@ from pytest_operator.plugin import OpsTest
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
-
-logger = logging.getLogger(__name__)
 
 
 def get_password(model_full_name: str) -> str:
@@ -199,7 +196,6 @@ def check_acl_permission(host: str, password: str, folder: str, username: str = 
     kc.start()
     try:
         value, _ = kc.get_acls_async(f"/{folder}") or None, None
-        logger.info(f"Value : {value}")
         stored_value = None
         if value:
             stored_value = value.get()

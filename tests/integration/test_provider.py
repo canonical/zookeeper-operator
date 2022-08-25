@@ -14,9 +14,6 @@ from tests.integration.helpers import (
     get_application_hosts,
     get_password,
     get_relation_chroot,
-    get_relation_id,
-    get_relation_password,
-    get_relation_username,
     ping_servers,
 )
 
@@ -53,20 +50,8 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
 
     application_unit = ops_test.model.applications[DUMMY_NAME_1].units[0]
     # Get relation info from the related application
-    d_relation_id = get_relation_id(
-        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
-    )
-    d_username = get_relation_username(
-        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
-    )
     d_chroot = get_relation_chroot(
         model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
-    )
-    d_password = get_relation_password(
-        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
-    )
-    logger.info(
-        f"relation-id: {d_relation_id} | username: {d_username} | chroot: {d_chroot} | password: {d_password}"
     )
     # Get the super password
     super_password = get_password(model_full_name=ops_test.model_full_name)
