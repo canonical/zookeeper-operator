@@ -8,7 +8,17 @@ import logging
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import check_jaas_config, ping_servers
+from tests.integration.helpers import (
+    check_acl_permission,
+    check_jaas_config,
+    get_application_hosts,
+    get_password,
+    get_relation_chroot,
+    get_relation_id,
+    get_relation_password,
+    get_relation_username,
+    ping_servers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +41,41 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1])
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications[DUMMY_NAME_1].status == "active"
-
     assert ping_servers(ops_test)
     for unit in ops_test.model.applications[APP_NAME].units:
         jaas_config = check_jaas_config(model_full_name=ops_test.model_full_name, unit=unit.name)
         assert "sync" in jaas_config
         assert "super" in jaas_config
-
         # includes the related unit
         assert len(jaas_config) == 3
+
+    assert len(ops_test.model.applications[DUMMY_NAME_1].units) == 1
+
+    application_unit = ops_test.model.applications[DUMMY_NAME_1].units[0]
+    # Get relation info from the related application
+    d_relation_id = get_relation_id(
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
+    )
+    d_username = get_relation_username(
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
+    )
+    d_chroot = get_relation_chroot(
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
+    )
+    d_password = get_relation_password(
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
+    )
+    logger.info(
+        f"relation-id: {d_relation_id} | username: {d_username} | chroot: {d_chroot} | password: {d_password}"
+    )
+    # Get the super password
+    super_password = get_password(model_full_name=ops_test.model_full_name)
+    units = [u.name for u in ops_test.model.applications[APP_NAME].units]
+    # Get hosts where Zookeeper is deployed
+    hosts = get_application_hosts(model_full_name=ops_test.model_full_name, units=units)
+    # Check acl permission for the application on each Zookeeper host
+    for host in hosts:
+        check_acl_permission(host, super_password, d_chroot)
 
 
 @pytest.mark.abort_on_fail

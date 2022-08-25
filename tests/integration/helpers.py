@@ -2,17 +2,22 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
+import logging
 import re
 from pathlib import Path
 from subprocess import PIPE, check_output
-from typing import Dict
+from typing import Dict, List
 
 import yaml
 from kazoo.client import KazooClient
+from kazoo.exceptions import NoNodeError
 from pytest_operator.plugin import OpsTest
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
+
+logger = logging.getLogger(__name__)
 
 
 def get_password(model_full_name: str) -> str:
@@ -165,3 +170,100 @@ async def get_address(ops_test: OpsTest, app_name=APP_NAME, unit_num=0) -> str:
     status = await ops_test.model.get_status()  # noqa: F821
     address = status["applications"][app_name]["units"][f"{app_name}/{unit_num}"]["public-address"]
     return address
+
+
+def _get_show_unit_json(model_full_name: str, unit: str) -> Dict:
+    """Retrieve the show-unit result in json format."""
+    show_unit_res = check_output(
+        f"JUJU_MODEL={model_full_name} juju show-unit {unit} --format json",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    try:
+        show_unit_res_dict = json.loads(show_unit_res)
+        return show_unit_res_dict
+    except json.JSONDecodeError:
+        raise ValueError
+
+
+def check_acl_permission(host: str, password: str, folder: str, username: str = "super") -> None:
+    """Checks the existence of ACL permission of a given folder."""
+    kc = KazooClient(
+        hosts=host,
+        timeout=30.0,
+        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": f"{password}"},
+    )
+
+    kc.start()
+    try:
+        value, _ = kc.get_acls_async(f"/{folder}") or None, None
+        logger.info(f"Value : {value}")
+        stored_value = None
+        if value:
+            stored_value = value.get()
+        if stored_value:
+            assert stored_value is not None
+            return
+    except NoNodeError:
+        raise Exception("No ACL permission found!")
+    finally:
+        kc.stop()
+        kc.close()
+
+
+def get_relation_id(model_full_name: str, unit: str, app_name: str):
+    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
+    d_relations = show_unit[unit]["relation-info"]
+    for relation in d_relations:
+        if relation["endpoint"] == app_name:
+            relation_id = relation["relation-id"]
+            return relation_id
+    raise Exception("No relation found!")
+
+
+def get_relation_username(model_full_name: str, unit: str, app_name: str):
+    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
+    d_relations = show_unit[unit]["relation-info"]
+    for relation in d_relations:
+        if relation["endpoint"] == app_name:
+            return relation["application-data"]["username"]
+    raise Exception("No relation found!")
+
+
+def get_relation_chroot(model_full_name: str, unit: str, app_name: str):
+    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
+    d_relations = show_unit[unit]["relation-info"]
+    for relation in d_relations:
+        if relation["endpoint"] == app_name:
+            return relation["application-data"]["chroot"]
+    raise Exception("No relation found!")
+
+
+def get_relation_password(model_full_name: str, unit: str, app_name: str):
+    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
+    d_relations = show_unit[unit]["relation-info"]
+    for relation in d_relations:
+        if relation["endpoint"] == app_name:
+            return relation["application-data"]["password"]
+    raise Exception("No relation found!")
+
+
+def get_application_hosts(model_full_name: str, units: List[str]) -> List[str]:
+    """Retrieves from the leader the ip addresses of the containers."""
+    hosts = []
+    for unit in units:
+        # check for leadership
+        res = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
+        if res[unit]["leader"] is True:
+            if "relation-info" in res[unit]:
+                relations = res[unit]["relation-info"]
+                for relation in relations:
+                    if relation["endpoint"] == "cluster":
+                        if "local-unit" in relation:
+                            hosts.append(relation["local-unit"]["data"]["private-address"])
+                        if "related-units" in relation:
+                            for _, r_data in relation["related-units"].items():
+                                hosts.append(r_data["data"]["private-address"])
+    return hosts
