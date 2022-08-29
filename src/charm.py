@@ -95,7 +95,7 @@ class ZooKeeperCharm(CharmBase):
             # After removal of global flag, each unit can reset its state so more
             # password rotations can happen
             self.cluster.relation.data[self.unit]["password-rotated"] = ""
-        
+
         # defer to ensure `cluster_relation_joined/departed` isn't lost on leader during scaling
         if not self.cluster.relation:
             event.defer()
@@ -275,18 +275,14 @@ class ZooKeeperCharm(CharmBase):
             event.fail(msg)
             return
 
-        username = "super"
-        if "username" in event.params:
-            username = event.params["username"]
+        username = event.params.get("username", "super")
         if username not in CHARM_USERS:
             msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."
             logger.error(msg)
             event.fail(msg)
             return
 
-        new_password = generate_password()
-        if "password" in event.params:
-            new_password = event.params["password"]
+        new_password = event.params.get("password", generate_password())
 
         # Passwords should not be the same.
         if new_password in self.cluster.passwords:
@@ -295,7 +291,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # Store those passwords on application databag
-        self.cluster.relation.data[self.app].update({f"{username}_password": new_password})
+        self.cluster.relation.data[self.app].update({f"{username}-password": new_password})
 
         # Add password flag
         self.cluster.relation.data[self.app]["rotate-passwords"] = "true"

@@ -30,13 +30,14 @@ APP_NAME = METADATA["name"]
 async def test_deploy_active(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.set_config({"update-status-hook-interval": "10s"})
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+
+    async with ops_test.fast_forward():
+        await ops_test.model.block_until(
+            lambda: len(ops_test.model.applications[APP_NAME].units) == 3
+        )
+        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
 
     assert ops_test.model.applications[APP_NAME].status == "active"
-
-    await ops_test.model.set_config({"update-status-hook-interval": "60m"})
 
 
 @pytest.mark.abort_on_fail
@@ -80,4 +81,8 @@ async def test_password_rotation(ops_test: OpsTest):
 
     host = await get_address(ops_test, APP_NAME, leader_num)
     write_key(host=host, password=new_super_password)
-    check_key(host=host, password=new_super_password)
+
+    # Check key in all units
+    for unit in ops_test.model.applications[APP_NAME].units:
+        host = await get_address(ops_test, APP_NAME, unit.name.split("/")[-1])
+        check_key(host=host, password=new_super_password)
