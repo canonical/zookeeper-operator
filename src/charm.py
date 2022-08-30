@@ -61,14 +61,20 @@ class ZooKeeperCharm(CharmBase):
         )
         self.framework.observe(getattr(self.on, "set_password_action"), self._set_password_action)
 
-
-    def _on_install(self, _) -> None:
+    def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
         self.unit.status = MaintenanceStatus("installing Kafka snap")
 
         install = self.snap.install()
         if not install:
             self.unit.status = BlockedStatus("unable to install Kafka snap")
+
+        if not self.cluster.relation:
+            self.unit.status = WaitingStatus("waiting for peer relation")
+            event.defer()
+            return
+
+        self.set_passwords()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all `config_changed` events across relations."""
@@ -80,19 +86,9 @@ class ZooKeeperCharm(CharmBase):
         if not self.cluster.relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
-        
-        self.set_passwords()
 
         if not self.cluster.started:
-            try:
-                # return if init or not, as units should not do anything until started
-                self.init_server()
-            finally:
-                # first run sets `quorum` to cluster app data
-                # triggers a `cluster_relation_changed` to wake up following units
-                self.update_quorum(event=event)
-                self.add_init_leader()
-                return
+            self.init_server()
 
         self.update_quorum(event=event)
         self.on[self.restart.name].acquire_lock.emit()
@@ -100,6 +96,7 @@ class ZooKeeperCharm(CharmBase):
     def _restart(self, _):
         """Handler for emitted restart events."""
         if self.config_changed():
+            logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} restarting")
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
             self.unit.status = ActiveStatus()
 
@@ -116,7 +113,7 @@ class ZooKeeperCharm(CharmBase):
         # don't run if leader has not yet created passwords
         if not self.cluster.passwords_set:
             self.unit.status = MaintenanceStatus("waiting for passwords to be created")
-            logger.info(f"PASSWORDS NOT SET")
+            logger.info(f"NOT STARTING - PASSWORDS NOT SET")
             return
 
         # start units in order
@@ -156,10 +153,9 @@ class ZooKeeperCharm(CharmBase):
         jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or []
         jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
 
-        certs_changed = self.tls.server_aliases ^ self.tls.unit_aliases if self.tls.relation else None
+        certs_changed = self.tls.server_aliases ^ self.tls.unit_aliases
 
         if not (properties_changed or jaas_changed or certs_changed):
-            logger.info(f"NOT RESTARTING - NOTHING CHANGED")
             return False
 
         if properties_changed:
@@ -213,6 +209,8 @@ class ZooKeeperCharm(CharmBase):
         if not self.unit.is_leader() or getattr(event, "departing_unit", None) == self.unit:
             return
 
+        self.add_init_leader()
+
         # triggers a `cluster_relation_changed` to wake up following units
         updated_servers = self.cluster.update_cluster()
         if updated_servers:
@@ -234,6 +232,8 @@ class ZooKeeperCharm(CharmBase):
             # sets to "added" for init quorum leader, if not already exists
             # may already exist if during the case of a failover of the first unit
             if unit_id == self.cluster.lowest_unit_id:
+                if not current_value:
+                    logger.info("ADDING INIT LEADER")
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )

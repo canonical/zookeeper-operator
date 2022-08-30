@@ -17,7 +17,6 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
-from ops.charm import CharmBase
 from ops.model import Relation, Unit
 
 from literals import PEER
@@ -39,7 +38,7 @@ class ZooKeeperCluster:
 
     def __init__(
         self,
-        charm: CharmBase,
+        charm,
         client_port: int = 2181,
         secure_client_port: int = 2182,
         server_port: int = 2888,
@@ -254,7 +253,9 @@ class ZooKeeperCluster:
         try:
             zk = ZooKeeperManager(
                 hosts=self.active_hosts,
-                client_port=self.secure_client_port,
+                client_port=self.secure_client_port
+                if self.charm.tls.enabled
+                else self.client_port,
                 username="super",
                 password=super_password,
                 alias=f"{self.charm.unit.name.replace('/','-')}",
