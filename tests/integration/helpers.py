@@ -246,20 +246,10 @@ def get_relation_password(model_full_name: str, unit: str, app_name: str):
     raise Exception("No relation found!")
 
 
-def get_application_hosts(model_full_name: str, units: List[str]) -> List[str]:
-    """Retrieves from the leader the ip addresses of the containers."""
+async def get_application_hosts(ops_test: OpsTest, app_name: str, units: List[str]) -> List[str]:
+    """Retrieves the ip addresses of the containers."""
     hosts = []
+    status = await ops_test.model.get_status()  # noqa: F821
     for unit in units:
-        # check for leadership
-        res = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
-        if res[unit]["leader"] is True:
-            if "relation-info" in res[unit]:
-                relations = res[unit]["relation-info"]
-                for relation in relations:
-                    if relation["endpoint"] == "cluster":
-                        if "local-unit" in relation:
-                            hosts.append(relation["local-unit"]["data"]["private-address"])
-                        if "related-units" in relation:
-                            for _, r_data in relation["related-units"].items():
-                                hosts.append(r_data["data"]["private-address"])
+        hosts.append(status["applications"][app_name]["units"][f"{unit}"]["public-address"])
     return hosts
