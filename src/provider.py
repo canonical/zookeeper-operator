@@ -166,7 +166,14 @@ class ZooKeeperProvider(Object):
         """
         super_password, _ = self.charm.cluster.passwords
         zk = ZooKeeperManager(
-            hosts=self.charm.cluster.active_hosts, username="super", password=super_password
+            hosts=self.charm.cluster.active_hosts,
+            client_port=self.charm.cluster.secure_client_port
+            if self.charm.tls.enabled
+            else self.charm.cluster.client_port,
+            username="super",
+            password=super_password,
+            alias=self.charm.tls.alias,
+            use_ssl=self.charm.tls.enabled,
         )
 
         leader_chroots = zk.leader_znodes(path="/")

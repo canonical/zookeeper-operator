@@ -8,7 +8,6 @@ import logging
 from typing import List
 
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
-from ops.charm import CharmBase
 from ops.model import Relation
 
 from literals import KEY_PASSWORD, PEER, REL_NAME
@@ -51,7 +50,7 @@ ssl.keyStore.type=PKCS12
 class ZooKeeperConfig:
     """Manager for handling ZooKeeper auth configuration."""
 
-    def __init__(self, charm: CharmBase):
+    def __init__(self, charm):
         self.charm = charm
         self.default_config_path = SNAP_CONFIG_PATH
         self.properties_filepath = f"{self.default_config_path}/zookeeper.properties"
@@ -152,7 +151,7 @@ class ZooKeeperConfig:
             ]
         )
 
-        if getattr(self.charm, "tls").certificate:
+        if self.charm.tls.enabled:
             properties = (
                 properties
                 + TLS_PROPERTIES.split("\n")
