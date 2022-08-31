@@ -76,25 +76,9 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all `config_changed` events across relations."""
-        # Logic for password rotation
-        if self.cluster.relation.data[self.app].get("rotate-passwords"):
-            # All units have rotated the password, we can remove the global flag
-            if self.unit.is_leader() and self.cluster._all_rotated():
-                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
-                return
-
-            # Own unit finished rotation, no need to issue a new lock
-            if self.cluster.relation.data[self.unit].get("password-rotated"):
-                return
-
-            logger.info("Acquiring lock for password rotation")
-            self.on[self.restart.name].acquire_lock.emit()
+        # If a password rotation is needed, or in progress
+        if not self.rotate_passwords():
             return
-
-        else:
-            # After removal of global flag, each unit can reset its state so more
-            # password rotations can happen
-            self.cluster.relation.data[self.unit]["password-rotated"] = ""
 
         # defer to ensure `cluster_relation_joined/departed` isn't lost on leader during scaling
         if not self.cluster.relation:
@@ -255,6 +239,36 @@ class ZooKeeperCharm(CharmBase):
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
+
+    def rotate_passwords(self) -> bool:
+        """Handle password rotation and check the status of the process.
+
+        If a password rotation is happening, take the necessary steps to issue a
+        rolling restart from each unit.
+
+        Return:
+            bool: True when password rotation is finished, false otherwise.
+        """
+        # Logic for password rotation
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            # All units have rotated the password, we can remove the global flag
+            if self.unit.is_leader() and self.cluster._all_rotated():
+                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+                return False
+
+            # Own unit finished rotation, no need to issue a new lock
+            if self.cluster.relation.data[self.unit].get("password-rotated"):
+                return False
+
+            logger.info("Acquiring lock for password rotation")
+            self.on[self.restart.name].acquire_lock.emit()
+            return False
+
+        else:
+            # After removal of global flag, each unit can reset its state so more
+            # password rotations can happen
+            self.cluster.relation.data[self.unit]["password-rotated"] = ""
+            return True
 
     def _get_super_password_action(self, event: ActionEvent) -> None:
         """Handler for get-super-password action event."""
