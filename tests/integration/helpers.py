@@ -163,5 +163,5 @@ def check_jaas_config(model_full_name: str, unit: str):
 async def get_address(ops_test: OpsTest, app_name=APP_NAME, unit_num=0) -> str:
     """Get the address for a unit."""
     status = await ops_test.model.get_status()  # noqa: F821
-    address = status["applications"][app_name]["units"][f"{app_name}/{unit_num}"]["address"]
+    address = status["applications"][app_name]["units"][f"{app_name}/{unit_num}"]["public-address"]
     return address

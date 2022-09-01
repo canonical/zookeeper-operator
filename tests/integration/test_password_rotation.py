@@ -24,7 +24,6 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 
 
-@pytest.mark.skip_if_deployed
 @pytest.mark.abort_on_fail
 @pytest.mark.password_rotation
 async def test_deploy_active(ops_test: OpsTest):
