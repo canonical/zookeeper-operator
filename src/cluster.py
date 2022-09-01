@@ -251,8 +251,8 @@ class ZooKeeperCluster:
         super_password, _ = self.passwords
 
         # NOTE - BUG in Apache ZooKeeper - https://issues.apache.org/jira/browse/ZOOKEEPER-3577
-        # This means that we cannot dynamically reconfigure without also having a PLAINTEXT port open
-        # Ideally we would  have a check here to specify `client_port=self.secure_client_port` if tls.enabled
+        # This means that we cannot dynamically reconfigure without also having a PLAIN port open
+        # Ideally, have a check here for `client_port=self.secure_client_port` if tls.enabled
         # Until then, we can just use the insecure port for convenience
 
         try:
@@ -406,9 +406,19 @@ class ZooKeeperCluster:
             return True
 
     @property
-    def started(self):
+    def started(self) -> bool:
+        """Flag to check the whether the running unit has started.
+
+        Returns:
+            True if the unit has started. Otherwise False
+        """
         return self.relation.data[self.charm.unit].get("state", None) == "started"
 
     @property
-    def quorum(self):
+    def quorum(self) -> Optional[str]:
+        """Gets state of current quorum encryption.
+
+        Returns:
+            String of either `ssl` or `non-ssl`. None if quorum not yet reached
+        """
         return self.relation.data[self.charm.unit].get("quorum", None)

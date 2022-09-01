@@ -168,7 +168,7 @@ class ZooKeeperConfig:
             )
 
         # `upgrading` and `quorum` field updates trigger rolling-restarts, which will modify config
-        # docs found here https://zookeeper.apache.org/doc/r3.6.3/zookeeperAdmin.html#Upgrading+existing+nonTLS+cluster
+        # https://zookeeper.apache.org/doc/r3.6.3/zookeeperAdmin.html#Upgrading+existing+nonTLS+cluster
 
         # non-ssl -> ssl cluster quorum, the required upgrade steps are:
         # 1. Add `portUnification`, rolling-restart

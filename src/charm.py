@@ -134,7 +134,7 @@ class ZooKeeperCharm(CharmBase):
         # don't run if leader has not yet created passwords
         if not self.cluster.passwords_set:
             self.unit.status = MaintenanceStatus("waiting for passwords to be created")
-            logger.debug(f"NOT STARTING - PASSWORDS NOT SET")
+            logger.debug("NOT STARTING - PASSWORDS NOT SET")
             return
 
         # start units in order
