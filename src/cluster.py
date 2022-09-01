@@ -253,9 +253,7 @@ class ZooKeeperCluster:
         try:
             zk = ZooKeeperManager(
                 hosts=self.active_hosts,
-                client_port=self.secure_client_port
-                if self.charm.tls.enabled
-                else self.client_port,
+                client_port=self.client_port,
                 username="super",
                 password=super_password,
                 alias=f"{self.charm.unit.name.replace('/','-')}",
@@ -408,4 +406,4 @@ class ZooKeeperCluster:
 
     @property
     def quorum(self):
-        return self.relation.data[self.charm.unit].get("quorum", None) == "started"
+        return self.relation.data[self.charm.unit].get("quorum", None)
