@@ -13,7 +13,7 @@ from tests.integration.helpers import (
     check_jaas_config,
     get_application_hosts,
     get_password,
-    get_relation_chroot,
+    get_relation_data,
     ping_servers,
 )
 
@@ -49,8 +49,8 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     assert len(ops_test.model.applications[DUMMY_NAME_1].units) == 1
 
     application_unit = ops_test.model.applications[DUMMY_NAME_1].units[0]
-    # Get relation info from the related application
-    d_chroot = get_relation_chroot(
+    # Get relation data
+    relation_data = get_relation_data(
         model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
     )
     # Get the super password
@@ -60,7 +60,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     hosts = await get_application_hosts(ops_test=ops_test, app_name=APP_NAME, units=units)
     # Check acl permission for the application on each Zookeeper host
     for host in hosts:
-        check_acl_permission(host, super_password, d_chroot)
+        check_acl_permission(host, super_password, relation_data["chroot"])
 
 
 @pytest.mark.abort_on_fail

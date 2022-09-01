@@ -219,30 +219,12 @@ def get_relation_id(model_full_name: str, unit: str, app_name: str):
     raise Exception("No relation found!")
 
 
-def get_relation_username(model_full_name: str, unit: str, app_name: str):
+def get_relation_data(model_full_name: str, unit: str, app_name: str):
     show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
     d_relations = show_unit[unit]["relation-info"]
     for relation in d_relations:
         if relation["endpoint"] == app_name:
-            return relation["application-data"]["username"]
-    raise Exception("No relation found!")
-
-
-def get_relation_chroot(model_full_name: str, unit: str, app_name: str):
-    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
-    d_relations = show_unit[unit]["relation-info"]
-    for relation in d_relations:
-        if relation["endpoint"] == app_name:
-            return relation["application-data"]["chroot"]
-    raise Exception("No relation found!")
-
-
-def get_relation_password(model_full_name: str, unit: str, app_name: str):
-    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
-    d_relations = show_unit[unit]["relation-info"]
-    for relation in d_relations:
-        if relation["endpoint"] == app_name:
-            return relation["application-data"]["password"]
+            return relation["application-data"]
     raise Exception("No relation found!")
 
 
