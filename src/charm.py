@@ -87,6 +87,11 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
+        if self.tls.enabled and not self.tls.all_certs_generated:
+            self.unit.status = MaintenanceStatus("waiting for all units to have certs")
+            logger.info("NOT ALL CERTS GENERATED")
+            return
+
         if not self.cluster.started:
             self.init_server()
 
@@ -103,6 +108,10 @@ class ZooKeeperCharm(CharmBase):
         # Indicate that unit has completed restart on password rotation
         if self.cluster.relation.data[self.app].get("rotate-passwords"):
             self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+
+        self.cluster.relation.data[self.unit].update(
+            {"unified": "started" if self.tls.upgrading else ""}
+        )
 
     def init_server(self):
         """Calls startup functions for server start.
@@ -140,7 +149,9 @@ class ZooKeeperCharm(CharmBase):
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} started")
-        self.cluster.relation.data[self.unit].update({"state": "started"})
+        self.cluster.relation.data[self.unit].update(
+            {"state": "started", "unified": "started" if self.tls.upgrading else ""}
+        )
 
     def config_changed(self):
         """Compares expected vs actual config that would require a restart to apply."""
@@ -211,11 +222,21 @@ class ZooKeeperCharm(CharmBase):
 
         self.add_init_leader()
 
+        if self.tls.upgrading and not self.tls.all_units_unified:
+            logger.info("NOT UPDATING QUORUM - NOT ALL UNITS UNIFIED")
+            return
+
         # triggers a `cluster_relation_changed` to wake up following units
         updated_servers = self.cluster.update_cluster()
-        if updated_servers:
-            # flag to permit restarts only after first quorum update
-            self.cluster.relation.data[self.app].update({"quorum": "started"})
+        if (
+            len(self.cluster.started_units) == len(self.cluster.peer_units)
+            and self.tls.all_units_unified
+        ):
+            if self.tls.relation:
+                # flag to permit restarts only after first quorum update
+                self.cluster.relation.data[self.app].update({"quorum": "ssl", "upgrading": ""})
+            else:
+                self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
 
         self.cluster.relation.data[self.app].update(updated_servers)
 

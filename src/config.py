@@ -38,7 +38,6 @@ ssl.clientAuth=none
 ssl.quorum.clientAuth=none
 ssl.client.enable=true
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
-sslQuorum=true
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 ssl.quorum.hostnameVerification=false
 ssl.hostnameVerification=false
@@ -167,6 +166,12 @@ class ZooKeeperConfig:
                     f"ssl.trustStore.password={KEY_PASSWORD}",
                 ]
             )
+
+        if self.charm.tls.upgrading:
+            properties = properties + ["portUnification=true"]
+
+        if self.charm.cluster.quorum == "ssl":
+            properties = properties + ["sslQuorum=true"]
 
         return properties
 
