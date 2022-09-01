@@ -166,23 +166,23 @@ class ZooKeeperTLS(Object):
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
         if not self.cluster:
-            logger.debug(f"DEFERRING CERTIFICATE JOINED - NO CLUSTER")
+            logger.debug("DEFERRING CERTIFICATE JOINED - NO CLUSTER")
             event.defer()
             return
 
-        logger.debug(f"GENERATING PRIVATE KEYS")
+        logger.debug("GENERATING PRIVATE KEYS")
         private_key = generate_private_key()
 
         # strip() necessary here due to tls-certificates lib also stripping, so that they match
         self.cluster.data[self.charm.unit].update({"private-key": private_key.decode().strip()})
         self.set_server_key()
 
-        logger.debug(f"CREATING CSR")
+        logger.debug("CREATING CSR")
         csr = generate_csr(private_key=private_key, subject=os.uname()[1])
         self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
 
         # FIXME - Currently there is a bug in the `tls-certificates` lib where events are lost
-        # This is due to too many units requesting at once, and events get lost/returned without signing
+        # This is due to too many units requesting at once, events get lost/exit without signing
         # This *should* work when that bug is resolved
 
         self.certificates.request_certificate_creation(certificate_signing_request=csr)
@@ -190,16 +190,16 @@ class ZooKeeperTLS(Object):
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Handler for `certificates_available` event after provider updates signed certs."""
         if not self.cluster:
-            logger.info(f"DEFERRING AVAILABLE CERT - NO CLUSTER")
+            logger.info("DEFERRING AVAILABLE CERT - NO CLUSTER")
             event.defer()
             return
 
-        logger.info(f"SETTING CERT, CHAIN AND CA")
+        logger.info("SETTING CERT, CHAIN AND CA")
         self.cluster.data[self.charm.unit].update(
             {"certificate": event.certificate, "ca": event.ca, "chain": event.chain}
         )
 
-        logger.info(f"SETTING STORES")
+        logger.info("SETTING STORES")
         self.set_truststore()
         self.set_p12_keystore()
 
@@ -227,7 +227,7 @@ class ZooKeeperTLS(Object):
         safe_write_to_file(content=self.private_key, path=f"{SNAP_CONFIG_PATH}/server.key")
 
     def set_truststore(self) -> None:
-        """Creates and adds all available peer unit certs to the unit, and then to a JKS truststore."""
+        """Adds all available peer unit certs to the unit and creates JKS truststore."""
         for unit in set([self.charm.unit] + list(self.cluster.units)):
             alias = self._get_unit_alias(unit)
 
@@ -273,7 +273,7 @@ class ZooKeeperTLS(Object):
         """Cleans up all keys/certs/stores on a unit."""
         try:
             subprocess.check_output(
-                f"rm -r *.pem *.key *.p12 *.jks",
+                "rm -r *.pem *.key *.p12 *.jks",
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
