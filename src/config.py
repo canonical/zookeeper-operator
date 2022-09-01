@@ -167,6 +167,19 @@ class ZooKeeperConfig:
                 ]
             )
 
+        # `upgrading` and `quorum` field updates trigger rolling-restarts, which will modify config
+        # docs found here https://zookeeper.apache.org/doc/r3.6.3/zookeeperAdmin.html#Upgrading+existing+nonTLS+cluster
+
+        # non-ssl -> ssl cluster quorum, the required upgrade steps are:
+        # 1. Add `portUnification`, rolling-restart
+        # 2. Add `sslQuorum`, rolling-restart
+        # 3. Remove `portUnification`, rolling-restart
+
+        # ssl -> non-ssl cluster quorum, the required upgrade steps are:
+        # 1. Add `portUnification`, rolling-restart
+        # 2. Remove `sslQuorum`, rolling-restart
+        # 3. Remove `portUnification`, rolling-restart
+
         if self.charm.tls.upgrading:
             properties = properties + ["portUnification=true"]
 
