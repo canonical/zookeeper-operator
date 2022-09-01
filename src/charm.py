@@ -69,6 +69,7 @@ class ZooKeeperCharm(CharmBase):
         if not install:
             self.unit.status = BlockedStatus("unable to install Kafka snap")
 
+        # don't complete install until passwords set
         if not self.cluster.relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
@@ -77,29 +78,39 @@ class ZooKeeperCharm(CharmBase):
         self.set_passwords()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
-        """Generic handler for all `config_changed` events across relations."""
+        """Generic handler for all 'something changed, update' events across all relations."""
         # If a password rotation is needed, or in progress
         if not self.rotate_passwords():
             return
 
-        # defer to ensure `cluster_relation_joined/departed` isn't lost on leader during scaling
+        # not all methods called
         if not self.cluster.relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
+        # easier to manage if you wait for all unit certs
         if self.tls.enabled and not self.tls.all_certs_generated:
             self.unit.status = MaintenanceStatus("waiting for all units to have certs")
-            logger.info("NOT ALL CERTS GENERATED")
+            # defer here to avoid missing limited events on single-unit deployments
+            event.defer()
             return
 
+        # attempt startup of server
         if not self.cluster.started:
             self.init_server()
 
+        # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
+
+        # check whether restart is needed for all `*_changed` events
         self.on[self.restart.name].acquire_lock.emit()
 
     def _restart(self, _):
         """Handler for emitted restart events."""
+        # 'snap restart' starts the service, so this can cause issues if ran before `init_server()`
+        if not self.cluster.started:
+            return
+
         if self.config_changed():
             logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} restarting")
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
@@ -109,6 +120,7 @@ class ZooKeeperCharm(CharmBase):
         if self.cluster.relation.data[self.app].get("rotate-passwords"):
             self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
+        # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         self.cluster.relation.data[self.unit].update(
             {"unified": "started" if self.tls.upgrading else ""}
         )
@@ -122,7 +134,7 @@ class ZooKeeperCharm(CharmBase):
         # don't run if leader has not yet created passwords
         if not self.cluster.passwords_set:
             self.unit.status = MaintenanceStatus("waiting for passwords to be created")
-            logger.info(f"NOT STARTING - PASSWORDS NOT SET")
+            logger.debug(f"NOT STARTING - PASSWORDS NOT SET")
             return
 
         # start units in order
@@ -149,6 +161,9 @@ class ZooKeeperCharm(CharmBase):
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} started")
+
+        # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
+        # added here in case a `restart` was missed
         self.cluster.relation.data[self.unit].update(
             {"state": "started", "unified": "started" if self.tls.upgrading else ""}
         )
@@ -211,7 +226,6 @@ class ZooKeeperCharm(CharmBase):
             return
 
         if not self.cluster.passwords_set:
-            logger.info(f"SETTING PASSWORDS")
             self.cluster.relation.data[self.app].update({"sync-password": generate_password()})
             self.cluster.relation.data[self.app].update({"super-password": generate_password()})
 
@@ -220,25 +234,30 @@ class ZooKeeperCharm(CharmBase):
         if not self.unit.is_leader() or getattr(event, "departing_unit", None) == self.unit:
             return
 
+        # set first unit to "added" asap to get the units starting sooner
         self.add_init_leader()
 
+        # until all units have `portUnification`, it's unclear which port to connect to for quorum
         if self.tls.upgrading and not self.tls.all_units_unified:
-            logger.info("NOT UPDATING QUORUM - NOT ALL UNITS UNIFIED")
+            logger.debug("NOT UPDATING QUORUM - NOT ALL UNITS UNIFIED")
             return
 
         # triggers a `cluster_relation_changed` to wake up following units
         updated_servers = self.cluster.update_cluster()
+        self.cluster.relation.data[self.app].update(updated_servers)
+
+        # declare upgrade complete only when all peer units have started
+        # triggers `cluster_relation_changed` to rolling-restart without `portUnification`
         if (
             len(self.cluster.started_units) == len(self.cluster.peer_units)
             and self.tls.all_units_unified
         ):
             if self.tls.relation:
-                # flag to permit restarts only after first quorum update
+                logger.info("ZooKeeper cluster running with qurourm encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "ssl", "upgrading": ""})
             else:
+                logger.info("ZooKeeper cluster running without qurourm encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
-
-        self.cluster.relation.data[self.app].update(updated_servers)
 
     def add_init_leader(self):
         """Adds the first leader server to the relation data for other units to ack."""
@@ -254,7 +273,7 @@ class ZooKeeperCharm(CharmBase):
             # may already exist if during the case of a failover of the first unit
             if unit_id == self.cluster.lowest_unit_id:
                 if not current_value:
-                    logger.info("ADDING INIT LEADER")
+                    logger.debug("ADDING INIT LEADER")
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )

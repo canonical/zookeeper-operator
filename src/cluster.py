@@ -250,6 +250,11 @@ class ZooKeeperCluster:
         """
         super_password, _ = self.passwords
 
+        # NOTE - BUG in Apache ZooKeeper - https://issues.apache.org/jira/browse/ZOOKEEPER-3577
+        # This means that we cannot dynamically reconfigure without also having a PLAINTEXT port open
+        # Ideally we would  have a check here to specify `client_port=self.secure_client_port` if tls.enabled
+        # Until then, we can just use the insecure port for convenience
+
         try:
             zk = ZooKeeperManager(
                 hosts=self.active_hosts,
