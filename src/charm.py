@@ -8,14 +8,14 @@ import logging
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import CharmBase
+from ops.charm import ActionEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY
+from literals import CHARM_KEY, CHARM_USERS
 from provider import ZooKeeperProvider
 from utils import generate_password, safe_get_file
 
@@ -50,6 +50,13 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_changed
         )
+        self.framework.observe(
+            getattr(self.on, "get_super_password_action"), self._get_super_password_action
+        )
+        self.framework.observe(
+            getattr(self.on, "get_sync_password_action"), self._get_sync_password_action
+        )
+        self.framework.observe(getattr(self.on, "set_password_action"), self._set_password_action)
 
     def _on_install(self, event) -> None:
         """Handler for the `on_install` event."""
@@ -69,6 +76,10 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all `config_changed` events across relations."""
+        # If a password rotation is needed, or in progress
+        if not self.rotate_passwords():
+            return
+
         # defer to ensure `cluster_relation_joined/departed` isn't lost on leader during scaling
         if not self.cluster.relation:
             event.defer()
@@ -121,6 +132,10 @@ class ZooKeeperCharm(CharmBase):
         if self.config_changed():
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
             self.unit.status = ActiveStatus()
+
+        # Indicate that unit has completed restart on password rotation
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
     def init_server(self):
         """Calls startup functions for server start.
@@ -224,6 +239,77 @@ class ZooKeeperCharm(CharmBase):
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
+
+    def rotate_passwords(self) -> bool:
+        """Handle password rotation and check the status of the process.
+
+        If a password rotation is happening, take the necessary steps to issue a
+        rolling restart from each unit.
+
+        Return:
+            bool: True when password rotation is finished, false otherwise.
+        """
+        # Logic for password rotation
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            # All units have rotated the password, we can remove the global flag
+            if self.unit.is_leader() and self.cluster._all_rotated():
+                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+                return False
+
+            # Own unit finished rotation, no need to issue a new lock
+            if self.cluster.relation.data[self.unit].get("password-rotated"):
+                return False
+
+            logger.info("Acquiring lock for password rotation")
+            self.on[self.restart.name].acquire_lock.emit()
+            return False
+
+        else:
+            # After removal of global flag, each unit can reset its state so more
+            # password rotations can happen
+            self.cluster.relation.data[self.unit]["password-rotated"] = ""
+            return True
+
+    def _get_super_password_action(self, event: ActionEvent) -> None:
+        """Handler for get-super-password action event."""
+        event.set_results({"super-password": self.cluster.passwords[0]})
+
+    def _get_sync_password_action(self, event: ActionEvent) -> None:
+        """Handler for get-sync-password action event."""
+        event.set_results({"sync-password": self.cluster.passwords[1]})
+
+    def _set_password_action(self, event: ActionEvent) -> None:
+        """Handler for set-password action.
+
+        Set the password for a specific user, if no passwords are passed, generate them.
+        """
+        if not self.unit.is_leader():
+            msg = "Password rotation must be called on leader unit"
+            logger.error(msg)
+            event.fail(msg)
+            return
+
+        username = event.params.get("username", "super")
+        if username not in CHARM_USERS:
+            msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."
+            logger.error(msg)
+            event.fail(msg)
+            return
+
+        new_password = event.params.get("password", generate_password())
+
+        # Passwords should not be the same.
+        if new_password in self.cluster.passwords:
+            event.log("The old and new passwords are equal.")
+            event.set_results({f"{username}-password": new_password})
+            return
+
+        # Store those passwords on application databag
+        self.cluster.relation.data[self.app].update({f"{username}-password": new_password})
+
+        # Add password flag
+        self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
+        event.set_results({f"{username}-password": new_password})
 
 
 if __name__ == "__main__":
