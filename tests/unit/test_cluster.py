@@ -129,8 +129,10 @@ class TestCluster(unittest.TestCase):
         self.harness.update_relation_data(
             self.relation_id, "zookeeper", {"0": "added", "1": "added", "2": "added"}
         )
-
-        self.assertTrue(self.cluster.is_unit_turn(3))
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(1)
+        self.assertTrue(self.cluster.is_unit_turn(units[0]))
 
     def test_is_unit_turn_fails_scaleup(self):
         self.harness.update_relation_data(
@@ -138,8 +140,14 @@ class TestCluster(unittest.TestCase):
             "zookeeper",
             {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/3")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(4)
 
-        self.assertFalse(self.cluster.is_unit_turn(3))
+        self.assertFalse(self.cluster.is_unit_turn(units[3]))
 
     def test_is_unit_turn_succeeds_failover(self):
         self.harness.update_relation_data(
@@ -147,9 +155,16 @@ class TestCluster(unittest.TestCase):
             "zookeeper",
             {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/3")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(4)
 
-        self.assertTrue(self.cluster.is_unit_turn(0))
-        self.assertTrue(self.cluster.is_unit_turn(2))
+        self.assertTrue(self.cluster.is_unit_turn(units[0]))
+        self.assertTrue(self.cluster.is_unit_turn(units[2]))
+        self.assertFalse(self.cluster.is_unit_turn(units[3]))
 
     def test_is_unit_turn_fails_failover(self):
         self.harness.update_relation_data(
@@ -157,8 +172,14 @@ class TestCluster(unittest.TestCase):
             "zookeeper",
             {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/3")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(4)
 
-        self.assertFalse(self.cluster.is_unit_turn(3))
+        self.assertFalse(self.cluster.is_unit_turn(units[3]))
 
     def test_generate_units_scaleup_adds_all_servers(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
