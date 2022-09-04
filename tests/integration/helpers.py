@@ -185,6 +185,15 @@ def _get_show_unit_json(model_full_name: str, unit: str) -> Dict:
         raise ValueError
 
 
+def check_properties(model_full_name: str, unit: str):
+    properties = check_output(
+        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/kafka/common/zookeeper.properties --unit {unit}",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    return properties.splitlines()
+
 def check_acl_permission(host: str, password: str, folder: str, username: str = "super") -> None:
     """Checks the existence of ACL permission of a given folder."""
     kc = KazooClient(
