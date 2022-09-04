@@ -116,7 +116,7 @@ class ZooKeeperTLS(Object):
         Returns:
             True if the cluster is switching. Otherwise False
         """
-        return bool(self.cluster.data[self.charm.app].get("upgrading", None)) == "started"
+        return bool(self.cluster.data[self.charm.app].get("upgrading", None) == "started")
 
     @property
     def alias(self) -> str:
