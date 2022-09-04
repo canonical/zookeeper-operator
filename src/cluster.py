@@ -290,14 +290,14 @@ class ZooKeeperCluster:
             logger.debug(str(e))
             return {}
 
-    @property
-    def is_unit_turn(self) -> bool:
+    def is_unit_turn(self, unit: Optional[Unit] = None) -> bool:
         """Checks if all units with a lower id than the unit has updated in the ZK quorum.
 
         Returns:
             True if unit is cleared to start. Otherwise False.
         """
-        unit_id = self.get_unit_id(unit=self.charm.unit)
+        turn_unit = unit or self.charm.unit
+        unit_id = self.get_unit_id(turn_unit)
 
         if self.lowest_unit_id == None:  # noqa: E711
             # not all units have related yet

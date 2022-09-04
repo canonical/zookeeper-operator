@@ -112,7 +112,7 @@ class ZooKeeperManager:
         hosts: List[str],
         username: str,
         password: str,
-        alias: Optional[str],
+        alias: Optional[str] = "",
         client_port: int = 2181, 
         use_ssl: bool = False,
     ):
@@ -372,7 +372,7 @@ class ZooKeeperManager:
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
 
-    def __init__(self, host: str, client_port: int, username: str, password: str, alias: Optional[str], use_ssl: bool = False):
+    def __init__(self, host: str, client_port: int, username: str, password: str, alias: Optional[str] = None, use_ssl: bool = False):
         self.host = host
         self.client_port = client_port
         self.username = username

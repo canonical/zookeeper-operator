@@ -138,7 +138,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # start units in order
-        if not self.cluster.is_unit_turn:
+        if not self.cluster.is_unit_turn(self.unit):
             self.unit.status = MaintenanceStatus("waiting for unit turn to start")
             return
 

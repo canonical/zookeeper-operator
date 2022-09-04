@@ -3,7 +3,7 @@
 # See LICENSE file for licensing details.
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from charms.zookeeper.v0.client import (
     MembersSyncingError,
@@ -124,10 +124,19 @@ class TestManager(unittest.TestCase):
         zk.leader = "leader"
         zk.add_members(["server.2=sam.gamgee"])
 
-        client.assert_called_with(
-            hosts="leader:2181",
-            timeout=1.0,
-            sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
+        calls = client.call_args_list
+        assert (
+            call(
+                hosts="leader:2181",
+                timeout=1.0,
+                sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
+                keyfile="/var/snap/kafka/common//server.key",
+                keyfile_password="password",
+                certfile="/var/snap/kafka/common//.pem",
+                verify_certs=False,
+                use_ssl=False,
+            )
+            in calls
         )
 
     @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True))
@@ -174,8 +183,17 @@ class TestManager(unittest.TestCase):
         zk.leader = "leader"
         zk.remove_members(["server.2=sam.gamgee"])
 
-        client.assert_called_with(
-            hosts="leader:2181",
-            timeout=1.0,
-            sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
+        calls = client.call_args_list
+        assert (
+            call(
+                hosts="leader:2181",
+                timeout=1.0,
+                sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
+                keyfile="/var/snap/kafka/common//server.key",
+                keyfile_password="password",
+                certfile="/var/snap/kafka/common//.pem",
+                verify_certs=False,
+                use_ssl=False,
+            )
+            in calls
         )

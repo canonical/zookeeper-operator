@@ -14,6 +14,7 @@ from ops.testing import Harness
 
 from cluster import ZooKeeperCluster
 from provider import ZooKeeperProvider
+from tls import ZooKeeperTLS
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -29,6 +30,9 @@ METADATA = """
     provides:
         zookeeper:
             interface: zookeeper
+    requires:
+        certificates:
+            interface: tls-certifictes
 """
 
 CustomRelation = namedtuple("Relation", ["id"])
@@ -40,6 +44,7 @@ class DummyZooKeeperCharm(CharmBase):
         self.cluster = ZooKeeperCluster(self)
         self.client_relation = ZooKeeperProvider(self)
         self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
+        self.tls = ZooKeeperTLS(self)
 
 
 class TestProvider(unittest.TestCase):
