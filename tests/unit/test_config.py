@@ -42,6 +42,7 @@ options:
     default: 2000
 """
 
+
 class DummyZooKeeperCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
@@ -110,13 +111,13 @@ def test_multiple_jaas_users_are_added(harness):
 
 
 def test_tls_enabled(harness):
-    harness.update_relation_data(
-        harness.charm.tls.cluster.id, "zookeeper", {"tls": "enabled"}
-    )
+    harness.update_relation_data(harness.charm.tls.cluster.id, "zookeeper", {"tls": "enabled"})
     assert "ssl.clientAuth=none" in harness.charm.zookeeper_config.zookeeper_properties
+
 
 def test_tls_disabled(harness):
     assert "ssl.clientAuth=none" not in harness.charm.zookeeper_config.zookeeper_properties
+
 
 def test_tls_upgrading(harness):
     harness.update_relation_data(
@@ -124,18 +125,13 @@ def test_tls_upgrading(harness):
     )
     assert "portUnification=true" in harness.charm.zookeeper_config.zookeeper_properties
 
-    harness.update_relation_data(
-        harness.charm.tls.cluster.id, "zookeeper", {"upgrading": ""}
-    )
+    harness.update_relation_data(harness.charm.tls.cluster.id, "zookeeper", {"upgrading": ""})
     assert "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
 
+
 def test_tls_ssl_quorum(harness):
-    harness.update_relation_data(
-        harness.charm.tls.cluster.id, "zookeeper", {"quorum": "ssl"}
-    )
+    harness.update_relation_data(harness.charm.tls.cluster.id, "zookeeper", {"quorum": "ssl"})
     assert "sslQuorum=true" in harness.charm.zookeeper_config.zookeeper_properties
 
-    harness.update_relation_data(
-        harness.charm.tls.cluster.id, "zookeeper", {"quorum": "non-ssl"}
-    )
+    harness.update_relation_data(harness.charm.tls.cluster.id, "zookeeper", {"quorum": "non-ssl"})
     assert "sslQuorum=true" not in harness.charm.zookeeper_config.zookeeper_properties
