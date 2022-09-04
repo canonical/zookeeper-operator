@@ -421,4 +421,4 @@ class ZooKeeperCluster:
         Returns:
             String of either `ssl` or `non-ssl`. None if quorum not yet reached
         """
-        return self.relation.data[self.charm.unit].get("quorum", None)
+        return self.relation.data[self.charm.app].get("quorum", None)
