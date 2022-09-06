@@ -2,7 +2,10 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+from pathlib import Path
+
 import pytest
+import yaml
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from ops.charm import CharmBase
 from ops.testing import Harness
@@ -26,21 +29,9 @@ METADATA = """
         certificates:
             interface: tls-certifictes
 """
-CONFIG = """
-options:
-  init-limit:
-    description: "Amount of time, in ticks, to allow followers to connect and sync to a leader."
-    type: int
-    default: 5
-  sync-limit:
-    description: "Amount of time, in ticks, to allow followers to sync with ZooKeeper."
-    type: int
-    default: 2
-  tick-time:
-    description: "the length of a single tick, which is the basic time unit used by ZooKeeper, as measured in milliseconds."
-    type: int
-    default: 2000
-"""
+
+CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
+ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 
 
 class DummyZooKeeperCharm(CharmBase):
@@ -54,7 +45,7 @@ class DummyZooKeeperCharm(CharmBase):
 
 @pytest.fixture(scope="function")
 def harness():
-    harness = Harness(DummyZooKeeperCharm, meta=METADATA, config=CONFIG)
+    harness = Harness(DummyZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     harness.begin_with_initial_hooks()
     harness._update_config({"init-limit": "5", "sync-limit": "2", "tick-time": "2000"})
     return harness

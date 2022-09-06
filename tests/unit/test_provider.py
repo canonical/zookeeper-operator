@@ -6,8 +6,10 @@ import logging
 import re
 import unittest
 from collections import namedtuple
+from pathlib import Path
 
 import ops.testing
+import yaml
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import CharmBase, RelationBrokenEvent
 from ops.testing import Harness
@@ -35,6 +37,9 @@ METADATA = """
             interface: tls-certifictes
 """
 
+CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
+ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
+
 CustomRelation = namedtuple("Relation", ["id"])
 
 
@@ -49,7 +54,7 @@ class DummyZooKeeperCharm(CharmBase):
 
 class TestProvider(unittest.TestCase):
     def setUp(self):
-        self.harness = Harness(DummyZooKeeperCharm, meta=METADATA)
+        self.harness = Harness(DummyZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
         self.addCleanup(self.harness.cleanup)
         self.harness.add_relation("zookeeper", "application")
         self.harness.begin_with_initial_hooks()

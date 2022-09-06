@@ -4,20 +4,23 @@
 
 """Manager for handling ZooKeeper TLS configuration."""
 
+import base64
 import logging
 import os
 import re
+import socket
 import subprocess
-from typing import Optional, Set
+from typing import List, Optional, Set, Tuple
 
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
+    CertificateExpiringEvent,
     TLSCertificatesRequiresV1,
     generate_csr,
     generate_private_key,
 )
-from ops.charm import RelationJoinedEvent
+from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation, Unit
 
@@ -38,6 +41,10 @@ class ZooKeeperTLS(Object):
         super().__init__(charm, "tls")
         self.charm = charm
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
+
+        self.framework.observe(
+            getattr(self.charm.on, "set_tls_private_key_action"), self._set_tls_private_key
+        )
 
         self.framework.observe(
             getattr(self.charm.on, "certificates_relation_created"), self._on_certificates_created
@@ -166,40 +173,34 @@ class ZooKeeperTLS(Object):
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
         if not self.cluster:
-            logger.debug("DEFERRING CERTIFICATE JOINED - NO CLUSTER")
             event.defer()
             return
 
-        logger.debug("GENERATING PRIVATE KEYS")
-        private_key = generate_private_key()
+        # generate unit private key if not already created by action
+        if not self.private_key:
+            self.cluster.data[self.charm.unit].update(
+                {"private-key": generate_private_key().decode("utf-8")}
+            )
 
-        # strip() necessary here due to tls-certificates lib also stripping, so that they match
-        self.cluster.data[self.charm.unit].update({"private-key": private_key.decode().strip()})
-        self.set_server_key()
-
-        logger.debug("CREATING CSR")
-        csr = generate_csr(private_key=private_key, subject=os.uname()[1])
-        self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
-
-        # FIXME - Currently there is a bug in the `tls-certificates` lib where events are lost
-        # This is due to too many units requesting at once, events get lost/exit without signing
-        # This *should* work when that bug is resolved
-
-        self.certificates.request_certificate_creation(certificate_signing_request=csr)
+        self._request_certificate()
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Handler for `certificates_available` event after provider updates signed certs."""
         if not self.cluster:
-            logger.info("DEFERRING AVAILABLE CERT - NO CLUSTER")
             event.defer()
             return
 
-        logger.info("SETTING CERT, CHAIN AND CA")
+        if not event.certificate_signing_request == self.cluster.data[self.charm.unit].get(
+            "csr", None
+        ):
+            logger.error("unknown certificate available")
+            return
+
         self.cluster.data[self.charm.unit].update(
             {"certificate": event.certificate, "ca": event.ca, "chain": event.chain}
         )
 
-        logger.info("SETTING STORES")
+        self.set_server_key()
         self.set_truststore()
         self.set_p12_keystore()
 
@@ -218,20 +219,63 @@ class ZooKeeperTLS(Object):
         # ideally trigger this before any other `certificates_*` step
         self.cluster.data[self.charm.app].update({"tls": "", "upgrading": "started"})
 
+    def _on_certificate_expiring(self, event: CertificateExpiringEvent) -> None:
+        if not event.certificate == self.cluster.data[self.charm.unit].get("certificate", None):
+            logger.error("unknown certificate expiring")
+            return
+
+        if not self.private_key or not self.csr:
+            logger.error("missing unit private key and/or old csr")
+            return
+
+        new_csr = generate_csr(
+            private_key=self.private_key.encode("utf-8"),
+            subject=os.uname()[1],
+            sans=self._get_sans(),
+        )
+
+        self.certificates.request_certificate_renewal(
+            old_certificate_signing_request=self.csr.encode("utf-8"),
+            new_certificate_signing_request=new_csr,
+        )
+
+        self.cluster.data[self.charm.unit].update({"csr": new_csr.decode("utf-8")})
+
+    def _set_tls_private_key(self, event: ActionEvent) -> None:
+        """Handler for `set_tls_private_key` action."""
+        private_key = self._parse_tls_file(event.params.get("internal-key", None))
+        self.cluster.data[self.charm.unit].update(
+            {"private-key": private_key.decode("utf-8").strip()}
+        )
+        self._request_certificate()
+
+    def _request_certificate(self) -> None:
+        """Generates and submits CSR to provider."""
+        if not self.private_key:
+            return
+
+        csr = generate_csr(
+            private_key=self.private_key.encode("utf-8"),
+            subject=os.uname()[1],
+            sans=self._get_sans(),
+        )
+        self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
+
+        self.certificates.request_certificate_creation(certificate_signing_request=csr)
+
     def set_server_key(self) -> None:
         """Sets the unit private-key."""
         if not self.private_key:
             raise KeyNotFoundError(f"Private key missing for {self.charm.unit.name}")
 
-        logger.info("SETTING SERVER KEY")
         safe_write_to_file(content=self.private_key, path=f"{SNAP_CONFIG_PATH}/server.key")
 
     def set_truststore(self) -> None:
         """Adds all available peer unit certs to the unit and creates JKS truststore."""
         for unit in set([self.charm.unit] + list(self.cluster.units)):
             alias = self._get_unit_alias(unit)
-
             cert = self.cluster.data[unit].get("certificate", None)
+
             if not cert:
                 logger.debug("Certificate not found for {unit.name}")
                 continue
@@ -239,20 +283,42 @@ class ZooKeeperTLS(Object):
             safe_write_to_file(content=cert, path=f"{SNAP_CONFIG_PATH}/{alias}.pem")
 
             try:
-                subprocess.check_output(
-                    f"keytool -import -v -alias {alias} -file {alias}.pem -keystore truststore.jks -storepass {KEY_PASSWORD} -noprompt",
-                    stderr=subprocess.PIPE,
-                    shell=True,
-                    universal_newlines=True,
-                    cwd=SNAP_CONFIG_PATH,
-                )
-                logger.debug(f"SET {alias} TO TRUSTSTORE")
+                self._delete_truststore_alias(alias=alias)
+                self._import_truststore_alias(alias=alias)
             except subprocess.CalledProcessError as e:
-                logger.debug(e.output)
-                if "already exists" in e.output:  # keytool non-0's if cert already added
-                    continue
-                else:
-                    raise e
+                logger.error(e.output)
+                raise e
+
+    def _delete_truststore_alias(self, alias: str) -> None:
+        """Deletes existing alias-ed cert from JKS truststore."""
+        try:
+            subprocess.check_output(
+                f"keytool -delete -alias {alias} -keystore truststore.jks -storepass {KEY_PASSWORD} -noprompt",
+                stderr=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+                cwd=SNAP_CONFIG_PATH,
+            )
+        except subprocess.CalledProcessError as e:
+            if "does not exist" in e.output:
+                return
+            else:
+                logger.error(e.output)
+                raise e
+
+    def _import_truststore_alias(self, alias: str) -> None:
+        """Adds alias-ed cert to JKS truststore."""
+        try:
+            subprocess.check_output(
+                f"keytool -import -v -alias {alias} -file {alias}.pem -keystore truststore.jks -storepass {KEY_PASSWORD} -noprompt",
+                stderr=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+                cwd=SNAP_CONFIG_PATH,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.info(e.output)
+            raise e
 
     def set_p12_keystore(self) -> None:
         """Creates and adds unit cert and private-key to a PCKS12 keystore."""
@@ -264,7 +330,6 @@ class ZooKeeperTLS(Object):
                 universal_newlines=True,
                 cwd=SNAP_CONFIG_PATH,
             )
-            logger.debug("SET KEYSTORE")
         except subprocess.CalledProcessError as e:
             logger.info(e.output)
             raise e
@@ -279,7 +344,6 @@ class ZooKeeperTLS(Object):
                 universal_newlines=True,
                 cwd=SNAP_CONFIG_PATH,
             )
-            logger.info("REMOVE STORES AND KEYS")
         except subprocess.CalledProcessError as e:
             logger.info(e.output)
             raise e
@@ -296,11 +360,11 @@ class ZooKeeperTLS(Object):
         return f"{unit.name.replace('/','-')}"
 
     @property
-    def unit_aliases(self) -> Set[str]:
-        """Gets unique unit aliases from peer units with signed certs.
+    def unit_certs(self) -> Set[Tuple[str, str]]:
+        """Gets unique signed unit certs from peer units.
 
         Returns:
-            Set of `Unit` aliases. Empty if TLS is not enabled, or no units have signed certs
+            Set of unit alias and signed certs. Empty if TLS is not enabled
         """
         if not self.enabled:
             return set()
@@ -313,7 +377,7 @@ class ZooKeeperTLS(Object):
                 continue
 
             if cert:
-                aliases.add(self._get_unit_alias(unit))
+                aliases.add((self._get_unit_alias(unit=unit), cert))
 
         return aliases
 
@@ -348,3 +412,51 @@ class ZooKeeperTLS(Object):
             logger.info(str(e.output))
             logger.exception(e)
             return set()
+
+    @property
+    def server_certs(self) -> Set[Tuple[str, str]]:
+        """Gets all certs from current unit truststore.
+
+        Returns:
+            Set of server aliases and certs currently in the truststore
+            Empty set if TLS is not enabled
+        """
+        if not self.enabled:
+            return set()
+
+        server_certs = set()
+        for alias in self.server_aliases:
+            try:
+                result = subprocess.check_output(
+                    f"keytool -exportcert -keystore truststore.jks -storepass {KEY_PASSWORD} -rfc -alias {alias}",
+                    stderr=subprocess.PIPE,
+                    shell=True,
+                    universal_newlines=True,
+                    cwd=SNAP_CONFIG_PATH,
+                )
+                server_certs.add((alias, result))
+            except subprocess.CalledProcessError as e:
+                logger.error(str(e.output))
+                raise e
+
+        return server_certs
+
+    @staticmethod
+    def _parse_tls_file(raw_content: str) -> bytes:
+        """Parse TLS files from both plain text or base64 format."""
+        if re.match(r"(-+(BEGIN|END) [A-Z ]+-+)", raw_content):
+            return re.sub(
+                r"(-+(BEGIN|END) [A-Z ]+-+)",
+                "\\1",
+                raw_content,
+            ).encode("utf-8")
+        return base64.b64decode(raw_content)
+
+    def _get_sans(self) -> List[str]:
+        """Create a list of DNS names for the unit."""
+        unit_id = self.charm.unit.name.split("/")[1]
+        return [
+            f"{self.charm.app.name}-{unit_id}",
+            socket.getfqdn(),
+            self.cluster.data[self.charm.unit].get("private-address", None),
+        ]
