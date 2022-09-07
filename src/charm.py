@@ -91,8 +91,6 @@ class ZooKeeperCharm(CharmBase):
         # easier to manage if you wait for all unit certs
         if self.tls.enabled and not self.tls.all_certs_generated:
             self.unit.status = MaintenanceStatus("waiting for all units to have certs")
-            # defer here to avoid missing limited events on single-unit deployments
-            event.defer()
             return
 
         # attempt startup of server
@@ -183,7 +181,7 @@ class ZooKeeperCharm(CharmBase):
 
         if not (properties_changed or jaas_changed or certs_changed):
             return False
-
+        
         if properties_changed:
             logger.info(
                 (

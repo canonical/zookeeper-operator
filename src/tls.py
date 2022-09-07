@@ -434,7 +434,7 @@ class ZooKeeperTLS(Object):
                     universal_newlines=True,
                     cwd=SNAP_CONFIG_PATH,
                 )
-                server_certs.add((alias, result))
+                server_certs.add((alias, result.strip()))
             except subprocess.CalledProcessError as e:
                 logger.error(str(e.output))
                 raise e

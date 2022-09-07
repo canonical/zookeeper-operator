@@ -10,7 +10,7 @@ import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import check_properties, ping_servers
+from tests.integration.helpers import check_cert, check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,26 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             model_full_name=ops_test.model_full_name, unit=unit.name
         )
 
+@pytest.mark.abort_on_fail
+async def test_add_single_key_updates_all_units(ops_test: OpsTest):
+    await ops_test.model.applications[APP_NAME].add_units(count=1)
+    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 2)
+    
+    with open("tests/integration/keys/0.key") as f:
+        cert = f.read()
+        print(f"{cert=}")
+        action = await ops_test.model.units.get(f"{APP_NAME}/0").run_action("set-tls-private-key", params={"internal-key": cert})
+
+    await action.wait()
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=1000
+    )
+
+    active_cert = check_cert(model_full_name=ops_test.model_full_name, unit=f"{APP_NAME}/1", alias="{APP_NAME}-0")
+    print(f"{active_cert=}")
+    assert cert == active_cert
+
+    assert ping_servers(ops_test)
 
 @pytest.mark.abort_on_fail
 async def test_remove_tls_provider(ops_test: OpsTest):
