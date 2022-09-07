@@ -12,6 +12,9 @@ import yaml
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 from pytest_operator.plugin import OpsTest
+from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
+
+from literals import KEY_PASSWORD
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
@@ -244,3 +247,14 @@ async def get_application_hosts(ops_test: OpsTest, app_name: str, units: List[st
     for unit in units:
         hosts.append(status["applications"][app_name]["units"][f"{unit}"]["public-address"])
     return hosts
+
+def check_cert(model_full_name: str, unit: str, alias: str):
+    cert = check_output(
+        f"JUJU_MODEL={model_full_name} juju ssh {unit} 'keytool -exportcert -keystore truststore.jks -rfc -storepass {KEY_PASSWORD} -alias {alias}'",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+        cwd=SNAP_CONFIG_PATH
+    )
+
+    return cert
