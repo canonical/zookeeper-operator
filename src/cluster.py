@@ -127,7 +127,7 @@ class ZooKeeperCluster:
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
             if not self.relation.data[self.charm.app].get(str(unit_id), None) == "added":
-                logger.info(f"Unit {unit.name} needs adding")
+                logger.debug(f"Unit {unit.name} needs adding")
                 return True
 
         return False
@@ -294,7 +294,6 @@ class ZooKeeperCluster:
                 client_port=self.client_port,
                 username="super",
                 password=super_password,
-                alias=f"{self.charm.unit.name.replace('/','-')}",
             )
 
             # remove units first, faster due to no startup/sync delay

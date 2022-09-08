@@ -170,7 +170,6 @@ class ZooKeeperProvider(Object):
             client_port=self.charm.cluster.client_port,
             username="super",
             password=super_password,
-            alias=self.charm.tls.alias,
         )
 
         leader_chroots = zk.leader_znodes(path="/")

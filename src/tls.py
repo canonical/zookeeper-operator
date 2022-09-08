@@ -55,6 +55,9 @@ class ZooKeeperTLS(Object):
             getattr(self.certificates.on, "certificate_available"), self._on_certificate_available
         )
         self.framework.observe(
+            getattr(self.certificates.on, "certificate_expiring"), self._on_certificate_expiring
+        )
+        self.framework.observe(
             getattr(self.charm.on, "certificates_relation_broken"), self._on_certificates_broken
         )
 
@@ -223,14 +226,14 @@ class ZooKeeperTLS(Object):
             new_certificate_signing_request=new_csr,
         )
 
-        self.cluster.data[self.charm.unit].update({"csr": new_csr.decode("utf-8")})
+        self.cluster.data[self.charm.unit].update({"csr": new_csr.decode("utf-8").strip()})
 
     def _set_tls_private_key(self, event: ActionEvent) -> None:
         """Handler for `set_tls_private_key` action."""
         private_key = self._parse_tls_file(event.params.get("internal-key", None))
-        self.cluster.data[self.charm.unit].update({"private-key": private_key.strip()})
+        self.cluster.data[self.charm.unit].update({"private-key": private_key})
 
-        self._on_certificate_expiring(event)
+        self._request_certificate()
 
     def _request_certificate(self) -> None:
         """Generates and submits CSR to provider."""
@@ -285,7 +288,7 @@ class ZooKeeperTLS(Object):
             # in case this reruns and fails
             if "already exists" in e.output:
                 return
-            logger.info(e.output)
+            logger.error(e.output)
             raise e
 
     def set_p12_keystore(self) -> None:
@@ -299,7 +302,7 @@ class ZooKeeperTLS(Object):
                 cwd=SNAP_CONFIG_PATH,
             )
         except subprocess.CalledProcessError as e:
-            logger.info(e.output)
+            logger.error(e.output)
             raise e
 
     def remove_stores(self) -> None:
@@ -313,14 +316,13 @@ class ZooKeeperTLS(Object):
                 cwd=SNAP_CONFIG_PATH,
             )
         except subprocess.CalledProcessError as e:
-            logger.info(e.output)
+            logger.error(e.output)
             raise e
 
     @staticmethod
     def _parse_tls_file(raw_content: str) -> str:
         """Parse TLS files from both plain text or base64 format."""
         if re.match(r"(-+(BEGIN|END) [A-Z ]+-+)", raw_content):
-            logger.info(raw_content)
             return raw_content
         return base64.b64decode(raw_content).decode("utf-8")
 
