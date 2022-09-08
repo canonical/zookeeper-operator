@@ -5,10 +5,14 @@
 """Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
+import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import CharmBase, InstallEvent
+from ops.charm import (
+    CharmBase,
+    InstallEvent,
+)
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
@@ -89,7 +93,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # easier to manage if you wait for all unit certs
-        if self.tls.enabled and not self.tls.all_certs_generated:
+        if self.tls.enabled and not self.tls.all_units_certified:
             self.unit.status = MaintenanceStatus("waiting for all units to have certs")
             return
 
@@ -112,6 +116,8 @@ class ZooKeeperCharm(CharmBase):
         if self.config_changed():
             logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} restarting")
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
+            # gives time for server to rejoin quorum, as command exits before so
+            time.sleep(5)
             self.unit.status = ActiveStatus()
 
         # Indicate that unit has completed restart on password rotation
@@ -181,7 +187,7 @@ class ZooKeeperCharm(CharmBase):
 
         if not (properties_changed or jaas_changed or certs_changed):
             return False
-        
+
         if properties_changed:
             logger.info(
                 (
@@ -237,26 +243,20 @@ class ZooKeeperCharm(CharmBase):
         # set first unit to "added" asap to get the units starting sooner
         self.add_init_leader()
 
-        # until all units have `portUnification`, it's unclear which port to connect to for quorum
-        if self.tls.upgrading and not self.tls.all_units_unified:
-            logger.debug("NOT UPDATING QUORUM - NOT ALL UNITS UNIFIED")
-            return
-
-        # triggers a `cluster_relation_changed` to wake up following units
-        updated_servers = self.cluster.update_cluster()
-        self.cluster.relation.data[self.app].update(updated_servers)
+        if self.cluster.stale_quorum:
+            # triggers a `cluster_relation_changed` to wake up following units
+            updated_servers = self.cluster.update_cluster()
+            logger.info(f"{updated_servers=}")
+            self.cluster.relation.data[self.app].update(updated_servers)
 
         # declare upgrade complete only when all peer units have started
         # triggers `cluster_relation_changed` to rolling-restart without `portUnification`
-        if (
-            len(self.cluster.started_units) == len(self.cluster.peer_units)
-            and self.tls.all_units_unified
-        ):
+        if self.tls.all_units_unified:
             if self.tls.relation:
-                logger.info("ZooKeeper cluster running with qurourm encryption")
+                logger.info("ZooKeeper cluster running with quorum encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "ssl", "upgrading": ""})
             else:
-                logger.info("ZooKeeper cluster running without qurourm encryption")
+                logger.info("ZooKeeper cluster running without quorum encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
 
     def add_init_leader(self):
