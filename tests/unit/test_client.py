@@ -132,7 +132,7 @@ class TestManager(unittest.TestCase):
                 sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
                 keyfile="/var/snap/kafka/common//server.key",
                 keyfile_password="password",
-                certfile="/var/snap/kafka/common//.pem",
+                certfile="/var/snap/kafka/common//server.pem",
                 verify_certs=False,
                 use_ssl=False,
             )
@@ -191,7 +191,7 @@ class TestManager(unittest.TestCase):
                 sasl_options={"mechanism": "DIGEST-MD5", "username": "", "password": ""},
                 keyfile="/var/snap/kafka/common//server.key",
                 keyfile_password="password",
-                certfile="/var/snap/kafka/common//.pem",
+                certfile="/var/snap/kafka/common//server.pem",
                 verify_certs=False,
                 use_ssl=False,
             )
