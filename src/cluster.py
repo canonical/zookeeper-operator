@@ -15,7 +15,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from kazoo.exceptions import BadArgumentsError
+from kazoo.exceptions import BadArgumentsError, NewConfigNoQuorumError
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.model import Relation, Unit
 
@@ -69,6 +69,13 @@ class ZooKeeperCluster:
         return set([self.charm.unit] + list(self.relation.units))
 
     @property
+    def all_units_related(self) -> bool:
+        if len(self.peer_units) != self.charm.app.planned_units():
+            return False
+
+        return True
+
+    @property
     def lowest_unit_id(self) -> Optional[int]:
         """Grabs the first unit in the currently deployed application.
 
@@ -77,7 +84,7 @@ class ZooKeeperCluster:
             None if not all planned units are related to the currently running unit.
         """
         # in the case that not all units are related yet
-        if len(self.peer_units) != self.charm.app.planned_units():
+        if not self.all_units_related:
             return None
 
         return min([self.get_unit_id(unit) for unit in self.peer_units])
@@ -98,6 +105,19 @@ class ZooKeeperCluster:
                 started_units.add(unit)
 
         return started_units
+
+    @property
+    def stale_quorum(self) -> bool:
+        if not self.all_units_related:
+            return False
+
+        for unit in self.peer_units:
+            unit_id = self.get_unit_id(unit)
+            if not self.relation.data[self.charm.app].get(str(unit_id), None) == "added":
+                logger.info(f"Unit {unit.name} needs adding")
+                return True
+
+        return False
 
     @property
     def active_hosts(self) -> List[str]:
