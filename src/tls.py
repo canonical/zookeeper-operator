@@ -141,6 +141,9 @@ class ZooKeeperTLS(Object):
         Returns:
             True if all units are running with `portUnification`. Otherwise False
         """
+        if not self.charm.cluster.all_units_related:
+            return False
+
         for unit in getattr(self.charm, "cluster").started_units:
             if not self.cluster.data[unit].get("unified", None):
                 return False
@@ -148,13 +151,16 @@ class ZooKeeperTLS(Object):
         return True
 
     @property
-    def all_certs_generated(self) -> bool:
-        """Flag to check whether all peer units have a valid signed cert.
+    def all_units_certified(self) -> bool:
+        """Flag to check whether all units have signed certs.
 
         Returns:
-            True if all units have a valid signed cert. Otherwise False
+            True if all units have signed certs. Otherwise False
         """
-        for unit in getattr(self.charm, "cluster").peer_units:
+        if not self.charm.cluster.all_units_related:
+            return False
+
+        for unit in self.charm.cluster.peer_units:
             if not self.cluster.data[unit].get("certificate", None):
                 return False
 
@@ -196,8 +202,9 @@ class ZooKeeperTLS(Object):
             logger.error("unknown certificate available")
             return
 
+        # FIXME: `chain` is omitted, add later if needed
         self.cluster.data[self.charm.unit].update(
-            {"certificate": event.certificate, "ca": event.ca, "chain": event.chain}
+            {"certificate": event.certificate, "ca": event.ca}
         )
 
         self.set_server_key()
@@ -206,9 +213,8 @@ class ZooKeeperTLS(Object):
 
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
-        self.cluster.data[self.charm.unit].update(
-            {"csr": "", "certificate": "", "ca": "", "chain": ""}
-        )
+        # FIXME: `chain` is omitted, add later if needed
+        self.cluster.data[self.charm.unit].update({"csr": "", "certificate": "", "ca": ""})
         # remove all existing keystores from the unit so we don't preserve certs
         self.remove_stores()
 
@@ -244,9 +250,7 @@ class ZooKeeperTLS(Object):
     def _set_tls_private_key(self, event: ActionEvent) -> None:
         """Handler for `set_tls_private_key` action."""
         private_key = self._parse_tls_file(event.params.get("internal-key", None))
-        self.cluster.data[self.charm.unit].update(
-            {"private-key": private_key.decode("utf-8").strip()}
-        )
+        self.cluster.data[self.charm.unit].update({"private-key": private_key.strip()})
         self._request_certificate()
 
     def _request_certificate(self) -> None:
@@ -366,10 +370,10 @@ class ZooKeeperTLS(Object):
         Returns:
             Set of unit alias and signed certs. Empty if TLS is not enabled
         """
-        if not self.enabled:
+        if not self.enabled or not self.charm.cluster.all_units_related:
             return set()
 
-        aliases = set()
+        unit_certs = set()
         for unit in getattr(self.charm, "cluster").peer_units:
             try:
                 cert = self.cluster.data[unit].get("certificate", None)
@@ -377,9 +381,9 @@ class ZooKeeperTLS(Object):
                 continue
 
             if cert:
-                aliases.add((self._get_unit_alias(unit=unit), cert))
+                unit_certs.add((self._get_unit_alias(unit=unit), cert))
 
-        return aliases
+        return unit_certs
 
     @property
     def server_aliases(self) -> Set[str]:
@@ -388,7 +392,7 @@ class ZooKeeperTLS(Object):
         Returns:
             Set of aliases currently in the truststore. Empty set if TLS is not enabled
         """
-        if not self.enabled:
+        if not self.enabled or not self.charm.cluster.all_units_related:
             return set()
 
         try:
@@ -421,7 +425,7 @@ class ZooKeeperTLS(Object):
             Set of server aliases and certs currently in the truststore
             Empty set if TLS is not enabled
         """
-        if not self.enabled:
+        if not self.enabled or not self.charm.cluster.all_units_related:
             return set()
 
         server_certs = set()
@@ -442,15 +446,11 @@ class ZooKeeperTLS(Object):
         return server_certs
 
     @staticmethod
-    def _parse_tls_file(raw_content: str) -> bytes:
+    def _parse_tls_file(raw_content: str) -> str:
         """Parse TLS files from both plain text or base64 format."""
         if re.match(r"(-+(BEGIN|END) [A-Z ]+-+)", raw_content):
-            return re.sub(
-                r"(-+(BEGIN|END) [A-Z ]+-+)",
-                "\\1",
-                raw_content,
-            ).encode("utf-8")
-        return base64.b64decode(raw_content)
+            return raw_content
+        return base64.b64decode(raw_content).decode("utf-8")
 
     def _get_sans(self) -> List[str]:
         """Create a list of DNS names for the unit."""

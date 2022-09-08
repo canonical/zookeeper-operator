@@ -9,10 +9,10 @@ from subprocess import PIPE, check_output
 from typing import Dict, List
 
 import yaml
+from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 from pytest_operator.plugin import OpsTest
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 
 from literals import KEY_PASSWORD
 
@@ -254,7 +254,7 @@ def check_cert(model_full_name: str, unit: str, alias: str):
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
-        cwd=SNAP_CONFIG_PATH
+        cwd=SNAP_CONFIG_PATH,
     )
 
     return cert
