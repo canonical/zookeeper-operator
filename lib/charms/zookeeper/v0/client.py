@@ -112,7 +112,6 @@ class ZooKeeperManager:
         hosts: List[str],
         username: str,
         password: str,
-        alias: Optional[str] = "",
         client_port: int = 2181, 
         use_ssl: bool = False,
     ):
@@ -120,7 +119,6 @@ class ZooKeeperManager:
         self.username = username
         self.password = password
         self.client_port = client_port
-        self.alias = alias
         self.use_ssl = use_ssl
         self.leader = ""
 
@@ -154,7 +152,6 @@ class ZooKeeperManager:
                     client_port=self.client_port,
                     username=self.username,
                     password=self.password,
-                    alias=self.alias,
                     use_ssl=self.use_ssl
                 ) as zk:
                     response = zk.srvr
@@ -180,7 +177,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             members, _ = zk.config
@@ -199,7 +195,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             _, version = zk.config
@@ -218,7 +213,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             result = zk.mntr
@@ -249,7 +243,7 @@ class ZooKeeperManager:
                     client_port=self.client_port,
                     username=self.username,
                     password=self.password,
-                    alias=self.alias,
+                    
                     use_ssl=self.use_ssl,
                 ) as zk:
                     if not zk.is_ready:
@@ -264,7 +258,6 @@ class ZooKeeperManager:
                 client_port=self.client_port,
                 username=self.username,
                 password=self.password,
-                alias=self.alias,
                 use_ssl=self.use_ssl,
             ) as zk:
                 zk.client.reconfig(
@@ -287,7 +280,6 @@ class ZooKeeperManager:
                 client_port=self.client_port,
                 username=self.username,
                 password=self.password,
-                alias=self.alias,
                 use_ssl=self.use_ssl,
             ) as zk:
                 zk.client.reconfig(
@@ -311,7 +303,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             all_znode_children = zk.get_all_znode_children(path=path)
@@ -330,7 +321,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             zk.create_znode(path=path, acls=acls)
@@ -347,7 +337,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             zk.set_acls(path=path, acls=acls)
@@ -363,7 +352,6 @@ class ZooKeeperManager:
             client_port=self.client_port,
             username=self.username,
             password=self.password,
-            alias=self.alias,
             use_ssl=self.use_ssl,
         ) as zk:
             zk.delete_znode(path=path)
@@ -372,7 +360,7 @@ class ZooKeeperManager:
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
 
-    def __init__(self, host: str, client_port: int, username: str, password: str, alias: Optional[str] = None, use_ssl: bool = False):
+    def __init__(self, host: str, client_port: int, username: str, password: str, use_ssl: bool = False):
         self.host = host
         self.client_port = client_port
         self.username = username
@@ -383,7 +371,7 @@ class ZooKeeperClient:
             sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
             keyfile=f"{SNAP_CONFIG_PATH}/server.key",
             keyfile_password=KEY_PASSWORD,
-            certfile=f"{SNAP_CONFIG_PATH}/{alias}.pem",
+            certfile=f"{SNAP_CONFIG_PATH}/server.pem",
             verify_certs=False,
             use_ssl=use_ssl,
         )
