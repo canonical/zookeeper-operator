@@ -9,12 +9,9 @@ from subprocess import PIPE, check_output
 from typing import Dict, List
 
 import yaml
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 from pytest_operator.plugin import OpsTest
-
-from literals import KEY_PASSWORD
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
