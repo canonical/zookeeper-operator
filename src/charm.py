@@ -9,10 +9,7 @@ import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import (
-    CharmBase,
-    InstallEvent,
-)
+from ops.charm import CharmBase, InstallEvent
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
@@ -92,11 +89,6 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
-        # easier to manage if you wait for all unit certs
-        if self.tls.enabled and not self.tls.all_units_certified:
-            self.unit.status = MaintenanceStatus("waiting for all units to have certs")
-            return
-
         # attempt startup of server
         if not self.cluster.started:
             self.init_server()
@@ -113,11 +105,13 @@ class ZooKeeperCharm(CharmBase):
         if not self.cluster.started:
             return
 
-        if self.config_changed():
+        if self.config_changed() or self.cluster.manual_restart:
             logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} restarting")
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
-            # gives time for server to rejoin quorum, as command exits before so
+
+            # gives time for server to rejoin quorum, as command exits too fast
             time.sleep(5)
+
             self.unit.status = ActiveStatus()
 
         # Indicate that unit has completed restart on password rotation
@@ -125,8 +119,9 @@ class ZooKeeperCharm(CharmBase):
             self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
+        # in case restart was manual, also remove
         self.cluster.relation.data[self.unit].update(
-            {"unified": "started" if self.tls.upgrading else ""}
+            {"unified": "started" if self.tls.upgrading else "", "manual-restart": ""}
         )
 
     def init_server(self):
@@ -212,7 +207,7 @@ class ZooKeeperCharm(CharmBase):
 
         return True
 
-    def set_passwords(self):
+    def set_passwords(self) -> None:
         """Sets super-user and server-server auth user passwords to relation data."""
         if not self.unit.is_leader():
             return
@@ -230,22 +225,21 @@ class ZooKeeperCharm(CharmBase):
         self.add_init_leader()
 
         if self.cluster.stale_quorum:
-            # triggers a `cluster_relation_changed` to wake up following units
             updated_servers = self.cluster.update_cluster()
-            logger.info(f"{updated_servers=}")
+            # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
 
         # declare upgrade complete only when all peer units have started
         # triggers `cluster_relation_changed` to rolling-restart without `portUnification`
         if self.tls.all_units_unified:
-            if self.tls.relation:
+            if self.tls.enabled:
                 logger.info("ZooKeeper cluster running with quorum encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "ssl", "upgrading": ""})
             else:
                 logger.info("ZooKeeper cluster running without quorum encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
 
-    def add_init_leader(self):
+    def add_init_leader(self) -> None:
         """Adds the first leader server to the relation data for other units to ack."""
         if not self.unit.is_leader():
             return

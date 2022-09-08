@@ -9,5 +9,7 @@ REL_NAME = "zookeeper"
 STATE = "state"
 CHARM_KEY = "zookeeper"
 CHARM_USERS = ["super", "sync"]
-KEY_PASSWORD = "password"
 CERTS_REL_NAME = "certificates"
+
+# keystores need a password
+KEY_PASSWORD = "password"
