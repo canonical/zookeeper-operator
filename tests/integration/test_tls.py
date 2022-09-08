@@ -51,7 +51,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_tls_set_private_key_pem(ops_test: OpsTest):
-    with open("tests/integration/keys/0.key") as f:
+    with open("tests/keys/0.key") as f:
         cert = f.read()
         action = await ops_test.model.units.get(f"{APP_NAME}/0").run_action(
             "set-tls-private-key", params={"internal-key": cert}
@@ -65,7 +65,7 @@ async def test_tls_set_private_key_pem(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_tls_set_private_key_encoded(ops_test: OpsTest):
-    with open("tests/integration/keys/0.key.enc") as f:
+    with open("tests/keys/0.key.enc") as f:
         cert = f.read()
         action = await ops_test.model.units.get(f"{APP_NAME}/0").run_action(
             "set-tls-private-key", params={"internal-key": cert}
