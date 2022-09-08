@@ -164,7 +164,7 @@ class ZooKeeperCharm(CharmBase):
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # added here in case a `restart` was missed
         self.cluster.relation.data[self.unit].update(
-            {"state": "started", "unified": "unified" if self.tls.upgrading else ""}
+            {"state": "started", "unified": "true" if self.tls.upgrading else ""}
         )
 
     def config_changed(self):
@@ -252,8 +252,6 @@ class ZooKeeperCharm(CharmBase):
             # sets to "added" for init quorum leader, if not already exists
             # may already exist if during the case of a failover of the first unit
             if unit_id == self.cluster.lowest_unit_id:
-                if not current_value:
-                    logger.debug("ADDING INIT LEADER")
                 self.cluster.relation.data[self.app].update(
                     {str(unit_id): current_value or "added"}
                 )
