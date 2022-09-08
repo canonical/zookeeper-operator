@@ -121,7 +121,7 @@ class ZooKeeperCharm(CharmBase):
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # in case restart was manual, also remove
         self.cluster.relation.data[self.unit].update(
-            {"unified": "started" if self.tls.upgrading else "", "manual-restart": ""}
+            {"unified": "true" if self.tls.upgrading else "", "manual-restart": ""}
         )
 
     def init_server(self):
@@ -164,7 +164,7 @@ class ZooKeeperCharm(CharmBase):
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # added here in case a `restart` was missed
         self.cluster.relation.data[self.unit].update(
-            {"state": "started", "unified": "started" if self.tls.upgrading else ""}
+            {"state": "started", "unified": "unified" if self.tls.upgrading else ""}
         )
 
     def config_changed(self):
