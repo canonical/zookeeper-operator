@@ -183,9 +183,7 @@ class ZooKeeperCharm(CharmBase):
         jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or []
         jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
 
-        certs_changed = self.tls.server_certs ^ self.tls.unit_certs
-
-        if not (properties_changed or jaas_changed or certs_changed):
+        if not (properties_changed or jaas_changed):
             return False
 
         if properties_changed:
@@ -211,18 +209,6 @@ class ZooKeeperCharm(CharmBase):
                 )
             )
             self.zookeeper_config.set_jaas_config()
-
-        if certs_changed:
-            old_certs = {cert[0] for cert in self.tls.server_certs - self.tls.unit_certs}
-            new_certs = {cert[0] for cert in self.tls.unit_certs - self.tls.server_certs}
-            logger.info(
-                (
-                    f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating TLS certs - "
-                    f"OLD CERTS = {old_certs}, "
-                    f"NEW CERTS = {new_certs}"
-                )
-            )
-            self.tls.set_truststore()
 
         return True
 
