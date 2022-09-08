@@ -15,7 +15,6 @@ from typing import List, Optional
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
-    CertificateExpiringEvent,
     TLSCertificatesRequiresV1,
     generate_csr,
     generate_private_key,
@@ -24,7 +23,7 @@ from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation
 
-from literals import CERTS_REL_NAME, KEY_PASSWORD, PEER
+from literals import KEY_PASSWORD, PEER
 from utils import safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -69,15 +68,6 @@ class ZooKeeperTLS(Object):
         return self.charm.model.get_relation(PEER)
 
     @property
-    def relation(self) -> Relation:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The certificates relation instance
-        """
-        return self.charm.model.get_relation(CERTS_REL_NAME)
-
-    @property
     def private_key(self) -> Optional[str]:
         """The unit private-key set during `certificates_joined`.
 
@@ -89,7 +79,7 @@ class ZooKeeperTLS(Object):
 
     @property
     def csr(self) -> Optional[str]:
-        """The unit cert signing requests.
+        """The unit cert signing request.
 
         Returns:
             String of csr contents
@@ -109,10 +99,10 @@ class ZooKeeperTLS(Object):
 
     @property
     def ca(self) -> Optional[str]:
-        """The signed unit certificate from the provider relation.
+        """The ca used to sign unit cert.
 
         Returns:
-            String of cert contents in PEM format
+            String of ca contents in PEM format
             None if cert not yet generated/signed
         """
         return self.cluster.data[self.charm.unit].get("ca", None)
@@ -151,22 +141,6 @@ class ZooKeeperTLS(Object):
 
         return True
 
-    @property
-    def all_units_certified(self) -> bool:
-        """Flag to check whether all units have signed certs.
-
-        Returns:
-            True if all units have signed certs. Otherwise False
-        """
-        if not self.charm.cluster.all_units_related:
-            return False
-
-        for unit in self.charm.cluster.peer_units:
-            if not self.cluster.data[unit].get("certificate", None):
-                return False
-
-        return True
-
     def _on_certificates_created(self, _) -> None:
         """Handler for `certificates_relation_created` event."""
         if not self.charm.unit.is_leader():
@@ -197,25 +171,31 @@ class ZooKeeperTLS(Object):
             event.defer()
             return
 
-        if not event.certificate_signing_request == self.cluster.data[self.charm.unit].get(
-            "csr", None
-        ):
-            logger.error("unknown certificate available")
+        # avoid setting tls files and restarting
+        if event.certificate_signing_request != self.csr:
+            logger.error("Can't use certificate, found unknown CSR")
             return
 
-        # FIXME: `chain` is omitted, add later if needed
+        # if certificate already exists, this event must be new, flag manual restart
+        if self.certificate:
+            self.cluster.data[self.charm.unit].update({"manual-restart": "true"})
+
         self.cluster.data[self.charm.unit].update(
             {"certificate": event.certificate, "ca": event.ca}
         )
 
         self.set_server_key()
+        self.set_ca()
+        self.set_certificate()
         self.set_truststore()
         self.set_p12_keystore()
 
+        self.charm.on[self.charm.restart.name].acquire_lock.emit()
+
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
-        # FIXME: `chain` is omitted, add later if needed
         self.cluster.data[self.charm.unit].update({"csr": "", "certificate": "", "ca": ""})
+
         # remove all existing keystores from the unit so we don't preserve certs
         self.remove_stores()
 
@@ -226,13 +206,10 @@ class ZooKeeperTLS(Object):
         # ideally trigger this before any other `certificates_*` step
         self.cluster.data[self.charm.app].update({"tls": "", "upgrading": "started"})
 
-    def _on_certificate_expiring(self, event: CertificateExpiringEvent) -> None:
-        if not event.certificate == self.cluster.data[self.charm.unit].get("certificate", None):
-            logger.error("unknown certificate expiring")
-            return
-
+    def _on_certificate_expiring(self, _) -> None:
+        """Handler for `certificate_expiring` event."""
         if not self.private_key or not self.csr:
-            logger.error("missing unit private key and/or old csr")
+            logger.error("Missing unit private key and/or old csr")
             return
 
         new_csr = generate_csr(
@@ -252,11 +229,13 @@ class ZooKeeperTLS(Object):
         """Handler for `set_tls_private_key` action."""
         private_key = self._parse_tls_file(event.params.get("internal-key", None))
         self.cluster.data[self.charm.unit].update({"private-key": private_key.strip()})
-        self._request_certificate()
+
+        self._on_certificate_expiring(event)
 
     def _request_certificate(self) -> None:
         """Generates and submits CSR to provider."""
         if not self.private_key:
+            logger.error("Can't request certificate, missing private key")
             return
 
         csr = generate_csr(
@@ -271,33 +250,29 @@ class ZooKeeperTLS(Object):
     def set_server_key(self) -> None:
         """Sets the unit private-key."""
         if not self.private_key:
-            raise TLSDataNotFoundError(f"Private key missing for {self.charm.unit.name}")
+            logger.error("Can't set private-key to unit, missing private-key in relation data")
+            return
 
         safe_write_to_file(content=self.private_key, path=f"{SNAP_CONFIG_PATH}/server.key")
 
     def set_ca(self) -> None:
         """Sets the unit ca."""
         if not self.ca:
-            raise TLSDataNotFoundError(f"CA missing for {self.charm.unit.name}")
+            logger.error("Can't set CA to unit, missing CA in relation data")
+            return
 
         safe_write_to_file(content=self.ca, path=f"{SNAP_CONFIG_PATH}/ca.pem")
 
     def set_certificate(self) -> None:
         """Sets the unit private-key."""
         if not self.certificate:
-            raise TLSDataNotFoundError(f"Signed Certificate missing for {self.charm.unit.name}")
+            logger.error("Can't set certificate to unit, missing certificate in relation data")
+            return
 
         safe_write_to_file(content=self.certificate, path=f"{SNAP_CONFIG_PATH}/server.pem")
 
     def set_truststore(self) -> None:
-        """Adds CA to single shared JKS truststore."""
-        ca = self.cluster.data[self.charm.unit].get("ca", None)
-        if not ca:
-            logger.debug("CA not found for {unit.name}")
-            return
-
-        safe_write_to_file(content=ca, path=f"{SNAP_CONFIG_PATH}/ca.pem")
-
+        """Adds CA to JKS truststore."""
         try:
             subprocess.check_output(
                 f"keytool -import -v -alias ca -file ca.pem -keystore truststore.jks -storepass {KEY_PASSWORD} -noprompt",
@@ -307,6 +282,9 @@ class ZooKeeperTLS(Object):
                 cwd=SNAP_CONFIG_PATH,
             )
         except subprocess.CalledProcessError as e:
+            # in case this reruns and fails
+            if "already exists" in e.output:
+                return
             logger.info(e.output)
             raise e
 
@@ -342,6 +320,7 @@ class ZooKeeperTLS(Object):
     def _parse_tls_file(raw_content: str) -> str:
         """Parse TLS files from both plain text or base64 format."""
         if re.match(r"(-+(BEGIN|END) [A-Z ]+-+)", raw_content):
+            logger.info(raw_content)
             return raw_content
         return base64.b64decode(raw_content).decode("utf-8")
 

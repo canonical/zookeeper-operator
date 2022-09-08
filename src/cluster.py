@@ -15,7 +15,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from kazoo.exceptions import BadArgumentsError, NewConfigNoQuorumError
+from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.model import Relation, Unit
 
@@ -70,6 +70,11 @@ class ZooKeeperCluster:
 
     @property
     def all_units_related(self) -> bool:
+        """Checks if currently related units make up all planned.
+
+        Returns:
+            True if all units are related. Otherwise False
+        """
         if len(self.peer_units) != self.charm.app.planned_units():
             return False
 
@@ -108,6 +113,14 @@ class ZooKeeperCluster:
 
     @property
     def stale_quorum(self) -> bool:
+        """Checks whether it's necessary to update the servers in quorum.
+
+        Condition is dependent on all units being relating, and a unit not
+            yet been added to the quorum.
+
+        Returns:
+            True if the quorum needs updating. Otherwise False
+        """
         if not self.all_units_related:
             return False
 
@@ -442,3 +455,14 @@ class ZooKeeperCluster:
             String of either `ssl` or `non-ssl`. None if quorum not yet reached
         """
         return self.relation.data[self.charm.app].get("quorum", None)
+
+    @property
+    def manual_restart(self) -> bool:
+        """Flag to ensure a rolling-restart will execute.
+
+        To be used during manually triggered restarts, where config doesn't change.
+
+        Returns:
+            True if manual-restart flag is set. Otherwise False
+        """
+        return bool(self.relation.data[self.charm.app].get("manual-restart", None))
