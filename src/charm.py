@@ -9,7 +9,7 @@ import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import CharmBase, InstallEvent
+from ops.charm import ActionEvent, CharmBase, InstallEvent
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus

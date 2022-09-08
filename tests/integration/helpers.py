@@ -194,6 +194,7 @@ def check_properties(model_full_name: str, unit: str):
     )
     return properties.splitlines()
 
+
 def check_acl_permission(host: str, password: str, folder: str, username: str = "super") -> None:
     """Checks the existence of ACL permission of a given folder."""
     kc = KazooClient(
@@ -244,14 +245,3 @@ async def get_application_hosts(ops_test: OpsTest, app_name: str, units: List[st
     for unit in units:
         hosts.append(status["applications"][app_name]["units"][f"{unit}"]["public-address"])
     return hosts
-
-def check_cert(model_full_name: str, unit: str, alias: str):
-    cert = check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh {unit} 'keytool -exportcert -keystore truststore.jks -rfc -storepass {KEY_PASSWORD} -alias {alias}'",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-        cwd=SNAP_CONFIG_PATH,
-    )
-
-    return cert
