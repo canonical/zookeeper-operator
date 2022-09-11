@@ -10,7 +10,7 @@ from typing import List
 from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from ops.model import Relation
 
-from literals import KEY_PASSWORD, PEER, REL_NAME
+from literals import PEER, REL_NAME
 from utils import safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -160,10 +160,10 @@ class ZooKeeperConfig:
                     f"ssl.keyStore.location={self.keystore_filepath}",
                     f"ssl.trustStore.location={self.truststore_filepath}",
                     f"ssl.keyStore.location={self.keystore_filepath}",
-                    f"ssl.quorum.keyStore.password={KEY_PASSWORD}",
-                    f"ssl.quorum.trustStore.password={KEY_PASSWORD}",
-                    f"ssl.keyStore.password={KEY_PASSWORD}",
-                    f"ssl.trustStore.password={KEY_PASSWORD}",
+                    f"ssl.quorum.keyStore.password={self.charm.tls.keystore_password}",
+                    f"ssl.quorum.trustStore.password={self.charm.tls.keystore_password}",
+                    f"ssl.keyStore.password={self.charm.tls.keystore_password}",
+                    f"ssl.trustStore.password={self.charm.tls.keystore_password}",
                 ]
             )
 

@@ -10,6 +10,3 @@ STATE = "state"
 CHARM_KEY = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
-
-# keystores need a password
-KEY_PASSWORD = "password"

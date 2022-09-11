@@ -23,8 +23,8 @@ from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation
 
-from literals import KEY_PASSWORD, PEER
-from utils import safe_write_to_file
+from literals import PEER
+from utils import generate_password, safe_write_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,19 @@ class ZooKeeperTLS(Object):
             None if key not yet generated
         """
         return self.cluster.data[self.charm.unit].get("private-key", None)
+
+    @property
+    def keystore_password(self) -> Optional[str]:
+        """The unit keystore password set during `certificates_joined`.
+
+        Password is to be assigned to keystore + truststore.
+        Passwords need to be the same for both stores in ZK.
+
+        Returns:
+            String of password
+            None if password not yet generated
+        """
+        return self.cluster.data[self.charm.unit].get("keystore-password", None)
 
     @property
     def csr(self) -> Optional[str]:
@@ -166,6 +179,10 @@ class ZooKeeperTLS(Object):
                 {"private-key": generate_private_key().decode("utf-8")}
             )
 
+        # generate unit private key if not already created by action
+        if not self.keystore_password:
+            self.cluster.data[self.charm.unit].update({"keystore-password": generate_password()})
+
         self._request_certificate()
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
@@ -214,7 +231,6 @@ class ZooKeeperTLS(Object):
         if not self.private_key or not self.csr:
             logger.error("Missing unit private key and/or old csr")
             return
-
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
@@ -233,7 +249,7 @@ class ZooKeeperTLS(Object):
         private_key = self._parse_tls_file(event.params.get("internal-key", None))
         self.cluster.data[self.charm.unit].update({"private-key": private_key})
 
-        self._request_certificate()
+        self._on_certificate_expiring(event)
 
     def _request_certificate(self) -> None:
         """Generates and submits CSR to provider."""
@@ -278,7 +294,7 @@ class ZooKeeperTLS(Object):
         """Adds CA to JKS truststore."""
         try:
             subprocess.check_output(
-                f"keytool -import -v -alias ca -file ca.pem -keystore truststore.jks -storepass {KEY_PASSWORD} -noprompt",
+                f"keytool -import -v -alias ca -file ca.pem -keystore truststore.jks -storepass {self.keystore_password} -noprompt",
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
@@ -295,7 +311,7 @@ class ZooKeeperTLS(Object):
         """Creates and adds unit cert and private-key to a PCKS12 keystore."""
         try:
             subprocess.check_output(
-                f"openssl pkcs12 -export -in server.pem -inkey server.key -passin pass:{KEY_PASSWORD} -certfile server.pem -out keystore.p12 -password pass:{KEY_PASSWORD}",
+                f"openssl pkcs12 -export -in server.pem -inkey server.key -passin pass:{self.keystore_password} -certfile server.pem -out keystore.p12 -password pass:{self.keystore_password}",
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
