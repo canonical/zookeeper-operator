@@ -9,7 +9,13 @@ import time
 
 from charms.kafka.v0.kafka_snap import KafkaSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import ActionEvent, CharmBase, InstallEvent
+from ops.charm import (
+    ActionEvent,
+    CharmBase,
+    InstallEvent,
+    LeaderElectedEvent,
+    RelationDepartedEvent,
+)
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
@@ -96,6 +102,10 @@ class ZooKeeperCharm(CharmBase):
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
 
+        # don't delay scale-down leader ops by restarting dying unit
+        if getattr(event, "departing_unit", None) == self.unit:
+            return
+
         # check whether restart is needed for all `*_changed` events
         self.on[self.restart.name].acquire_lock.emit()
 
@@ -106,10 +116,11 @@ class ZooKeeperCharm(CharmBase):
             return
 
         if self.config_changed() or self.cluster.manual_restart:
-            logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} restarting")
+            logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} restarting")
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
 
             # gives time for server to rejoin quorum, as command exits too fast
+            # without, other units might restart before this unit rejoins, losing quorum
             time.sleep(5)
 
             self.unit.status = ActiveStatus()
@@ -133,7 +144,6 @@ class ZooKeeperCharm(CharmBase):
         # don't run if leader has not yet created passwords
         if not self.cluster.passwords_set:
             self.unit.status = MaintenanceStatus("waiting for passwords to be created")
-            logger.debug("NOT STARTING - PASSWORDS NOT SET")
             return
 
         # start units in order
@@ -142,7 +152,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self.unit.status = MaintenanceStatus("starting ZooKeeper server")
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} initializing")
+        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} initializing")
 
         # setting default properties
         self.zookeeper_config.set_zookeeper_myid()
@@ -159,7 +169,7 @@ class ZooKeeperCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit) + 1} started")
+        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} started")
 
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # added here in case a `restart` was missed
@@ -184,7 +194,7 @@ class ZooKeeperCharm(CharmBase):
         if properties_changed:
             logger.info(
                 (
-                    f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating properties - "
+                    f"Server.{self.cluster.get_unit_id(self.unit)} updating properties - "
                     f"OLD PROPERTIES = {set(server_properties) - set(config_properties)}, "
                     f"NEW PROPERTIES = {set(config_properties) - set(server_properties)}"
                 )
@@ -198,7 +208,7 @@ class ZooKeeperCharm(CharmBase):
             ]
             logger.info(
                 (
-                    f"Server.{self.cluster.get_unit_id(self.unit) + 1} updating JAAS config - "
+                    f"Server.{self.cluster.get_unit_id(self.unit)} updating JAAS config - "
                     f"OLD JAAS = {set(clean_server_jaas) - set(clean_config_jaas)}, "
                     f"NEW JAAS = {set(clean_config_jaas) - set(clean_server_jaas)}"
                 )
@@ -224,7 +234,11 @@ class ZooKeeperCharm(CharmBase):
         # set first unit to "added" asap to get the units starting sooner
         self.add_init_leader()
 
-        if self.cluster.stale_quorum:
+        if self.cluster.stale_quorum or isinstance(
+            # ensure these events always run without delay to maintain quorum on scale down
+            event,
+            (RelationDepartedEvent, LeaderElectedEvent),
+        ):
             updated_servers = self.cluster.update_cluster()
             # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
