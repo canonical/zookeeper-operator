@@ -61,6 +61,13 @@ def test_certificates_joined_creates_new_key(harness):
         assert harness.charm.tls.private_key
         assert "BEGIN RSA PRIVATE KEY" in harness.charm.tls.private_key.splitlines()[0]
 
+def test_certificates_joined_creates_new_keystore_password(harness):
+    assert not harness.charm.tls.keystore_password
+    with patch("tls.ZooKeeperTLS._request_certificate"):
+        cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+        harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
+
+        assert harness.charm.tls.keystore_password
 
 def test_certificates_available_fails_wrong_csr(harness):
     cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
