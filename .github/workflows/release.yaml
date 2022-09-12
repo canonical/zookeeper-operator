@@ -100,7 +100,10 @@ jobs:
       - lib-check
       - lint
       - unit-test
-      - integration-test-lxd
+      - integration-test-password-rotation-lxd
+      - integration-test-provider-lxd
+      - integration-test-scaling-lxd
+      - integration-test-tls-lxd
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
