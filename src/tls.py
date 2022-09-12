@@ -179,7 +179,7 @@ class ZooKeeperTLS(Object):
                 {"private-key": generate_private_key().decode("utf-8")}
             )
 
-        # generate unit private key if not already created by action
+        # generate unit keystore password if not already created by action
         if not self.keystore_password:
             self.cluster.data[self.charm.unit].update({"keystore-password": generate_password()})
 
@@ -249,7 +249,7 @@ class ZooKeeperTLS(Object):
         private_key = self._parse_tls_file(event.params.get("internal-key", None))
         self.cluster.data[self.charm.unit].update({"private-key": private_key})
 
-        self._on_certificate_expiring(event)
+        self._request_certificate()
 
     def _request_certificate(self) -> None:
         """Generates and submits CSR to provider."""
@@ -283,7 +283,7 @@ class ZooKeeperTLS(Object):
         safe_write_to_file(content=self.ca, path=f"{SNAP_CONFIG_PATH}/ca.pem")
 
     def set_certificate(self) -> None:
-        """Sets the unit private-key."""
+        """Sets the unit signed certificate."""
         if not self.certificate:
             logger.error("Can't set certificate to unit, missing certificate in relation data")
             return
