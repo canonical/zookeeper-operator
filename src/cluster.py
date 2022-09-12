@@ -126,7 +126,7 @@ class ZooKeeperCluster:
 
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
-            if not self.relation.data[self.charm.app].get(str(unit_id), None) == "added":
+            if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
                 logger.debug(f"Unit {unit.name} needs adding")
                 return True
 

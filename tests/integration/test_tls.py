@@ -66,7 +66,7 @@ async def test_remove_tls_provider(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
-async def test_add_tls_provider(ops_test: OpsTest):
+async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
     await asyncio.gather(
         ops_test.model.deploy(
             "tls-certificates-operator",
