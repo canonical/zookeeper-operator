@@ -27,8 +27,8 @@ jobs:
       - name: Run tests
         run: tox -e unit
 
-  integration-test-lxd:
-    name: Integration tests for (lxd)
+  integration-test-password-rotation-lxd:
+    name: Integration tests for password-rotation (lxd)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,4 +38,43 @@ jobs:
         with:
           provider: lxd
       - name: Run integration tests
-        run: tox -e integration
+        run: tox -e integration-password-rotation
+
+  integration-test-provider-lxd:
+    name: Integration tests for provider (lxd)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup operator environment
+        uses: charmed-kubernetes/actions-operator@main
+        with:
+          provider: lxd
+      - name: Run integration tests
+        run: tox -e integration-provider
+
+  integration-test-scaling-lxd:
+    name: Integration tests for scaling (lxd)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup operator environment
+        uses: charmed-kubernetes/actions-operator@main
+        with:
+          provider: lxd
+      - name: Run integration tests
+        run: tox -e integration-scaling
+
+  integration-test-tls-lxd:
+    name: Integration tests for tls (lxd)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup operator environment
+        uses: charmed-kubernetes/actions-operator@main
+        with:
+          provider: lxd
+      - name: Run integration tests
+        run: tox -e integration-tls
