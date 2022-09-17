@@ -56,7 +56,7 @@ class TestProvider(unittest.TestCase):
     def setUp(self):
         self.harness = Harness(DummyZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
         self.addCleanup(self.harness.cleanup)
-        self.harness.add_relation("zookeeper", "application")
+        self.client_rel_id = self.harness.add_relation("zookeeper", "application")
         self.harness.begin_with_initial_hooks()
 
     @property
@@ -253,6 +253,52 @@ class TestProvider(unittest.TestCase):
         self.assertFalse(
             self.harness.charm.client_relation._is_child_of(path=chroot, chroots=chroots)
         )
+
+    def test_port_updates_if_tls(self):
+        self.harness.set_leader(True)
+        self.harness.update_relation_data(
+            self.provider.client_relations[0].id, "application", {"chroot": "app"}
+        )
+
+        # checking if ssl port and ssl flag are passed
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            "zookeeper/0",
+            {"private-address": "treebeard", "state": "started"},
+        )
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            "zookeeper",
+            {"quorum": "ssl"},
+        )
+        self.harness.charm.client_relation.apply_relation_data()
+
+        for relation in self.provider.client_relations:
+            uris = relation.data[self.harness.charm.app].get("uris", "")
+            ssl = relation.data[self.harness.charm.app].get("ssl", "")
+
+            self.assertIn(str(self.harness.charm.cluster.secure_client_port), uris)
+            self.assertEqual(ssl, "enabled")
+
+        # checking if normal port and non-ssl flag are passed
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            "zookeeper/0",
+            {"private-address": "treebeard", "state": "started", "quorum": "non-ssl"},
+        )
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            "zookeeper",
+            {"quorum": "non-ssl"},
+        )
+        self.harness.charm.client_relation.apply_relation_data()
+
+        for relation in self.provider.client_relations:
+            uris = relation.data[self.harness.charm.app].get("uris", "")
+            ssl = relation.data[self.harness.charm.app].get("ssl", "")
+
+            self.assertIn(str(self.harness.charm.cluster.client_port), uris)
+            self.assertEqual(ssl, "disabled")
 
     def test_apply_relation_data(self):
         self.harness.set_leader(True)
