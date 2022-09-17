@@ -253,6 +253,9 @@ class ZooKeeperCharm(CharmBase):
                 logger.info("ZooKeeper cluster running without quorum encryption")
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
 
+        # attempt update of client relation data in case port updated
+        self.provider.apply_relation_data(event)
+
     def add_init_leader(self) -> None:
         """Adds the first leader server to the relation data for other units to ack."""
         if not self.unit.is_leader():

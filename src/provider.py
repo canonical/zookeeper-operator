@@ -229,9 +229,16 @@ class ZooKeeperProvider(Object):
             relation_data["password"] = config["password"] or generate_password()
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
+
+            if self.charm.tls.quorum == "ssl":
+                relation_data["ssl"] = "enabled"
+                port = self.charm.cluster.secure_client_port
+            else:
+                relation_data["ssl"] = "disabled"
+                port = self.charm.cluster.client_port
+
             relation_data["uris"] = (
-                ",".join([f"{host}:{self.charm.cluster.client_port}" for host in hosts])
-                + config["chroot"]
+                ",".join([f"{host}:{port}" for host in hosts]) + config["chroot"]
             )
 
             self.app_relation.data[self.charm.app].update(
