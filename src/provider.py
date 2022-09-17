@@ -230,7 +230,7 @@ class ZooKeeperProvider(Object):
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
 
-            if self.charm.tls.quorum == "ssl":
+            if self.charm.cluster.quorum == "ssl":
                 relation_data["ssl"] = "enabled"
                 port = self.charm.cluster.secure_client_port
             else:
@@ -255,6 +255,11 @@ class ZooKeeperProvider(Object):
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
+        # avoids failure from early relation
+        if not self.charm.cluster.quorum:
+            event.defer()
+            return
+
         if self.charm.unit.is_leader():
             try:
                 self.update_acls(event=event)
