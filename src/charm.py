@@ -246,7 +246,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # default startup without ssl relation
-        if not (self.cluster.stale_quorum and self.tls.enabled and self.tls.upgrading):
+        if not self.cluster.stale_quorum and not self.tls.enabled and not self.tls.upgrading:
             if not self.cluster.quorum:  # avoids multiple loglines
                 logger.info("ZooKeeper cluster running with non-SSL quorum")
 
