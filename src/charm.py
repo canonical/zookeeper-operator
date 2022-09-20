@@ -243,8 +243,6 @@ class ZooKeeperCharm(CharmBase):
             # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
 
-            return
-
         # default startup without ssl relation
         if not self.cluster.stale_quorum and not self.tls.enabled and not self.tls.upgrading:
             if not self.cluster.quorum:  # avoids multiple loglines
