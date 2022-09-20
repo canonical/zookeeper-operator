@@ -171,7 +171,7 @@ class ZooKeeperProvider(Object):
             use_ssl = True
             keystore_password = self.charm.tls.keystore_password
         else:
-            port = self.charm.cluster.secure_client_port
+            port = self.charm.cluster.client_port
             use_ssl = False
             keystore_password = ""
 
