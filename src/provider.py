@@ -165,11 +165,23 @@ class ZooKeeperProvider(Object):
             event (optional): used for checking `RelationBrokenEvent`
         """
         super_password, _ = self.charm.cluster.passwords
+
+        if self.charm.cluster.quorum == "ssl":
+            port = self.charm.cluster.secure_client_port
+            use_ssl = True
+            keystore_password = self.charm.tls.keystore_password
+        else:
+            port = self.charm.cluster.secure_client_port
+            use_ssl = False
+            keystore_password = ""
+
         zk = ZooKeeperManager(
             hosts=self.charm.cluster.active_hosts,
-            client_port=self.charm.cluster.client_port,
+            client_port=port,
             username="super",
             password=super_password,
+            use_ssl=use_ssl,
+            keystore_password=keystore_password,
         )
 
         leader_chroots = zk.leader_znodes(path="/")
@@ -270,7 +282,7 @@ class ZooKeeperProvider(Object):
                 KazooTimeoutError,
                 UnitNotFoundError,
             ) as e:
-                logger.debug(str(e))
+                logger.warning(str(e))
                 self.charm.unit.status = MaintenanceStatus(str(e))
                 event.defer()
                 return

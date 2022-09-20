@@ -115,6 +115,9 @@ class ZooKeeperCharm(CharmBase):
         if not self.cluster.started:
             return
 
+        if self.tls.enabled and not self.tls.certificate:
+            return
+
         if self.config_changed() or self.cluster.manual_restart:
             logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} restarting")
             self.snap.restart_snap_service(snap_service=CHARM_KEY)
@@ -234,12 +237,17 @@ class ZooKeeperCharm(CharmBase):
         # set first unit to "added" asap to get the units starting sooner
         self.add_init_leader()
 
-        if self.cluster.stale_quorum or isinstance(
-            # ensure these events always run without delay to maintain quorum on scale down
-            event,
-            (RelationDepartedEvent, LeaderElectedEvent),
+        if (
+            self.cluster.stale_quorum
+            or isinstance(
+                # ensure these events always run without delay to maintain quorum on scale down
+                event,
+                (RelationDepartedEvent, LeaderElectedEvent),
+            )
+            or self.tls.upgrading
         ):
             updated_servers = self.cluster.update_cluster()
+            logger.debug(f"{updated_servers=}")
             # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
 
@@ -259,6 +267,9 @@ class ZooKeeperCharm(CharmBase):
             else:
                 logger.info("ZooKeeper cluster switching to non-SSL quorum")
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
+
+            # ensures leader restarts with new quorum
+            self.on[self.restart.name].acquire_lock.emit()
 
     def add_init_leader(self) -> None:
         """Adds the first leader server to the relation data for other units to ack."""
