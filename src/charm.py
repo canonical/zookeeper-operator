@@ -109,6 +109,10 @@ class ZooKeeperCharm(CharmBase):
         # check whether restart is needed for all `*_changed` events
         self.on[self.restart.name].acquire_lock.emit()
 
+        # ensures events aren't lost during an upgrade on single units
+        if self.tls.upgrading:
+            event.defer()
+
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
         # 'snap restart' starts the service, so this can cause issues if ran before `init_server()`
