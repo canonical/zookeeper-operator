@@ -280,6 +280,8 @@ class ZooKeeperCharm(CharmBase):
                     {"quorum": "non-ssl", "upgrading": "", "changed-quorum": "true"}
                 )
 
+        self.provider.apply_relation_data()
+
     def add_init_leader(self) -> None:
         """Adds the first leader server to the relation data for other units to ack."""
         if not self.unit.is_leader():
