@@ -8,6 +8,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
+from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
@@ -169,11 +170,13 @@ class ZooKeeperProvider(Object):
         if self.charm.cluster.quorum == "ssl":
             port = self.charm.cluster.secure_client_port
             use_ssl = True
-            keystore_password = self.charm.tls.keystore_password
+            keyfile_path = f"{SNAP_CONFIG_PATH}/server.key"
+            certfile_path = f"{SNAP_CONFIG_PATH}/server.pem"
         else:
             port = self.charm.cluster.client_port
             use_ssl = False
-            keystore_password = ""
+            keyfile_path = ""
+            certfile_path = ""
 
         zk = ZooKeeperManager(
             hosts=self.charm.cluster.active_hosts,
@@ -181,7 +184,8 @@ class ZooKeeperProvider(Object):
             username="super",
             password=super_password,
             use_ssl=use_ssl,
-            keystore_password=keystore_password,
+            keyfile_path=keyfile_path,
+            certfile_path=certfile_path,
         )
 
         leader_chroots = zk.leader_znodes(path="/")
