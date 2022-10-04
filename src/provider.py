@@ -8,7 +8,6 @@ import logging
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
@@ -19,7 +18,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
 from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
-from ops.model import MaintenanceStatus, Relation
+from ops.model import Relation
 
 from cluster import UnitNotFoundError
 from literals import PEER, REL_NAME
@@ -167,25 +166,11 @@ class ZooKeeperProvider(Object):
         """
         super_password, _ = self.charm.cluster.passwords
 
-        if self.charm.cluster.quorum == "ssl":
-            port = self.charm.cluster.secure_client_port
-            use_ssl = True
-            keyfile_path = f"{SNAP_CONFIG_PATH}/server.key"
-            certfile_path = f"{SNAP_CONFIG_PATH}/server.pem"
-        else:
-            port = self.charm.cluster.client_port
-            use_ssl = False
-            keyfile_path = ""
-            certfile_path = ""
-
         zk = ZooKeeperManager(
             hosts=self.charm.cluster.active_hosts,
-            client_port=port,
+            client_port=self.charm.cluster.client_port,
             username="super",
             password=super_password,
-            use_ssl=use_ssl,
-            keyfile_path=keyfile_path,
-            certfile_path=certfile_path,
         )
 
         leader_chroots = zk.leader_znodes(path="/")
@@ -247,10 +232,10 @@ class ZooKeeperProvider(Object):
             relation_data["endpoints"] = ",".join(list(hosts))
 
             if self.charm.cluster.quorum == "ssl":
-                relation_data["ssl"] = "enabled"
+                relation_data["tls"] = "enabled"
                 port = self.charm.cluster.secure_client_port
             else:
-                relation_data["ssl"] = "disabled"
+                relation_data["tls"] = "disabled"
                 port = self.charm.cluster.client_port
 
             relation_data["uris"] = (
@@ -287,7 +272,6 @@ class ZooKeeperProvider(Object):
                 UnitNotFoundError,
             ) as e:
                 logger.warning(str(e))
-                self.charm.unit.status = MaintenanceStatus(str(e))
                 event.defer()
                 return
 
