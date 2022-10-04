@@ -316,3 +316,124 @@ def test_startup_servers_succeeds_failover_after_init(harness):
 
     assert len(re.findall("participant", generated_servers)) == 1
     assert len(re.findall("observer", generated_servers)) == 1
+
+
+def test_all_units_related(harness):
+    assert not harness.charm.cluster.all_units_related
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.set_planned_units(2)
+    assert harness.charm.cluster.all_units_related
+
+
+def test_lowest_unit_id_none_if_not_all_related(harness):
+    assert harness.charm.cluster.lowest_unit_id == None
+
+
+def test_lowest_unit_id(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.set_planned_units(2)
+    assert harness.charm.cluster.lowest_unit_id == 0
+
+
+def test_stale_quorum_not_all_related(harness):
+    assert not harness.charm.cluster.stale_quorum
+
+
+def test_stale_quorum_unit_departed(harness):
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "removed"}
+    )
+    assert not harness.charm.cluster.stale_quorum
+
+
+def test_stale_quorum_new_unit(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.set_planned_units(2)
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": ""}
+    )
+
+    assert harness.charm.cluster.stale_quorum
+
+
+def test_stale_quorum_all_added(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.set_planned_units(2)
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "added"}
+    )
+    assert not harness.charm.cluster.stale_quorum
+
+
+def test_all_rotated_fails(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
+    )
+    assert not harness.charm.cluster._all_rotated()
+
+
+def test_all_rotated_succeeds(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"password-rotated": "true"}
+    )
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
+    )
+
+    assert harness.charm.cluster._all_rotated()
+
+
+def test_passwords_set_fails_missing_unit_passwords(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id,
+        f"{CHARM_KEY}/0",
+        {"super-password": "mellon", "sync-password": "mellon"},
+    )
+    assert not harness.charm.cluster.passwords_set
+
+
+def test_passwords_set_fails_missing_password(harness):
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"super-password": "mellon"}
+    )
+    assert not harness.charm.cluster.passwords_set
+
+
+def test_passwords_set_succeeds(harness):
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id,
+        f"{CHARM_KEY}/0",
+        {"super-password": "mellon", "sync-password": "mellon"},
+    )
+    assert not harness.charm.cluster.passwords_set
+
+
+def test_all_units_quorum_fails_wrong_quorum(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
+    )
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"quorum": "non-ssl"}
+    )
+
+    assert not harness.charm.cluster.all_units_quorum
+
+    harness.update_relation_data(harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"})
+
+    assert not harness.charm.cluster.all_units_quorum
+
+def test_all_units_quorum_succeeds(harness):
+    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    harness.update_relation_data(harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"})
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
+    )
+    harness.update_relation_data(
+        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"quorum": "ssl"}
+    )
+
+    assert harness.charm.cluster.all_units_quorum
