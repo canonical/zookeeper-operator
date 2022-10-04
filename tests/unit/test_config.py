@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-
 import logging
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -42,9 +43,8 @@ def test_build_static_properties_removes_necessary_rows():
 
     static = ZooKeeperConfig.build_static_properties(properties=properties)
 
-    assert len(static) == 2
+    assert len(static) == 3
     assert "clientPort" not in "".join(static)
-    assert "dynamicConfigFile" not in "".join(static)
 
 
 def test_kafka_opts_has_jaas(harness):
@@ -105,3 +105,23 @@ def test_tls_ssl_quorum(harness):
 
     harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"quorum": "non-ssl"})
     assert "sslQuorum=true" not in harness.charm.zookeeper_config.zookeeper_properties
+
+
+def test_properties_tls_uses_passwords(harness):
+    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+    harness.update_relation_data(
+        harness.charm.tls.cluster.id, f"{CHARM_KEY}/0", {"keystore-password": "mellon"}
+    )
+    assert "ssl.keyStore.password=mellon" in harness.charm.zookeeper_config.zookeeper_properties
+    assert "ssl.trustStore.password=mellon" in harness.charm.zookeeper_config.zookeeper_properties
+
+
+def test_properties_tls_gets_dynamic_config_file_property(harness):
+    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+
+    with open("/tmp/zookeeper.properties", "w") as fp:
+        fp.write("dynamicConfigFile=/gandalf/the/grey")
+
+    config = ZooKeeperConfig(harness.charm)
+    with patch.object(config, "properties_filepath", "/tmp/zookeeper.properties"):
+        assert "dynamicConfigFile=/gandalf/the/grey" in config.zookeeper_properties
