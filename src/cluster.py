@@ -124,9 +124,6 @@ class ZooKeeperCluster:
         if not self.all_units_related:
             return False
 
-        if self.relation.data[self.charm.app].get("changed-quorum", None):
-            return True
-
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
             if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
@@ -322,7 +319,7 @@ class ZooKeeperCluster:
             UnitNotFoundError,
             BadArgumentsError,
         ) as e:
-            logger.debug(str(e))
+            logger.warning(str(e))
             return {}
 
     def is_unit_turn(self, unit: Optional[Unit] = None) -> bool:
@@ -470,23 +467,19 @@ class ZooKeeperCluster:
         return bool(self.relation.data[self.charm.app].get("manual-restart", None))
 
     @property
-    def changed_quorum(self) -> bool:
-        """Flag to track that a change in quorum is in effect.
+    def all_units_quorum(self) -> bool:
+        """Checks if all units are running with the cluster quorum encryption.
 
         Returns:
-            True if changed-quorum flag in app data. Otherwise False
+            True if all units are running the quorum encryption in app data.
+                Otherwise False.
         """
-        return bool(self.relation.data[self.charm.app].get("changed-quorum", None))
-
-    @property
-    def all_changed_quorum(self) -> bool:
-        """Checks that all units have changed quorum.
-
-        Returns:
-            True if all units have changed-quorum flag in unit data. Otherwise False
-        """
+        unit_quorums = set()
         for unit in self.peer_units:
-            if not self.relation.data[unit].get("changed-quorum", None):
+            unit_quorum = self.relation.data[unit].get("quorum", None)
+            if unit_quorum != self.quorum:
                 return False
 
-        return True
+            unit_quorums.add(unit_quorum)
+
+        return len(unit_quorums) == 1
