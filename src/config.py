@@ -257,7 +257,7 @@ class ZooKeeperConfig:
 
         Running ZooKeeper cluster with `reconfigEnabled` moves dynamic options
             to a dedicated dynamic file
-        These options are `dynamicConfigFile`, `clientPort` and `secureClientPort`
+        These options are `clientPort` and `secureClientPort`
 
         Args:
             properties: the properties to make static
@@ -268,9 +268,5 @@ class ZooKeeperConfig:
         return [
             prop
             for prop in properties
-            if (
-                "dynamicConfigFile" not in prop
-                and "clientPort" not in prop
-                and "secureClientPort" not in prop
-            )
+            if ("clientPort" not in prop and "secureClientPort" not in prop)
         ]
