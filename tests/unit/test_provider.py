@@ -249,7 +249,7 @@ class TestProvider(unittest.TestCase):
 
         for relation in self.provider.client_relations:
             uris = relation.data[self.harness.charm.app].get("uris", "")
-            ssl = relation.data[self.harness.charm.app].get("ssl", "")
+            ssl = relation.data[self.harness.charm.app].get("tls", "")
 
             self.assertIn(str(self.harness.charm.cluster.secure_client_port), uris)
             self.assertEqual(ssl, "enabled")
@@ -270,7 +270,7 @@ class TestProvider(unittest.TestCase):
 
         for relation in self.provider.client_relations:
             uris = relation.data[self.harness.charm.app].get("uris", "")
-            ssl = relation.data[self.harness.charm.app].get("ssl", "")
+            ssl = relation.data[self.harness.charm.app].get("tls", "")
 
             self.assertIn(str(self.harness.charm.cluster.client_port), uris)
             self.assertEqual(ssl, "disabled")
@@ -339,7 +339,7 @@ class TestProvider(unittest.TestCase):
             # checking existence of all necessary keys
             self.assertEqual(
                 sorted(relation.data[self.harness.charm.app].keys()),
-                sorted(["chroot", "endpoints", "password", "ssl", "uris", "username"]),
+                sorted(["chroot", "endpoints", "password", "tls", "uris", "username"]),
             )
 
             username = relation.data[self.harness.charm.app]["username"]
