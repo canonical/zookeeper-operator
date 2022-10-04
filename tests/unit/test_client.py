@@ -14,10 +14,6 @@ from charms.zookeeper.v0.client import (
     ZooKeeperManager,
 )
 from kazoo.client import logging
-from ops.testing import Harness
-
-from charm import ZooKeeperCharm
-from literals import CHARM_KEY, PEER
 
 logger = logging.getLogger(__name__)
 
@@ -63,16 +59,6 @@ class DummyClient:
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
-
-
-@pytest.fixture(scope="function")
-def harness():
-    harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
-    peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-    harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-    harness._update_config({"init-limit": "5", "sync-limit": "2", "tick-time": "2000"})
-    harness.begin()
-    return harness
 
 
 def test_config():
