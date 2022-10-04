@@ -11,7 +11,7 @@ from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
 from ops.model import Relation
 
 from literals import PEER, REL_NAME
-from utils import safe_write_to_file
+from utils import safe_get_file, safe_write_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ class ZooKeeperConfig:
             + [
                 f"dataDir={self.default_config_path}/data",
                 f"dataLogDir={self.default_config_path}/log",
-                f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties",
+                f"{self.current_dynamic_config_file}",
             ]
         )
 
@@ -187,6 +187,32 @@ class ZooKeeperConfig:
             properties = properties + ["sslQuorum=true"]
 
         return properties
+
+    @property
+    def current_dynamic_config_file(self) -> str:
+        """Gets current dynamicConfigFile property from live unit.
+
+        When setting config dynamically, ZK creates a new properties file
+            that keeps track of the current dynamic config version.
+        When setting our config, we overwrite the file, losing the tracked version,
+            so we can re-set it with this.
+
+        Returns:
+            String of current `dynamicConfigFile=<value>` for the running server
+        """
+        current_properties = safe_get_file(filepath=self.properties_filepath)
+
+        if not current_properties:
+            logger.debug("zookeeper.properties file not found - using default dynamic path")
+            return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
+
+        for current_property in current_properties:
+            if "dynamicConfigFile" in current_property:
+                return current_property
+
+        logger.debug("dynamicConfigFile property missing - using default dynamic path")
+
+        return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
 
     @property
     def static_properties(self) -> List[str]:
