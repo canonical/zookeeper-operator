@@ -191,11 +191,10 @@ def test_restart_restarts_snap_service_if_config_changed(harness):
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service") as patched,
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service") as patched, patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
+
         harness.charm._restart(EventBase)
         patched.assert_called_once()
 
@@ -206,11 +205,9 @@ def test_restart_restarts_snap_service_if_manual(harness):
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
     harness.update_relation_data(peer_rel_id, CHARM_KEY, {"manual-restart": "true"})
 
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service") as patched,
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service") as patched, patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         patched.assert_called_once()
 
@@ -220,11 +217,9 @@ def test_restart_restarts_snap_service_sleeps(harness):
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep") as patched,
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep") as patched:
         harness.charm._restart(EventBase)
         patched.assert_called_once()
 
@@ -234,11 +229,9 @@ def test_restart_restarts_snap_sets_active_status(harness):
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert isinstance(harness.model.unit.status, ActiveStatus)
 
@@ -249,11 +242,9 @@ def test_restart_sets_password_rotated_on_unit(harness):
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
     harness.update_relation_data(peer_rel_id, CHARM_KEY, {"rotate-passwords": "true"})
 
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert (
             harness.charm.cluster.relation.data[harness.charm.unit].get("password-rotated", None)
@@ -267,22 +258,18 @@ def test_restart_sets_unified(harness):
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
     harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": "started"})
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert (
             harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None) == "true"
         )
 
     harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": ""})
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert not harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None)
 
@@ -294,11 +281,9 @@ def test_restart_unsets_manual_restart(harness):
         peer_rel_id, f"{CHARM_KEY}/0", {"state": "started", "manual-restart": "true"}
     )
 
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed"),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed"
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert not harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None)
 
@@ -309,20 +294,16 @@ def test_restart_sets_quorum(harness):
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
     harness.update_relation_data(peer_rel_id, CHARM_KEY, {"quorum": "ssl"})
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert harness.charm.cluster.relation.data[harness.charm.unit].get("quorum", None) == "ssl"
 
     harness.update_relation_data(peer_rel_id, CHARM_KEY, {"quorum": ""})
-    with (
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"),
-        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
-        patch("time.sleep"),
-    ):
+    with patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"), patch(
+        "charm.ZooKeeperCharm.config_changed", return_value=True
+    ), patch("time.sleep"):
         harness.charm._restart(EventBase)
         assert not harness.charm.cluster.relation.data[harness.charm.unit].get("quorum", None)
 
@@ -343,7 +324,7 @@ def test_init_server_maintenance_if_not_turn(harness):
         peer_rel_id, CHARM_KEY, {"sync-password": "mellon", "super-password": "mellon"}
     )
 
-    with (patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=False)):
+    with patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=False):
         harness.charm.init_server()
 
         assert isinstance(harness.charm.unit.status, MaintenanceStatus)
@@ -363,17 +344,17 @@ def test_init_server_calls_necessary_methods(harness):
             "quorum": "ssl",
         },
     )
-    with (
-        patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=True),
-        patch("config.ZooKeeperConfig.set_zookeeper_myid") as zookeeper_myid,
-        patch("config.ZooKeeperConfig.set_kafka_opts") as kafka_opts,
-        patch(
-            "config.ZooKeeperConfig.set_zookeeper_dynamic_properties"
-        ) as zookeeper_dynamic_properties,
-        patch("config.ZooKeeperConfig.set_zookeeper_properties") as zookeeper_properties,
-        patch("config.ZooKeeperConfig.set_jaas_config") as zookeeper_jaas_config,
-        patch("charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service") as restart,
-    ):
+    with patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=True), patch(
+        "config.ZooKeeperConfig.set_zookeeper_myid"
+    ) as zookeeper_myid, patch("config.ZooKeeperConfig.set_kafka_opts") as kafka_opts, patch(
+        "config.ZooKeeperConfig.set_zookeeper_dynamic_properties"
+    ) as zookeeper_dynamic_properties, patch(
+        "config.ZooKeeperConfig.set_zookeeper_properties"
+    ) as zookeeper_properties, patch(
+        "config.ZooKeeperConfig.set_jaas_config"
+    ) as zookeeper_jaas_config, patch(
+        "charms.kafka.v0.kafka_snap.KafkaSnap.restart_snap_service"
+    ) as restart:
         harness.charm.init_server()
 
         zookeeper_myid.assert_called_once()
@@ -398,24 +379,26 @@ def test_config_changed_updates_properties_and_jaas(harness):
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with (
-        patch("config.ZooKeeperConfig.build_static_properties", return_value=["gandalf=white"]),
-        patch("config.ZooKeeperConfig.static_properties", return_value="gandalf=grey"),
-        patch("config.ZooKeeperConfig.jaas_config", return_value=""),
-        patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
-        patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
-    ):
+    with patch(
+        "config.ZooKeeperConfig.build_static_properties", return_value=["gandalf=white"]
+    ), patch("config.ZooKeeperConfig.static_properties", return_value="gandalf=grey"), patch(
+        "config.ZooKeeperConfig.jaas_config", return_value=""
+    ), patch(
+        "config.ZooKeeperConfig.set_zookeeper_properties"
+    ) as set_props, patch(
+        "config.ZooKeeperConfig.set_jaas_config"
+    ) as set_jaas:
         harness.charm.config_changed()
         set_props.assert_called_once()
         set_jaas.assert_not_called()
 
-    with (
-        patch("config.ZooKeeperConfig.jaas_config", return_value="gandalf=white"),
-        patch("charm.safe_get_file", return_value=["gandalf=grey"]),
-        patch("config.ZooKeeperConfig.build_static_properties", return_value=[]),
-        patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
-        patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
-    ):
+    with patch("config.ZooKeeperConfig.jaas_config", return_value="gandalf=white"), patch(
+        "charm.safe_get_file", return_value=["gandalf=grey"]
+    ), patch("config.ZooKeeperConfig.build_static_properties", return_value=[]), patch(
+        "config.ZooKeeperConfig.set_zookeeper_properties"
+    ) as set_props, patch(
+        "config.ZooKeeperConfig.set_jaas_config"
+    ) as set_jaas:
         harness.charm.config_changed()
         set_props.assert_not_called()
         set_jaas.assert_called_once()
@@ -435,10 +418,9 @@ def test_update_quorum_skips_relation_departed(harness):
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with (
-        patch("charm.ZooKeeperCharm.add_init_leader") as patched_init_leader,
-        patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster,
-    ):
+    with patch("charm.ZooKeeperCharm.add_init_leader") as patched_init_leader, patch(
+        "cluster.ZooKeeperCluster.update_cluster"
+    ) as patched_update_cluster:
         harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         patched_init_leader.assert_not_called()
         patched_update_cluster.assert_not_called()
@@ -450,7 +432,7 @@ def test_update_quorum_updates_cluster_for_relation_departed(harness):
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
     harness.set_leader(True)
 
-    with (patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster,):
+    with patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster:
         harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
         patched_update_cluster.assert_called()
 
@@ -460,14 +442,14 @@ def test_update_quorum_updates_cluster_for_leader_elected(harness):
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
 
-    with (patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster,):
+    with patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster:
         harness.set_leader(True)
         patched_update_cluster.assert_called()
 
 
 def test_update_quorum_adds_init_leader(harness):
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-    with (patch("charm.ZooKeeperCharm.add_init_leader") as patched_init_leader,):
+    with patch("charm.ZooKeeperCharm.add_init_leader") as patched_init_leader:
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.set_leader(True)
 
