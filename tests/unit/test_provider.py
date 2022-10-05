@@ -50,7 +50,7 @@ def test_relation_config_new_relation(harness):
             harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id, "zookeeper", {"relation-0": "password"}
+            harness.charm.cluster.relation.id, REL_NAME, {"relation-0": "password"}
         )
 
         config = harness.charm.provider.relation_config(
@@ -71,7 +71,7 @@ def test_relation_config_new_relation_defaults_to_database(harness):
             harness.charm.provider.client_relations[0].id, "application", {"database": "app"}
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id, "zookeeper", {"relation-0": "password"}
+            harness.charm.cluster.relation.id, REL_NAME, {"relation-0": "password"}
         )
 
         config = harness.charm.provider.relation_config(
@@ -140,7 +140,7 @@ def test_relation_config_new_relation_skips_relation_broken(harness):
 
 
 def test_relations_config_multiple_relations(harness):
-    harness.add_relation("zookeeper", "new_application")
+    harness.add_relation(REL_NAME, "new_application")
     harness.update_relation_data(
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
@@ -167,7 +167,7 @@ def test_relations_config_multiple_relations(harness):
 
 
 def test_build_acls(harness):
-    harness.add_relation("zookeeper", "new_application")
+    harness.add_relation(REL_NAME, "new_application")
     harness.update_relation_data(
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
@@ -191,7 +191,7 @@ def test_build_acls(harness):
 
 
 def test_relations_config_values_for_key(harness):
-    harness.add_relation("zookeeper", "new_application")
+    harness.add_relation(REL_NAME, "new_application")
     harness.update_relation_data(
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
@@ -235,7 +235,7 @@ def test_port_updates_if_tls(harness):
         )
         harness.update_relation_data(
             harness.charm.cluster.relation.id,
-            "zookeeper",
+            REL_NAME,
             {"quorum": "ssl"},
         )
         harness.charm.provider.apply_relation_data()
@@ -256,7 +256,7 @@ def test_port_updates_if_tls(harness):
         )
         harness.update_relation_data(
             harness.charm.cluster.relation.id,
-            "zookeeper",
+            REL_NAME,
             {"quorum": "non-ssl"},
         )
         harness.charm.provider.apply_relation_data()
@@ -275,7 +275,7 @@ def test_provider_relation_data_updates_port(_, harness):
         harness.set_leader(True)
         harness.update_relation_data(
             harness.charm.cluster.relation.id,
-            "zookeeper",
+            REL_NAME,
             {"quorum": "non-ssl"},
         )
 
@@ -285,7 +285,7 @@ def test_provider_relation_data_updates_port(_, harness):
 def test_apply_relation_data(harness):
     with harness.hooks_disabled():
         harness.set_leader(True)
-        harness.add_relation("zookeeper", "new_application")
+        harness.add_relation(REL_NAME, "new_application")
         harness.update_relation_data(
             harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
