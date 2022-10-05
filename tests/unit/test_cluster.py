@@ -294,7 +294,6 @@ def test_startup_servers_succeeds_init(harness):
     )
     harness.set_planned_units(1)
     servers = harness.charm.cluster.startup_servers(unit=0)
-    logger.info(harness.charm.cluster.peer_units)
     assert "observer" not in servers
 
 
@@ -326,7 +325,7 @@ def test_all_units_related(harness):
 
 
 def test_lowest_unit_id_none_if_not_all_related(harness):
-    assert harness.charm.cluster.lowest_unit_id == None
+    assert harness.charm.cluster.lowest_unit_id == None  # noqa: E711
 
 
 def test_lowest_unit_id(harness):
