@@ -86,13 +86,13 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
-        # If a password rotation is needed, or in progress
-        if not self.rotate_passwords():
-            return
-
         # not all methods called
         if not self.cluster.relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
+            return
+
+        # If a password rotation is needed, or in progress
+        if not self.rotate_passwords():
             return
 
         # attempt startup of server
@@ -107,7 +107,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # check whether restart is needed for all `*_changed` events
-        self.on[self.restart.name].acquire_lock.emit()
+        self.on[f"{self.restart.name}"].acquire_lock.emit()
 
         # ensures events aren't lost during an upgrade on single units
         if self.tls.upgrading and len(self.cluster.peer_units) == 1:
@@ -316,7 +316,7 @@ class ZooKeeperCharm(CharmBase):
                 return False
 
             logger.info("Acquiring lock for password rotation")
-            self.on[self.restart.name].acquire_lock.emit()
+            self.on[f"{self.restart.name}"].acquire_lock.emit()
             return False
 
         else:
