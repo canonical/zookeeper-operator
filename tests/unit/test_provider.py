@@ -29,6 +29,7 @@ CustomRelation = namedtuple("Relation", ["id"])
 def harness():
     harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     harness.add_relation(REL_NAME, "application")
+    peer_rel_id = harness.add_relation("restart", CHARM_KEY)
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
@@ -157,8 +158,8 @@ def test_relations_config_multiple_relations(harness):
             "chroot": "/app",
             "acl": "cdrwa",
         },
-        "2": {
-            "username": "relation-2",
+        "3": {
+            "username": "relation-3",
             "password": "",
             "chroot": "/new_app",
             "acl": "cdrwa",
@@ -187,7 +188,7 @@ def test_build_acls(harness):
 
     assert new_app_acl.acl_list == ["READ", "WRITE"]
     assert new_app_acl.id.scheme == "sasl"
-    assert new_app_acl.id.id == "relation-2"
+    assert new_app_acl.id.id == "relation-3"
 
 
 def test_relations_config_values_for_key(harness):
@@ -203,7 +204,7 @@ def test_relations_config_values_for_key(harness):
 
     config_values = harness.charm.provider.relations_config_values_for_key(key="username")
 
-    assert config_values == {"relation-2", "relation-0"}
+    assert config_values == {"relation-3", "relation-0"}
 
 
 def test_is_child_of(harness):
@@ -269,8 +270,7 @@ def test_port_updates_if_tls(harness):
         assert ssl == "disabled"
 
 
-@patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock", return_value=None)
-def test_provider_relation_data_updates_port(_, harness):
+def test_provider_relation_data_updates_port(harness):
     with patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched:
         harness.set_leader(True)
         harness.update_relation_data(
@@ -315,7 +315,7 @@ def test_apply_relation_data(harness):
     harness.charm.provider.apply_relation_data()
 
     assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-0", None)
-    assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-2", None)
+    assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-3", None)
 
     app_data = harness.charm.cluster.relation.data[harness.charm.app]
     passwords = []
