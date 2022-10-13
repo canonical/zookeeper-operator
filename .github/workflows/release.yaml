@@ -44,6 +44,10 @@ jobs:
 
   integration-test-password-rotation-lxd:
     name: Integration tests for password-rotation (lxd)
+    needs:
+      - lib-check
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -57,6 +61,10 @@ jobs:
 
   integration-test-provider-lxd:
     name: Integration tests for provider (lxd)
+    needs:
+      - lib-check
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -70,6 +78,10 @@ jobs:
 
   integration-test-scaling-lxd:
     name: Integration tests for scaling (lxd)
+    needs:
+      - lib-check
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -83,6 +95,10 @@ jobs:
 
   integration-test-tls-lxd:
     name: Integration tests for tls (lxd)
+    needs:
+      - lib-check
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
