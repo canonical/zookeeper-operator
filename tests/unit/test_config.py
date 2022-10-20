@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
+from snap import SNAP_CONFIG_PATH
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
@@ -37,7 +37,7 @@ def test_build_static_properties_removes_necessary_rows():
         "clientPort=2181",
         "authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider",
         "maxClientCnxns=60",
-        "dynamicConfigFile=/var/snap/kafka/common/zookeeper.properties.dynamic.100000041",
+        "dynamicConfigFile=/var/snap/zookeeper/common/zoo.cfg.dynamic.100000041",
     ]
 
     static = ZooKeeperConfig.build_static_properties(properties=properties)
@@ -46,9 +46,9 @@ def test_build_static_properties_removes_necessary_rows():
     assert "clientPort" not in "".join(static)
 
 
-def test_kafka_opts_has_jaas(harness):
-    opts = ZooKeeperConfig(harness.charm).kafka_opts
-    assert f"-Djava.security.auth.login.config={SNAP_CONFIG_PATH}/zookeeper-jaas.cfg" in opts
+def test_server_jvmflags_has_opts(harness):
+    server_jvmflags = ZooKeeperConfig(harness.charm).server_jvmflags
+    assert f"-Djava.security.auth.login.config={SNAP_CONFIG_PATH}/zookeeper-jaas.cfg" in server_jvmflags 
 
 
 def test_jaas_users_are_added(harness):
@@ -118,9 +118,9 @@ def test_properties_tls_uses_passwords(harness):
 def test_properties_tls_gets_dynamic_config_file_property(harness):
     harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
 
-    with open("/tmp/zookeeper.properties", "w") as fp:
+    with open("/tmp/zoo.cfg", "w") as fp:
         fp.write("dynamicConfigFile=/gandalf/the/grey")
 
     config = ZooKeeperConfig(harness.charm)
-    with patch.object(config, "properties_filepath", "/tmp/zookeeper.properties"):
+    with patch.object(config, "properties_filepath", "/tmp/zoo.cfg"):
         assert "dynamicConfigFile=/gandalf/the/grey" in config.zookeeper_properties

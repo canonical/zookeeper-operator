@@ -12,7 +12,7 @@ import socket
 import subprocess
 from typing import List, Optional
 
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
+from snap import SNAP_CONFIG_PATH
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
     TLSCertificatesRequiresV1,

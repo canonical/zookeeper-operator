@@ -7,7 +7,7 @@
 import logging
 import time
 
-from charms.kafka.v0.kafka_snap import KafkaSnap
+from snap import ZooKeeperSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import (
     ActionEvent,
@@ -36,7 +36,7 @@ class ZooKeeperCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.name = CHARM_KEY
-        self.snap = KafkaSnap()
+        self.snap = ZooKeeperSnap()
         self.cluster = ZooKeeperCluster(self)
         self.restart = RollingOpsManager(self, relation="restart", callback=self._restart)
         self.provider = ZooKeeperProvider(self)
@@ -70,11 +70,11 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
-        self.unit.status = MaintenanceStatus("installing Kafka snap")
+        self.unit.status = MaintenanceStatus("installing ZooKeeper Snap")
 
         install = self.snap.install()
         if not install:
-            self.unit.status = BlockedStatus("unable to install Kafka snap")
+            self.unit.status = BlockedStatus("unable to install ZooKeeper Snap")
 
         # don't complete install until passwords set
         if not self.cluster.relation:
@@ -147,7 +147,7 @@ class ZooKeeperCharm(CharmBase):
     def init_server(self):
         """Calls startup functions for server start.
 
-        Sets myid, opts env_var, initial servers in dynamic properties,
+        Sets myid, server_jvmflgas env_var, initial servers in dynamic properties,
             default properties and jaas_config
         """
         # don't run if leader has not yet created passwords
@@ -165,7 +165,7 @@ class ZooKeeperCharm(CharmBase):
 
         # setting default properties
         self.zookeeper_config.set_zookeeper_myid()
-        self.zookeeper_config.set_kafka_opts()
+        self.zookeeper_config.set_server_jvmflags()
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)
