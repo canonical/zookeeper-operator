@@ -33,7 +33,7 @@ class ZooKeeperSnap:
             zookeeper = cache["zookeeper"]
 
             if not zookeeper.present:
-                zookeeper.ensure(snap.SnapState.Latest, channel="latest/edge")
+                zookeeper.ensure(snap.SnapState.Latest, channel="3.6/stable")
 
             self.zookeeper = zookeeper 
             return True
