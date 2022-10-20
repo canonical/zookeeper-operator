@@ -7,7 +7,7 @@
 import logging
 from typing import List
 
-from charms.kafka.v0.kafka_snap import SNAP_CONFIG_PATH
+from snap import SNAP_CONFIG_PATH
 from ops.model import Relation
 
 from literals import PEER, REL_NAME
@@ -52,7 +52,7 @@ class ZooKeeperConfig:
     def __init__(self, charm):
         self.charm = charm
         self.default_config_path = SNAP_CONFIG_PATH
-        self.properties_filepath = f"{self.default_config_path}/zookeeper.properties"
+        self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
@@ -68,8 +68,8 @@ class ZooKeeperConfig:
         return self.charm.model.get_relation(PEER)
 
     @property
-    def kafka_opts(self) -> List[str]:
-        """Builds necessary JVM config env vars for the Kafka snap."""
+    def server_jvmflags(self) -> List[str]:
+        """Builds necessary server JVM flag env-vars for the ZooKeeper Snap."""
         return [
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
@@ -131,10 +131,10 @@ class ZooKeeperConfig:
 
     @property
     def zookeeper_properties(self) -> List[str]:
-        """Build the zookeeper.properties content.
+        """Build the zoo.cfg content.
 
         Returns:
-            List of properties to be set to zookeeper.properties config file
+            List of properties to be set to zoo.cfg config file
         """
         properties = (
             [
@@ -203,7 +203,7 @@ class ZooKeeperConfig:
         current_properties = safe_get_file(filepath=self.properties_filepath)
 
         if not current_properties:
-            logger.debug("zookeeper.properties file not found - using default dynamic path")
+            logger.debug("zoo.cfg file not found - using default dynamic path")
             return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
 
         for current_property in current_properties:
@@ -216,10 +216,10 @@ class ZooKeeperConfig:
 
     @property
     def static_properties(self) -> List[str]:
-        """Build the zookeeper.properties content, without dynamic options.
+        """Build the zoo.cfg content, without dynamic options.
 
         Returns:
-            List of static properties to compared to current zookeeper.properties
+            List of static properties to compared to current zoo.cfg
         """
         return self.build_static_properties(self.zookeeper_properties)
 
@@ -227,13 +227,13 @@ class ZooKeeperConfig:
         """Sets the ZooKeeper JAAS config."""
         safe_write_to_file(content=self.jaas_config, path=self.jaas_filepath, mode="w")
 
-    def set_kafka_opts(self) -> None:
+    def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
-        opts = " ".join(self.kafka_opts)
-        safe_write_to_file(content=f"KAFKA_OPTS='{opts}'", path="/etc/environment", mode="w")
+        server_jvmflags = " ".join(self.server_jvmflags)
+        safe_write_to_file(content=f"='{server_jvmflags}'", path="/etc/environment", mode="w")
 
     def set_zookeeper_properties(self) -> None:
-        """Writes built zookeeper.properties file."""
+        """Writes built zoo.cfg file."""
         safe_write_to_file(
             content="\n".join(self.zookeeper_properties),
             path=self.properties_filepath,
