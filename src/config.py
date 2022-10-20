@@ -230,7 +230,7 @@ class ZooKeeperConfig:
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         server_jvmflags = " ".join(self.server_jvmflags)
-        safe_write_to_file(content=f"='{server_jvmflags}'", path="/etc/environment", mode="w")
+        safe_write_to_file(content=f"SERVER_JVMFLAGS='{server_jvmflags}'", path="/etc/environment", mode="w")
 
     def set_zookeeper_properties(self) -> None:
         """Writes built zoo.cfg file."""

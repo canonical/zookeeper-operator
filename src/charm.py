@@ -121,7 +121,7 @@ class ZooKeeperCharm(CharmBase):
 
         if self.config_changed() or self.cluster.manual_restart:
             logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} restarting")
-            self.snap.restart_snap_service(snap_service=CHARM_KEY)
+            self.snap.restart_snap_service(snap_service="daemon")
 
             # gives time for server to rejoin quorum, as command exits too fast
             # without, other units might restart before this unit rejoins, losing quorum
@@ -174,7 +174,7 @@ class ZooKeeperCharm(CharmBase):
         self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_jaas_config()
 
-        self.snap.restart_snap_service(snap_service=CHARM_KEY)
+        self.snap.restart_snap_service(snap_service="daemon")
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
