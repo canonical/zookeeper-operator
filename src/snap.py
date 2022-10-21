@@ -35,7 +35,7 @@ class ZooKeeperSnap:
             if not zookeeper.present:
                 zookeeper.ensure(snap.SnapState.Latest, channel="3.6/stable")
 
-            self.zookeeper = zookeeper 
+            self.zookeeper = zookeeper
             return True
         except (snap.SnapError, apt.PackageNotFoundError) as e:
             logger.error(str(e))
