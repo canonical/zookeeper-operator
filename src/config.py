@@ -7,10 +7,10 @@
 import logging
 from typing import List
 
-from snap import SNAP_CONFIG_PATH
 from ops.model import Relation
 
 from literals import PEER, REL_NAME
+from snap import SNAP_CONFIG_PATH
 from utils import safe_get_file, safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -230,7 +230,9 @@ class ZooKeeperConfig:
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         server_jvmflags = " ".join(self.server_jvmflags)
-        safe_write_to_file(content=f"SERVER_JVMFLAGS='{server_jvmflags}'", path="/etc/environment", mode="w")
+        safe_write_to_file(
+            content=f"SERVER_JVMFLAGS='{server_jvmflags}'", path="/etc/environment", mode="w"
+        )
 
     def set_zookeeper_properties(self) -> None:
         """Writes built zoo.cfg file."""

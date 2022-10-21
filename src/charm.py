@@ -7,7 +7,6 @@
 import logging
 import time
 
-from snap import ZooKeeperSnap
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import (
     ActionEvent,
@@ -24,6 +23,7 @@ from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
 from literals import CHARM_KEY, CHARM_USERS
 from provider import ZooKeeperProvider
+from snap import ZooKeeperSnap
 from tls import ZooKeeperTLS
 from utils import generate_password, safe_get_file
 

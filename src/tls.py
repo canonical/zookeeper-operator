@@ -12,7 +12,6 @@ import socket
 import subprocess
 from typing import List, Optional
 
-from snap import SNAP_CONFIG_PATH
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
     TLSCertificatesRequiresV1,
@@ -24,6 +23,7 @@ from ops.framework import Object
 from ops.model import Relation
 
 from literals import PEER
+from snap import SNAP_CONFIG_PATH
 from utils import generate_password, safe_write_to_file
 
 logger = logging.getLogger(__name__)

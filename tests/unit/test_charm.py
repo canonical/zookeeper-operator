@@ -346,7 +346,9 @@ def test_init_server_calls_necessary_methods(harness):
     )
     with patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=True), patch(
         "config.ZooKeeperConfig.set_zookeeper_myid"
-    ) as zookeeper_myid, patch("config.ZooKeeperConfig.set_server_jvmflags") as server_jvmflags, patch(
+    ) as zookeeper_myid, patch(
+        "config.ZooKeeperConfig.set_server_jvmflags"
+    ) as server_jvmflags, patch(
         "config.ZooKeeperConfig.set_zookeeper_dynamic_properties"
     ) as zookeeper_dynamic_properties, patch(
         "config.ZooKeeperConfig.set_zookeeper_properties"
