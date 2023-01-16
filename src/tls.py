@@ -233,7 +233,7 @@ class ZooKeeperTLS(Object):
             return
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
-            subject=os.uname()[1],
+            subject=self.charm.cluster.unit_config(unit=self.charm.unit)["host"],
             **self._sans,
         )
 
@@ -259,7 +259,7 @@ class ZooKeeperTLS(Object):
 
         csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
-            subject=os.uname()[1],
+            subject=self.charm.cluster.unit_config(unit=self.charm.unit)["host"],
             **self._sans,
         )
         self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
@@ -345,10 +345,9 @@ class ZooKeeperTLS(Object):
     @property
     def _sans(self) -> Dict[str, List[str]]:
         """Builds a SAN dict of DNS names and IPs for the unit."""
-        unit_name = self.charm.unit.name.split("/")[1]
-        unit_ip = self.cluster.data[self.charm.unit].get("private-address", "")
+        unit_config = self.charm.cluster.unit_config(unit=self.charm.unit)
 
         return {
-            "sans_ip": [unit_ip],
-            "sans_dns": [unit_name, socket.getfqdn()],
+            "sans_ip": [unit_config["host"]],
+            "sans_dns": [unit_config["unit_name"], socket.getfqdn()],
         }
