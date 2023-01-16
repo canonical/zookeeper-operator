@@ -10,7 +10,7 @@ import os
 import re
 import socket
 import subprocess
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
@@ -234,7 +234,7 @@ class ZooKeeperTLS(Object):
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
-            sans=self._get_sans(),
+            **self._sans,
         )
 
         self.certificates.request_certificate_renewal(
@@ -260,7 +260,7 @@ class ZooKeeperTLS(Object):
         csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
-            sans=self._get_sans(),
+            **self._sans,
         )
         self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
 
@@ -342,11 +342,13 @@ class ZooKeeperTLS(Object):
             return raw_content
         return base64.b64decode(raw_content).decode("utf-8")
 
-    def _get_sans(self) -> List[str]:
-        """Create a list of DNS names for the unit."""
-        unit_id = self.charm.unit.name.split("/")[1]
-        return [
-            f"{self.charm.app.name}-{unit_id}",
-            socket.getfqdn(),
-            self.cluster.data[self.charm.unit].get("private-address", None),
-        ]
+    @property
+    def _sans(self) -> Dict[str, List[str]]:
+        """Builds a SAN dict of DNS names and IPs for the unit."""
+        unit_name = self.charm.unit.name.split("/")[1]
+        unit_ip = self.cluster.data[self.charm.unit].get("private-address", "")
+
+        return {
+            "sans_ip": [unit_ip],
+            "sans_dns": [unit_name, socket.getfqdn()],
+        }
