@@ -6,7 +6,6 @@
 
 import base64
 import logging
-import os
 import re
 import socket
 import subprocess
@@ -18,11 +17,10 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
     generate_csr,
     generate_private_key,
 )
+from literals import PEER
 from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation
-
-from literals import PEER
 from snap import SNAP_CONFIG_PATH
 from utils import generate_password, safe_write_to_file
 

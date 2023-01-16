@@ -7,9 +7,8 @@
 import logging
 from typing import List
 
-from ops.model import Relation
-
 from literals import PEER, REL_NAME
+from ops.model import Relation
 from snap import SNAP_CONFIG_PATH
 from utils import safe_get_file, safe_write_to_file
 
