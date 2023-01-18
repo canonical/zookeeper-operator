@@ -30,7 +30,7 @@ authors = [""]
 python = ">=3.8"
 black = "^22.3.0"
 kazoo = "^2.8.0"
-ops = "1.5.0"
+ops = "^2.0.0"
 pure-sasl = "^0.6.2"
 tenacity = "^8.0.1"
 
