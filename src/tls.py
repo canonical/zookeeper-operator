@@ -6,11 +6,10 @@
 
 import base64
 import logging
-import os
 import re
 import socket
 import subprocess
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
@@ -18,11 +17,10 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
     generate_csr,
     generate_private_key,
 )
+from literals import PEER
 from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation
-
-from literals import PEER
 from snap import SNAP_CONFIG_PATH
 from utils import generate_password, safe_write_to_file
 
@@ -233,8 +231,8 @@ class ZooKeeperTLS(Object):
             return
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
-            subject=os.uname()[1],
-            sans=self._get_sans(),
+            subject=self.charm.cluster.unit_config(unit=self.charm.unit)["host"],
+            **self._sans,
         )
 
         self.certificates.request_certificate_renewal(
@@ -259,8 +257,8 @@ class ZooKeeperTLS(Object):
 
         csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
-            subject=os.uname()[1],
-            sans=self._get_sans(),
+            subject=self.charm.cluster.unit_config(unit=self.charm.unit)["host"],
+            **self._sans,
         )
         self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
 
@@ -342,11 +340,12 @@ class ZooKeeperTLS(Object):
             return raw_content
         return base64.b64decode(raw_content).decode("utf-8")
 
-    def _get_sans(self) -> List[str]:
-        """Create a list of DNS names for the unit."""
-        unit_id = self.charm.unit.name.split("/")[1]
-        return [
-            f"{self.charm.app.name}-{unit_id}",
-            socket.getfqdn(),
-            self.cluster.data[self.charm.unit].get("private-address", None),
-        ]
+    @property
+    def _sans(self) -> Dict[str, List[str]]:
+        """Builds a SAN dict of DNS names and IPs for the unit."""
+        unit_config = self.charm.cluster.unit_config(unit=self.charm.unit)
+
+        return {
+            "sans_ip": [unit_config["host"]],
+            "sans_dns": [unit_config["unit_name"], socket.getfqdn()],
+        }

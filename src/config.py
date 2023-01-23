@@ -7,9 +7,8 @@
 import logging
 from typing import List
 
-from ops.model import Relation
-
 from literals import PEER, REL_NAME
+from ops.model import Relation
 from snap import SNAP_CONFIG_PATH
 from utils import safe_get_file, safe_write_to_file
 
@@ -39,8 +38,6 @@ ssl.quorum.clientAuth=none
 ssl.client.enable=true
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
-ssl.quorum.hostnameVerification=false
-ssl.hostnameVerification=false
 ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
 """

@@ -8,6 +8,9 @@ import logging
 import time
 
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
+from cluster import ZooKeeperCluster
+from config import ZooKeeperConfig
+from literals import CHARM_KEY, CHARM_USERS
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -18,10 +21,6 @@ from ops.charm import (
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
-
-from cluster import ZooKeeperCluster
-from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
 from tls import ZooKeeperTLS
