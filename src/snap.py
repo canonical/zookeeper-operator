@@ -10,7 +10,8 @@ from charms.operator_libs_linux.v1 import snap
 
 logger = logging.getLogger(__name__)
 
-SNAP_CONFIG_PATH = "/var/snap/zookeeper/common/"
+SNAP_COMMON_PATH = "/var/snap/zookeeper/common"
+SNAP_CONFIG_PATH = f"{SNAP_COMMON_PATH}/conf"
 
 
 class ZooKeeperSnap:
