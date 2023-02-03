@@ -9,7 +9,6 @@ from typing import List
 
 from literals import PEER, REL_NAME
 from ops.model import Relation
-from snap import SNAP_COMMON_PATH, SNAP_CONFIG_PATH
 from utils import safe_get_file, safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -48,10 +47,9 @@ class ZooKeeperConfig:
 
     def __init__(self, charm):
         self.charm = charm
-        self.default_common_path = SNAP_COMMON_PATH
-        self.default_config_path = SNAP_CONFIG_PATH
+        self.default_config_path = self.charm.snap.config_path
         self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
-        self.log4j_properties_filepath = f"{self.default_config_path}/log4j.properites"
+        self.log4j_properties_filepath = f"{self.default_config_path}/log4j.properties"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
@@ -143,8 +141,8 @@ class ZooKeeperConfig:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={self.default_common_path}/data",
-                f"dataLogDir={self.default_common_path}/log-data",
+                f"dataDir={self.charm.snap.data_path}",
+                f"dataLogDir={self.charm.snap.logs_path}",
                 f"{self.current_dynamic_config_file}",
             ]
         )
@@ -250,30 +248,6 @@ class ZooKeeperConfig:
         safe_write_to_file(
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
             path=f"{self.default_config_path}/data/myid",
-        )
-
-    def set_log4j_properties(self) -> None:
-        """Updates default log4j.properties."""
-        default_log4j_properties = safe_get_file(self.log4j_properties_filepath) or []
-
-        updated_log4j_properties = []
-        for prop in default_log4j_properties:
-            key = prop.split("=")[0]
-            match key:
-                case "zookeeper.log.dir":
-                    new_key_value = f"zookeeper.log.dir={SNAP_COMMON_PATH}/logs"
-                case "zookeeper.root.logger":
-                    new_key_value = f"zookeeper.root.logger=INFO,CONSOLE,ROLLINGFILE,TRACEFILE"
-                case "zookeeper.log.threshold":
-                    new_key_value = "zookeeper.log.threshold=DEBUG"
-                case _:
-                    new_key_value = prop
-
-            updated_log4j_properties.append(new_key_value)
-
-        safe_write_to_file(
-            content="\n".join(updated_log4j_properties),
-            path=self.log4j_properties_filepath,
         )
 
     @staticmethod

@@ -21,7 +21,6 @@ from literals import PEER
 from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation
-from snap import SNAP_CONFIG_PATH
 from utils import generate_password, safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -37,6 +36,7 @@ class ZooKeeperTLS(Object):
     def __init__(self, charm):
         super().__init__(charm, "tls")
         self.charm = charm
+        self.config_path = self.charm.snap.config_path
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
 
         self.framework.observe(
@@ -270,7 +270,7 @@ class ZooKeeperTLS(Object):
             logger.error("Can't set private-key to unit, missing private-key in relation data")
             return
 
-        safe_write_to_file(content=self.private_key, path=f"{SNAP_CONFIG_PATH}/server.key")
+        safe_write_to_file(content=self.private_key, path=f"{self.config_path}/server.key")
 
     def set_ca(self) -> None:
         """Sets the unit ca."""
@@ -278,7 +278,7 @@ class ZooKeeperTLS(Object):
             logger.error("Can't set CA to unit, missing CA in relation data")
             return
 
-        safe_write_to_file(content=self.ca, path=f"{SNAP_CONFIG_PATH}/ca.pem")
+        safe_write_to_file(content=self.ca, path=f"{self.config_path}/ca.pem")
 
     def set_certificate(self) -> None:
         """Sets the unit signed certificate."""
@@ -286,7 +286,7 @@ class ZooKeeperTLS(Object):
             logger.error("Can't set certificate to unit, missing certificate in relation data")
             return
 
-        safe_write_to_file(content=self.certificate, path=f"{SNAP_CONFIG_PATH}/server.pem")
+        safe_write_to_file(content=self.certificate, path=f"{self.config_path}/server.pem")
 
     def set_truststore(self) -> None:
         """Adds CA to JKS truststore."""
@@ -296,7 +296,7 @@ class ZooKeeperTLS(Object):
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
-                cwd=SNAP_CONFIG_PATH,
+                cwd=self.config_path,
             )
         except subprocess.CalledProcessError as e:
             # in case this reruns and fails
@@ -313,7 +313,7 @@ class ZooKeeperTLS(Object):
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
-                cwd=SNAP_CONFIG_PATH,
+                cwd=self.config_path,
             )
         except subprocess.CalledProcessError as e:
             logger.error(e.output)
@@ -327,7 +327,7 @@ class ZooKeeperTLS(Object):
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
-                cwd=SNAP_CONFIG_PATH,
+                cwd=self.config_path,
             )
         except subprocess.CalledProcessError as e:
             logger.error(e.output)

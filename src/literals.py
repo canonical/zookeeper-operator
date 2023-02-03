@@ -10,3 +10,4 @@ STATE = "state"
 CHARM_KEY = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
+SNAP_COMMON_PATH = "/var/snap/zookeeper/common"

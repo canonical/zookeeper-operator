@@ -82,7 +82,6 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self.set_passwords()
-        self.zookeeper_config.set_log4j_properties()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
