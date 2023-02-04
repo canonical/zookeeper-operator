@@ -247,7 +247,7 @@ class ZooKeeperConfig:
         """Writes ZooKeeper myid file to config/data."""
         safe_write_to_file(
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
-            path=f"{self.default_config_path}/data/myid",
+            path=f"{self.charm.snap.data_path}/myid",
         )
 
     @staticmethod
