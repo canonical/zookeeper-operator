@@ -147,7 +147,7 @@ async def ping_servers(ops_test: OpsTest) -> bool:
 
 def check_jaas_config(model_full_name: str, unit: str):
     config = check_output(
-        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/zookeeper/common/zookeeper-jaas.cfg --unit {unit}",
+        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/zookeeper/common/conf/zookeeper-jaas.cfg --unit {unit}",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
@@ -187,7 +187,7 @@ def _get_show_unit_json(model_full_name: str, unit: str) -> Dict:
 
 def check_properties(model_full_name: str, unit: str):
     properties = check_output(
-        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/zookeeper/common/zoo.cfg --unit {unit}",
+        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/zookeeper/common/conf/zoo.cfg --unit {unit}",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,

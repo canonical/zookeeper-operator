@@ -7,6 +7,7 @@
 import base64
 import logging
 import re
+import shutil
 import socket
 import subprocess
 from typing import Dict, List, Optional
@@ -298,6 +299,7 @@ class ZooKeeperTLS(Object):
                 universal_newlines=True,
                 cwd=self.config_path,
             )
+            shutil.chown(f"{self.config_path}/truststore.jks", user="snap_daemon", group="root")
         except subprocess.CalledProcessError as e:
             # in case this reruns and fails
             if "already exists" in e.output:
@@ -315,6 +317,7 @@ class ZooKeeperTLS(Object):
                 universal_newlines=True,
                 cwd=self.config_path,
             )
+            shutil.chown(f"{self.config_path}/keystore.p12", user="snap_daemon", group="root")
         except subprocess.CalledProcessError as e:
             logger.error(e.output)
             raise e

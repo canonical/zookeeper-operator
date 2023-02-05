@@ -23,7 +23,6 @@ def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
     with open(path, mode) as f:
         f.write(content)
 
-    os.chmod(path, 0o774)
     shutil.chown(path, user="snap_daemon", group="root")
 
     return
