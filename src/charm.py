@@ -168,14 +168,14 @@ class ZooKeeperCharm(CharmBase):
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)
-        logger.info(f"{servers=}")
+        logger.debug(f"{servers=}")
         self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
 
-        logger.info("setting properties and jaas")
+        logger.debug("setting properties and jaas")
         self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_jaas_config()
-        
-        logger.info(f"starting snap service")
+
+        logger.debug("starting snap service")
         self.snap.start_snap_service(snap_service="daemon")
         self.unit.status = ActiveStatus()
 
@@ -194,11 +194,11 @@ class ZooKeeperCharm(CharmBase):
     def config_changed(self):
         """Compares expected vs actual config that would require a restart to apply."""
         properties = safe_get_file(self.zookeeper_config.properties_filepath) or []
-        logger.info(f"{properties=}")
         server_properties = self.zookeeper_config.build_static_properties(properties)
         config_properties = self.zookeeper_config.static_properties
 
         properties_changed = set(server_properties) ^ set(config_properties)
+        logger.debug(f"{properties_changed=}")
 
         jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or []
         jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
@@ -214,7 +214,6 @@ class ZooKeeperCharm(CharmBase):
                     f"NEW PROPERTIES = {set(config_properties) - set(server_properties)}"
                 )
             )
-            logger.info("setting new zk properties")
             self.zookeeper_config.set_zookeeper_properties()
 
         if jaas_changed:
@@ -257,9 +256,8 @@ class ZooKeeperCharm(CharmBase):
                 (RelationDepartedEvent, LeaderElectedEvent),
             )
         ):
-            logger.info("updating cluster")
             updated_servers = self.cluster.update_cluster()
-            logger.info(f"{updated_servers=}")
+            logger.debug(f"{updated_servers=}")
             # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
 
