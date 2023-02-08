@@ -7,6 +7,8 @@
 import logging
 import time
 
+from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
@@ -41,6 +43,10 @@ class ZooKeeperCharm(CharmBase):
         self.provider = ZooKeeperProvider(self)
         self.zookeeper_config = ZooKeeperConfig(self)
         self.tls = ZooKeeperTLS(self)
+        self.grafana_dashboards = GrafanaDashboardProvider(self)
+        self.metrics_endpoint = MetricsEndpointProvider(
+            self, jobs=[{"static_configs": [{"targets": ["*:9100", "*:9101"]}]}]
+        )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(
