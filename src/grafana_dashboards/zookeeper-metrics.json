@@ -77,7 +77,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -178,7 +178,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -276,7 +276,7 @@
     },
     {
       "cacheTimeout": null,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -333,7 +333,7 @@
     },
     {
       "cacheTimeout": null,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -391,7 +391,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -477,7 +477,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -564,7 +564,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -650,7 +650,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -736,7 +736,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -822,7 +822,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -929,7 +929,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1016,7 +1016,7 @@
       "cacheTimeout": null,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1102,7 +1102,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1204,7 +1204,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1306,7 +1306,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1424,7 +1424,7 @@
             "rgba(237, 129, 40, 0.89)",
             "#d44a3a"
           ],
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "format": "short",
           "gauge": {
             "maxValue": 100,
@@ -1509,7 +1509,7 @@
             "#F2495C",
             "#F2495C"
           ],
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "format": "ms",
           "gauge": {
             "maxValue": 100,
@@ -1594,7 +1594,7 @@
             "#5794F2",
             "#5794F2"
           ],
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "format": "ms",
           "gauge": {
             "maxValue": 100,
@@ -1672,7 +1672,7 @@
         },
         {
           "cacheTimeout": null,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "gridPos": {
             "h": 8,
             "w": 24,
@@ -1743,7 +1743,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -1856,7 +1856,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -1942,7 +1942,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2028,7 +2028,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2114,7 +2114,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2200,7 +2200,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2286,7 +2286,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2372,7 +2372,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2458,7 +2458,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2558,7 +2558,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2644,7 +2644,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2730,7 +2730,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2816,7 +2816,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -2923,7 +2923,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3009,7 +3009,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3095,7 +3095,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3181,7 +3181,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3267,7 +3267,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3353,7 +3353,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3439,7 +3439,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3525,7 +3525,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3625,7 +3625,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3725,7 +3725,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3811,7 +3811,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3911,7 +3911,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -3997,7 +3997,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4083,7 +4083,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4169,7 +4169,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4255,7 +4255,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4341,7 +4341,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 0,
           "gridPos": {
             "h": 8,
@@ -4427,7 +4427,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4513,7 +4513,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$DS_PROMETHEUS",
+          "datasource": "${prometheusds}",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4612,7 +4612,7 @@
       "type": "row"
     },
     {
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -4671,7 +4671,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -4796,7 +4796,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -4914,7 +4914,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5000,7 +5000,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5086,7 +5086,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5172,7 +5172,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5258,7 +5258,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5351,7 +5351,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5451,7 +5451,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5537,7 +5537,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5623,7 +5623,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5709,7 +5709,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 0,
       "gridPos": {
         "h": 8,
@@ -5795,7 +5795,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5894,7 +5894,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -5994,7 +5994,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6094,7 +6094,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6180,7 +6180,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6273,7 +6273,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6359,7 +6359,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6446,7 +6446,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6532,7 +6532,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6618,7 +6618,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6704,7 +6704,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6791,7 +6791,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6877,7 +6877,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -6963,7 +6963,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7049,7 +7049,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7148,7 +7148,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7234,7 +7234,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7333,7 +7333,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7419,7 +7419,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7507,7 +7507,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "decimals": null,
       "fill": 1,
       "gridPos": {
@@ -7610,7 +7610,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7696,7 +7696,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7782,7 +7782,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7868,7 +7868,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -7954,7 +7954,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8040,7 +8040,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8139,7 +8139,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8232,7 +8232,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8349,7 +8349,7 @@
         "#37872D",
         "#37872D"
       ],
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -8433,7 +8433,7 @@
         "#1F60C4",
         "#1F60C4"
       ],
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "format": "short",
       "gauge": {
         "maxValue": 100,
@@ -8517,7 +8517,7 @@
         "#E0B400",
         "#E0B400"
       ],
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "format": "short",
       "gauge": {
         "maxValue": 100,
@@ -8597,7 +8597,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8683,7 +8683,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8769,7 +8769,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8855,7 +8855,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$DS_PROMETHEUS",
+      "datasource": "${prometheusds}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -8955,7 +8955,7 @@
         "includeAll": false,
         "label": "Datasource",
         "multi": false,
-        "name": "DS_PROMETHEUS",
+        "name": "{prometheusds}",
         "options": [],
         "query": "prometheus",
         "refresh": 1,
@@ -8966,7 +8966,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$DS_PROMETHEUS",
+        "datasource": "${prometheusds}",
         "definition": "label_values(job)",
         "hide": 0,
         "includeAll": false,
@@ -8988,7 +8988,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$DS_PROMETHEUS",
+        "datasource": "${prometheusds}",
         "definition": "label_values({job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
