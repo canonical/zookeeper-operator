@@ -12,7 +12,7 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS
+from literals import CHARM_KEY, CHARM_USERS, JMX_PORT
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -45,7 +45,19 @@ class ZooKeeperCharm(CharmBase):
         self.tls = ZooKeeperTLS(self)
         self.grafana_dashboards = GrafanaDashboardProvider(self)
         self.metrics_endpoint = MetricsEndpointProvider(
-            self, jobs=[{"static_configs": [{"targets": ["*:9100", "*:9101"]}]}]
+            self,
+            jobs=[
+                {
+                    "static_configs": [
+                        {
+                            "targets": [
+                                "*:9100",  # default for node-exporter
+                                f"*:{JMX_PORT}",  # chosen port for JMX exporter
+                            ]
+                        }
+                    ]
+                }
+            ],
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)

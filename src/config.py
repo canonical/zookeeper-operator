@@ -7,7 +7,7 @@
 import logging
 from typing import List
 
-from literals import PEER, REL_NAME
+from literals import JMX_PORT, PEER, REL_NAME
 from ops.model import Relation
 from utils import safe_get_file, safe_write_to_file
 
@@ -54,7 +54,9 @@ class ZooKeeperConfig:
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
         self.truststore_filepath = f"{self.default_config_path}/truststore.jks"
-        self.jmx_prometheus_javaagent_filepath = f"{self.charm.snap.zookeeper_opt_path}/jmx_prometheus_javaagent.jar"
+        self.jmx_prometheus_javaagent_filepath = (
+            f"{self.charm.snap.zookeeper_opt_path}/jmx_prometheus_javaagent.jar"
+        )
         self.jmx_prometheus_config_filepath = f"{self.default_config_path}/jmx_prometheus.yaml"
 
     @property
@@ -80,8 +82,8 @@ class ZooKeeperConfig:
     def jmx_jvmflags(self) -> List[str]:
         """Builds necessary jmx flag env-vars for the ZooKeeper Snap."""
         return [
-            f"-javaagent:{self.jmx_prometheus_javaagent_filepath}=0.0.0.0:9998:{self.jmx_prometheus_config_filepath}",
-            "-Dcom.sun.management.jmxremote.port=9998",
+            f"-javaagent:{self.jmx_prometheus_javaagent_filepath}=0.0.0.0:{JMX_PORT}:{self.jmx_prometheus_config_filepath}",
+            f"-Dcom.sun.management.jmxremote.port={JMX_PORT}",
             "-Dcom.sun.management.jmxremote.ssl=false",
             "-Dcom.sun.management.jmxremote.authenticate=false",
             "-Dcom.sun.management.jmxremote",
