@@ -7,7 +7,7 @@
 import logging
 from typing import List
 
-from literals import JMX_PORT, PEER, REL_NAME
+from literals import JMX_PORT, METRICS_PROVIDER_PORT, PEER, REL_NAME
 from ops.model import Relation
 from utils import safe_get_file, safe_write_to_file
 
@@ -113,7 +113,7 @@ class ZooKeeperConfig:
         """Necessary config options for enabling built-in Prometheus metrics."""
         return [
             "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider",
-            "metricsProvider.httpPort=7000",
+            f"metricsProvider.httpPort={METRICS_PROVIDER_PORT}",
         ]
 
     @property

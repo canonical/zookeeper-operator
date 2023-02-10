@@ -12,7 +12,7 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS, JMX_PORT
+from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT, NODE_EXPORTER_PORT
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -51,9 +51,9 @@ class ZooKeeperCharm(CharmBase):
                     "static_configs": [
                         {
                             "targets": [
-                                "*:9100",  # default for node-exporter
-                                f"*:{JMX_PORT}",  # chosen port for JMX exporter
-                                "*:7000",  # built-in exporter
+                                f"*:{NODE_EXPORTER_PORT}",
+                                f"*:{JMX_PORT}",
+                                f"*:{METRICS_PROVIDER_PORT}",
                             ]
                         }
                     ]
