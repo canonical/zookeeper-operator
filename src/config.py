@@ -241,7 +241,9 @@ class ZooKeeperConfig:
         server_jvmflags = " ".join(self.server_jvmflags)
         jmx_jvmflags = " ".join(self.jmx_jvmflags)
         safe_write_to_file(
-            content=f"SERVER_JVMFLAGS='{server_jvmflags} {jmx_jvmflags}'", path="/etc/environment", mode="w"
+            content=f"SERVER_JVMFLAGS='{server_jvmflags} {jmx_jvmflags}'",
+            path="/etc/environment",
+            mode="w",
         )
 
     def set_zookeeper_properties(self) -> None:
