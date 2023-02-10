@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 4
+LIBPATCH = 5
 
 
 logger = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ class ZooKeeperManager:
             result = zk.mntr
         if (
             result.get("zk_peer_state", "") == "leading - broadcast"
-            and result["zk_pending_syncs"] == "0"
+            and float(result.get("zk_pending_syncs", "")) == 0
         ):
             return False
         return True
