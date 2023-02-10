@@ -82,12 +82,8 @@ class ZooKeeperConfig:
     def jmx_jvmflags(self) -> List[str]:
         """Builds necessary jmx flag env-vars for the ZooKeeper Snap."""
         return [
-            f"-javaagent:{self.jmx_prometheus_javaagent_filepath}=0.0.0.0:{JMX_PORT}:{self.jmx_prometheus_config_filepath}",
-            f"-Dcom.sun.management.jmxremote.port={JMX_PORT}",
-            "-Dcom.sun.management.jmxremote.ssl=false",
-            "-Dcom.sun.management.jmxremote.authenticate=false",
             "-Dcom.sun.management.jmxremote",
-            "-Dcom.sun.management.jmxremote.local.only=false",
+            f"-javaagent:{self.jmx_prometheus_javaagent_filepath}={JMX_PORT}:{self.jmx_prometheus_config_filepath}",
         ]
 
     @property
