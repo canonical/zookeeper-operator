@@ -46,6 +46,7 @@ class ZooKeeperCharm(CharmBase):
         self.grafana_dashboards = GrafanaDashboardProvider(self)
         self.metrics_endpoint = MetricsEndpointProvider(
             self,
+            refresh_event=self.on.start,
             jobs=[
                 {
                     "static_configs": [
