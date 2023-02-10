@@ -109,7 +109,7 @@ class ZooKeeperManager:
         hosts: List[str],
         username: str,
         password: str,
-        client_port: int = 2181, 
+        client_port: int = 2181,
         use_ssl: bool = False,
         keyfile_path: Optional[str] = "",
         keyfile_password: Optional[str] = "",
@@ -157,8 +157,8 @@ class ZooKeeperManager:
                     password=self.password,
                     use_ssl=self.use_ssl,
                     keyfile_path=self.keyfile_path,
-                    keyfile_password = self.keyfile_password,
-                    certfile_path = self.certfile_path,
+                    keyfile_password=self.keyfile_password,
+                    certfile_path=self.certfile_path,
                 ) as zk:
                     response = zk.srvr
                     if response.get("Mode") == "leader":
@@ -185,8 +185,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             members, _ = zk.config
 
@@ -206,8 +206,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             _, version = zk.config
 
@@ -227,14 +227,18 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             result = zk.mntr
-        if (
-            result.get("zk_peer_state", "") == "leading - broadcast"
-            and float(result.get("zk_pending_syncs", "")) == 0
-        ):
+
+        # safe cast string
+        try:
+            zk_pending_syncs = float(result.get("zk_pending_syncs", ""))
+        except (ValueError, TypeError):
+            zk_pending_syncs = None
+
+        if result.get("zk_peer_state", "") == "leading - broadcast" and zk_pending_syncs == 0:
             return False
         return True
 
@@ -260,8 +264,8 @@ class ZooKeeperManager:
                     password=self.password,
                     use_ssl=self.use_ssl,
                     keyfile_path=self.keyfile_path,
-                    keyfile_password = self.keyfile_password,
-                    certfile_path = self.certfile_path,
+                    keyfile_password=self.keyfile_password,
+                    certfile_path=self.certfile_path,
                 ) as zk:
                     if not zk.is_ready:
                         raise MemberNotReadyError(f"Server is not ready: {host}")
@@ -277,8 +281,8 @@ class ZooKeeperManager:
                 password=self.password,
                 use_ssl=self.use_ssl,
                 keyfile_path=self.keyfile_path,
-                keyfile_password = self.keyfile_password,
-                certfile_path = self.certfile_path,
+                keyfile_password=self.keyfile_password,
+                certfile_path=self.certfile_path,
             ) as zk:
                 zk.client.reconfig(
                     joining=member, leaving=None, new_members=None, from_config=self.config_version
@@ -302,8 +306,8 @@ class ZooKeeperManager:
                 password=self.password,
                 use_ssl=self.use_ssl,
                 keyfile_path=self.keyfile_path,
-                keyfile_password = self.keyfile_password,
-                certfile_path = self.certfile_path,
+                keyfile_password=self.keyfile_password,
+                certfile_path=self.certfile_path,
             ) as zk:
                 zk.client.reconfig(
                     joining=None,
@@ -328,8 +332,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             all_znode_children = zk.get_all_znode_children(path=path)
 
@@ -349,8 +353,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             zk.create_znode(path=path, acls=acls)
 
@@ -368,8 +372,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             zk.set_acls(path=path, acls=acls)
 
@@ -386,8 +390,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password = self.keyfile_password,
-            certfile_path = self.certfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
         ) as zk:
             zk.delete_znode(path=path)
 
@@ -395,7 +399,17 @@ class ZooKeeperManager:
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
 
-    def __init__(self, host: str, client_port: int, username: str, password: str, use_ssl: bool = False, keyfile_path: Optional[str] = None, keyfile_password: Optional[str] = None, certfile_path: Optional[str] = None):
+    def __init__(
+        self,
+        host: str,
+        client_port: int,
+        username: str,
+        password: str,
+        use_ssl: bool = False,
+        keyfile_path: Optional[str] = None,
+        keyfile_password: Optional[str] = None,
+        certfile_path: Optional[str] = None,
+    ):
         self.host = host
         self.client_port = client_port
         self.username = username
