@@ -7,17 +7,22 @@ import logging
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
+from literals import SNAP_COMMON_PATH
 
 logger = logging.getLogger(__name__)
-
-SNAP_CONFIG_PATH = "/var/snap/zookeeper/common/"
 
 
 class ZooKeeperSnap:
     """Wrapper for performing common operations specific to the ZooKeeper Snap."""
 
     def __init__(self) -> None:
-        self.snap_config_path = SNAP_CONFIG_PATH
+        self.config_path = f"{SNAP_COMMON_PATH}/conf"
+        self.logs_path = f"{SNAP_COMMON_PATH}/logs"
+        self.data_path = f"{SNAP_COMMON_PATH}/log-data"
+        self.jvm_path = f"{SNAP_COMMON_PATH}/jvm"
+        self.charm_opt_path = f"{SNAP_COMMON_PATH}/opt/charm"
+        self.zookeeper_opt_path = f"{SNAP_COMMON_PATH}/opt/zookeeper"
+
         self.zookeeper = snap.SnapCache()["zookeeper"]
 
     def install(self) -> bool:
@@ -33,7 +38,7 @@ class ZooKeeperSnap:
             zookeeper = cache["zookeeper"]
 
             if not zookeeper.present:
-                zookeeper.ensure(snap.SnapState.Latest, channel="3.6/stable")
+                zookeeper.ensure(snap.SnapState.Latest, channel="3.6/edge")
 
             self.zookeeper = zookeeper
             return True

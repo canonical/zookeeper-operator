@@ -353,8 +353,8 @@ def test_init_server_calls_necessary_methods(harness):
     ) as zookeeper_properties, patch(
         "config.ZooKeeperConfig.set_jaas_config"
     ) as zookeeper_jaas_config, patch(
-        "snap.ZooKeeperSnap.restart_snap_service"
-    ) as restart:
+        "snap.ZooKeeperSnap.start_snap_service"
+    ) as start:
         harness.charm.init_server()
 
         zookeeper_myid.assert_called_once()
@@ -362,7 +362,7 @@ def test_init_server_calls_necessary_methods(harness):
         zookeeper_dynamic_properties.assert_called_once()
         zookeeper_properties.assert_called_once()
         zookeeper_jaas_config.assert_called_once()
-        restart.assert_called_once()
+        start.assert_called_once()
 
         assert harness.charm.cluster.relation.data[harness.charm.unit].get("quorum", None) == "ssl"
         assert (

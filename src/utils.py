@@ -6,6 +6,7 @@
 
 import os
 import secrets
+import shutil
 import string
 from typing import List, Optional
 
@@ -21,6 +22,8 @@ def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, mode) as f:
         f.write(content)
+
+    shutil.chown(path, user="snap_daemon", group="root")
 
     return
 

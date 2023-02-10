@@ -9,7 +9,6 @@ from typing import List
 
 from literals import PEER, REL_NAME
 from ops.model import Relation
-from snap import SNAP_CONFIG_PATH
 from utils import safe_get_file, safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -48,8 +47,9 @@ class ZooKeeperConfig:
 
     def __init__(self, charm):
         self.charm = charm
-        self.default_config_path = SNAP_CONFIG_PATH
+        self.default_config_path = self.charm.snap.config_path
         self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
+        self.log4j_properties_filepath = f"{self.default_config_path}/log4j.properties"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
@@ -141,8 +141,8 @@ class ZooKeeperConfig:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={self.default_config_path}/data",
-                f"dataLogDir={self.default_config_path}/log",
+                f"dataDir={self.charm.snap.data_path}",
+                f"dataLogDir={self.charm.snap.logs_path}",
                 f"{self.current_dynamic_config_file}",
             ]
         )
@@ -247,7 +247,7 @@ class ZooKeeperConfig:
         """Writes ZooKeeper myid file to config/data."""
         safe_write_to_file(
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
-            path=f"{self.default_config_path}/data/myid",
+            path=f"{self.charm.snap.data_path}/myid",
         )
 
     @staticmethod
