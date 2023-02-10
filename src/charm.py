@@ -53,6 +53,7 @@ class ZooKeeperCharm(CharmBase):
                             "targets": [
                                 "*:9100",  # default for node-exporter
                                 f"*:{JMX_PORT}",  # chosen port for JMX exporter
+                                "*:7000",  # built-in exporter
                             ]
                         }
                     ]

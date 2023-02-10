@@ -109,6 +109,14 @@ class ZooKeeperConfig:
         return jaas_users
 
     @property
+    def metrics_exporter_config(self) -> list[str]:
+        """Necessary config options for enabling built-in Prometheus metrics."""
+        return [
+            "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider",
+            "metricsProvider.httpPort=7000",
+        ]
+
+    @property
     def jaas_config(self) -> str:
         """Builds the JAAS config.
 
@@ -157,6 +165,7 @@ class ZooKeeperConfig:
                 f"dataLogDir={self.charm.snap.logs_path}",
                 f"{self.current_dynamic_config_file}",
             ]
+            + self.metrics_exporter_config
         )
 
         if self.charm.tls.enabled:
