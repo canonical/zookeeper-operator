@@ -7,7 +7,7 @@
 import logging
 from typing import List
 
-from literals import PEER, REL_NAME
+from literals import JMX_PORT, METRICS_PROVIDER_PORT, PEER, REL_NAME
 from ops.model import Relation
 from utils import safe_get_file, safe_write_to_file
 
@@ -54,6 +54,10 @@ class ZooKeeperConfig:
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
         self.truststore_filepath = f"{self.default_config_path}/truststore.jks"
+        self.jmx_prometheus_javaagent_filepath = (
+            f"{self.charm.snap.zookeeper_opt_path}/jmx_prometheus_javaagent.jar"
+        )
+        self.jmx_prometheus_config_filepath = f"{self.default_config_path}/jmx_prometheus.yaml"
 
     @property
     def cluster(self) -> Relation:
@@ -72,6 +76,14 @@ class ZooKeeperConfig:
             "-Dzookeeper.superUser=super",
             f"-Djava.security.auth.login.config={self.jaas_filepath}",
             "-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager",
+        ]
+
+    @property
+    def jmx_jvmflags(self) -> List[str]:
+        """Builds necessary jmx flag env-vars for the ZooKeeper Snap."""
+        return [
+            "-Dcom.sun.management.jmxremote",
+            f"-javaagent:{self.jmx_prometheus_javaagent_filepath}={JMX_PORT}:{self.jmx_prometheus_config_filepath}",
         ]
 
     @property
@@ -95,6 +107,14 @@ class ZooKeeperConfig:
 
             jaas_users.append(f'user_{username}="{password}"')
         return jaas_users
+
+    @property
+    def metrics_exporter_config(self) -> list[str]:
+        """Necessary config options for enabling built-in Prometheus metrics."""
+        return [
+            "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider",
+            f"metricsProvider.httpPort={METRICS_PROVIDER_PORT}",
+        ]
 
     @property
     def jaas_config(self) -> str:
@@ -145,6 +165,7 @@ class ZooKeeperConfig:
                 f"dataLogDir={self.charm.snap.logs_path}",
                 f"{self.current_dynamic_config_file}",
             ]
+            + self.metrics_exporter_config
         )
 
         if self.charm.tls.enabled:
@@ -227,8 +248,11 @@ class ZooKeeperConfig:
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         server_jvmflags = " ".join(self.server_jvmflags)
+        jmx_jvmflags = " ".join(self.jmx_jvmflags)
         safe_write_to_file(
-            content=f"SERVER_JVMFLAGS='{server_jvmflags}'", path="/etc/environment", mode="w"
+            content=f"SERVER_JVMFLAGS='{server_jvmflags} {jmx_jvmflags}'",
+            path="/etc/environment",
+            mode="w",
         )
 
     def set_zookeeper_properties(self) -> None:

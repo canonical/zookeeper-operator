@@ -11,3 +11,6 @@ CHARM_KEY = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
 SNAP_COMMON_PATH = "/var/snap/zookeeper/common"
+JMX_PORT = 9998
+METRICS_PROVIDER_PORT = 7000
+NODE_EXPORTER_PORT = 9100

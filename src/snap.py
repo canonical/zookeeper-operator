@@ -36,11 +36,25 @@ class ZooKeeperSnap:
             apt.add_package(["snapd", "openjdk-17-jre-headless"])
             cache = snap.SnapCache()
             zookeeper = cache["zookeeper"]
+            node_exporter = cache["node-exporter"]
 
             if not zookeeper.present:
                 zookeeper.ensure(snap.SnapState.Latest, channel="3.6/edge")
+            if not node_exporter.present:
+                node_exporter.ensure(snap.SnapState.Latest, channel="edge")
 
             self.zookeeper = zookeeper
+
+            [
+                node_exporter.connect(plug=plug)
+                for plug in [
+                    "hardware-observe",
+                    "network-observe",
+                    "mount-observe",
+                    "system-observe",
+                ]
+            ]
+
             return True
         except (snap.SnapError, apt.PackageNotFoundError) as e:
             logger.error(str(e))
