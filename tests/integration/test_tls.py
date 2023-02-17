@@ -11,7 +11,7 @@ import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import check_properties, ping_servers
+from .helpers import check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
 

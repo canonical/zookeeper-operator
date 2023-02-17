@@ -9,7 +9,7 @@ import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import (
+from .helpers import (
     check_key,
     get_address,
     get_user_password,
