@@ -35,9 +35,6 @@ class ZooKeeperProvider(Object):
         self.charm = charm
 
         self.framework.observe(
-            self.charm.on[REL_NAME].relation_joined, self._on_client_relation_joined
-        )
-        self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
         )
         self.framework.observe(
@@ -262,7 +259,7 @@ class ZooKeeperProvider(Object):
                 relation_data
             )
 
-    def _on_client_relation_joined(self, event: RelationEvent) -> None:
+    def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_joined` events.
 
         Once credentals and ACLs are added for the event username, sets them to relation data.
@@ -271,13 +268,13 @@ class ZooKeeperProvider(Object):
         """
         # avoids failure from early relation
         if not self.charm.cluster.stable:
-            logger.debug("client relation joined - cluster not stable - deferring")
+            logger.info("client relation joined - cluster not stable - deferring")
             event.defer()
             return
 
         # avoids failure from early relation
         if self.charm.tls.upgrading:
-            logger.debug("client relation joined - cluster upgrading encryption - deferring")
+            logger.info("client relation joined - cluster upgrading encryption - deferring")
             event.defer()
             return
 
@@ -306,22 +303,6 @@ class ZooKeeperProvider(Object):
             )
 
         # roll leader unit to apply password to jaas config
-        self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
-
-    def _on_client_relation_updated(self, event: RelationEvent) -> None:
-        """Updates ACLs while handling `client_relation_changed`.
-
-        Args:
-            event (optional): used for checking `RelationBrokenEvent`
-        """
-        # don't trigger rolling restart until leader has finished updating relation data
-        for config in self.relations_config(event=event).values():
-            if config.get("chroot", None) and not config.get("password", None):
-                logger.debug("passwords not set for {event.relation} - deferring")
-                event.defer()
-                return
-
-        # All units restart after relation changed event to add new users
         self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
