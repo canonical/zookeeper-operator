@@ -103,7 +103,6 @@ class ZooKeeperProvider(Object):
             "chroot": chroot,
             "acl": acl,
             "acls_added": str(acls_added),
-
         }
 
     def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:
@@ -183,28 +182,28 @@ class ZooKeeperProvider(Object):
         )
 
         leader_chroots = zk.leader_znodes(path="/")
-        logger.info(f"{leader_chroots=}")
+        logger.debug(f"{leader_chroots=}")
 
         relation_chroots = self.relations_config_values_for_key("chroot", event=event)
-        logger.info(f"{relation_chroots=}")
+        logger.debug(f"{relation_chroots=}")
 
         acls = self.build_acls(event=event)
-        logger.info(f"{acls=}")
+        logger.debug(f"{acls=}")
 
         # Looks for newly related applications not in config yet
         for chroot in relation_chroots - leader_chroots:
-            logger.info(f"CREATE CHROOT - {chroot}")
+            logger.debug(f"CREATE CHROOT - {chroot}")
             zk.create_znode_leader(chroot, acls[chroot])
 
         # Looks for existing related applications
         for chroot in relation_chroots & leader_chroots:
-            logger.info(f"UPDATE CHROOT - {chroot}")
+            logger.debug(f"UPDATE CHROOT - {chroot}")
             zk.set_acls_znode_leader(chroot, acls[chroot])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in leader_chroots - relation_chroots:
             if not self._is_child_of(chroot, relation_chroots):
-                logger.info(f"DROP CHROOT - {chroot}")
+                logger.debug(f"DROP CHROOT - {chroot}")
                 zk.delete_znode_leader(chroot)
 
     @staticmethod
@@ -237,7 +236,7 @@ class ZooKeeperProvider(Object):
         for relation_id, config in relations_config.items():
             # avoid adding relation data for related apps without acls
             if config["acls_added"] != "true":
-                logger.info(f"{relation_id} NOT YET ADDED ACLS")
+                logger.debug(f"{relation_id} has yet to add acls")
                 continue
 
             hosts = self.charm.cluster.active_hosts
@@ -264,21 +263,29 @@ class ZooKeeperProvider(Object):
             )
 
     def _on_client_relation_joined(self, event: RelationEvent) -> None:
+        """Updates ACLs while handling `client_relation_joined` events.
+
+        Once credentals and ACLs are added for the event username, sets them to relation data.
+        Future `client_relation_changed` events called on non-leader units checks passwords before
+            restarting.
+        """
+
         # avoids failure from early relation
         if not self.charm.cluster.stable:
-            logger.info("CLIENT RELATION CHANGED - NOT STABLE - DEFERRING")
+            logger.debug("client relation joined - cluster not stable - deferring")
             event.defer()
             return
 
         # avoids failure from early relation
         if self.charm.tls.upgrading:
-            logger.info("CLIENT RELATION CHANGED - UPGRADING - DEFERRING")
+            logger.debug("client relation joined - cluster upgrading encryption - deferring")
             event.defer()
             return
 
         if not self.charm.unit.is_leader():
             return
 
+        # ACLs created before passwords set to avoid restarting before successful adding
         try:
             self.update_acls(event=event)
         except (
@@ -292,16 +299,16 @@ class ZooKeeperProvider(Object):
             event.defer()
             return
 
+        # new users won't have a password yet, one will be generated here
         relation_config = self.relation_config(relation=event.relation)
-        if relation_config:
+        if relation_config:  # triggers relation_changed for other units to restart
             self.app_relation.data[self.charm.app].update(
                 {relation_config["username"]: relation_config["password"]}
             )
-        
+
         # roll leader unit to apply password to jaas config
         self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
-        
-    # TODO: IS THIS NEEDED?
+
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_changed`.
 
@@ -311,7 +318,7 @@ class ZooKeeperProvider(Object):
         # don't trigger rolling restart until leader has finished updating relation data
         for config in self.relations_config(event=event).values():
             if config.get("chroot", None) and not config.get("password", None):
-                logger.info("passwords not set for {event.relation}")
+                logger.debug("passwords not set for {event.relation} - deferring")
                 event.defer()
                 return
 
