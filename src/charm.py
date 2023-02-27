@@ -103,7 +103,7 @@ class ZooKeeperCharm(CharmBase):
 
         self.set_passwords()
 
-        # give the init leader a quorum
+        # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
             self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
 
@@ -130,6 +130,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # check whether restart is needed for all `*_changed` events
+        # only restart where necessary to avoid slowdowns
         if (self.config_changed() or self.tls.upgrading) and self.cluster.started:
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
@@ -140,7 +141,7 @@ class ZooKeeperCharm(CharmBase):
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
         if not self.cluster.stable:
-            logger.info(f"RESTART - NOT STABLE - DEFERRING")
+            logger.debug("restart - cluster not stable - deferring")
             event.defer()
             return
 
@@ -157,8 +158,9 @@ class ZooKeeperCharm(CharmBase):
         if self.cluster.relation.data[self.app].get("rotate-passwords"):
             self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
-        if not self.cluster.relation.data[self.unit].get("unified") and self.tls.upgrading:
-            logger.info("SETTING UNIFIED")
+        if not self.tls.unit_unified(unit=self.unit) and self.tls.upgrading:
+            # if unit restarted with `upgrading` app data, must be unified
+            logger.debug(f"{self.unit.name} setting unified status")
 
         self.cluster.relation.data[self.unit].update(
             {
@@ -169,6 +171,7 @@ class ZooKeeperCharm(CharmBase):
             }
         )
 
+        # relation data won't get set unless cluster is stable
         self.provider.apply_relation_data()
 
     def init_server(self):
@@ -270,7 +273,10 @@ class ZooKeeperCharm(CharmBase):
             self.cluster.relation.data[self.app].update({"super-password": generate_password()})
 
     def update_quorum(self, event: EventBase) -> None:
-        """Updates the server quorum members for all currently started units in the relation."""
+        """Updates the server quorum members for all currently started units in the relation.
+
+        Also sets app-data pertaining to quorum encryption state during upgrades.
+        """
         if not self.unit.is_leader() or getattr(event, "departing_unit", None) == self.unit:
             return
 
@@ -290,29 +296,30 @@ class ZooKeeperCharm(CharmBase):
             self.cluster.relation.data[self.app].update(updated_servers)
 
         # default startup without ssl relation
-        logger.info("UPDATE QUORUM - CHECKING STABLE")
+        logger.debug("updating quorum - checking cluster stability")
         if not self.cluster.stable:
             return
 
         # declare upgrade complete only when all peer units have started
         # triggers `cluster_relation_changed` to rolling-restart without `portUnification`
         if self.tls.all_units_unified:
-            logger.info("ALL UNITS UNIFIED")
+            logger.debug("all units unified")
             if self.tls.enabled:
-                logger.info("TLS ENABLED - SWITCHING TO SSL")
+                logger.debug("tls enabled - switching to ssl")
                 self.cluster.relation.data[self.app].update({"quorum": "ssl"})
             else:
-                logger.info("TLS ENABLED - SWITCHING TO NON-SSL")
+                logger.debug("tls disabled - switching to non-ssl")
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
 
             if self.cluster.all_units_quorum:
-                logger.info("ALL UNITS QUORUM - REMOVING UPGRADE")
+                logger.debug("all units running desired encyprtion - removing upgrading")
                 self.cluster.relation.data[self.app].update({"upgrading": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
-                logger.info("UPDATE QUORUM - NEW QUORUM - UPDATING RELATION DATA")
 
         if self.cluster.all_units_quorum and not self.tls.upgrading:
-            logger.info("ALL UNITS QUORUM AND NOT UPGRADING - APPLYING")
+            logger.info(
+                "all units running desired encryption, upgrade complete - applying relation data"
+            )
             self.provider.apply_relation_data()
 
     def add_init_leader(self) -> None:

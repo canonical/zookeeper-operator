@@ -269,7 +269,6 @@ class ZooKeeperProvider(Object):
         Future `client_relation_changed` events called on non-leader units checks passwords before
             restarting.
         """
-
         # avoids failure from early relation
         if not self.charm.cluster.stable:
             logger.debug("client relation joined - cluster not stable - deferring")
