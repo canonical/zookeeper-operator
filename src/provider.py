@@ -35,6 +35,9 @@ class ZooKeeperProvider(Object):
         self.charm = charm
 
         self.framework.observe(
+            self.charm.on[REL_NAME].relation_joined, self._on_client_relation_joined
+        )
+        self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
         )
         self.framework.observe(
@@ -73,6 +76,11 @@ class ZooKeeperProvider(Object):
 
         # Default to empty string in case passwords not set
         password = self.app_relation.data[self.charm.app].get(username, "")
+        if password:
+            acls_added = "true"
+        else:
+            password = generate_password()
+            acls_added = "false"
 
         # Default to full permissions if not set by the app
         acl = relation.data[relation.app].get("chroot-acl", "cdrwa")
@@ -94,6 +102,8 @@ class ZooKeeperProvider(Object):
             "password": password,
             "chroot": chroot,
             "acl": acl,
+            "acls_added": str(acls_added),
+
         }
 
     def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:
@@ -173,28 +183,28 @@ class ZooKeeperProvider(Object):
         )
 
         leader_chroots = zk.leader_znodes(path="/")
-        logger.debug(f"{leader_chroots=}")
+        logger.info(f"{leader_chroots=}")
 
         relation_chroots = self.relations_config_values_for_key("chroot", event=event)
-        logger.debug(f"{relation_chroots=}")
+        logger.info(f"{relation_chroots=}")
 
         acls = self.build_acls(event=event)
-        logger.debug(f"{acls=}")
+        logger.info(f"{acls=}")
 
         # Looks for newly related applications not in config yet
         for chroot in relation_chroots - leader_chroots:
-            logger.debug(f"CREATE CHROOT - {chroot}")
+            logger.info(f"CREATE CHROOT - {chroot}")
             zk.create_znode_leader(chroot, acls[chroot])
 
         # Looks for existing related applications
         for chroot in relation_chroots & leader_chroots:
-            logger.debug(f"UPDATE CHROOT - {chroot}")
+            logger.info(f"UPDATE CHROOT - {chroot}")
             zk.set_acls_znode_leader(chroot, acls[chroot])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in leader_chroots - relation_chroots:
             if not self._is_child_of(chroot, relation_chroots):
-                logger.debug(f"DROP CHROOT - {chroot}")
+                logger.info(f"DROP CHROOT - {chroot}")
                 zk.delete_znode_leader(chroot)
 
     @staticmethod
@@ -220,13 +230,21 @@ class ZooKeeperProvider(Object):
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
+        if not self.charm.unit.is_leader():
+            return
+
         relations_config = self.relations_config(event=event)
         for relation_id, config in relations_config.items():
+            # avoid adding relation data for related apps without acls
+            if config["acls_added"] != "true":
+                logger.info(f"{relation_id} NOT YET ADDED ACLS")
+                continue
+
             hosts = self.charm.cluster.active_hosts
 
             relation_data = {}
             relation_data["username"] = config["username"]
-            relation_data["password"] = config["password"] or generate_password()
+            relation_data["password"] = config["password"]
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
 
@@ -241,46 +259,59 @@ class ZooKeeperProvider(Object):
                 ",".join([f"{host}:{port}" for host in hosts]) + config["chroot"]
             )
 
-            self.app_relation.data[self.charm.app].update(
-                {relation_data["username"]: relation_data["password"]}
-            )
-
             self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
                 relation_data
             )
 
+    def _on_client_relation_joined(self, event: RelationEvent) -> None:
+        # avoids failure from early relation
+        if not self.charm.cluster.stable:
+            logger.info("CLIENT RELATION CHANGED - NOT STABLE - DEFERRING")
+            event.defer()
+            return
+
+        # avoids failure from early relation
+        if self.charm.tls.upgrading:
+            logger.info("CLIENT RELATION CHANGED - UPGRADING - DEFERRING")
+            event.defer()
+            return
+
+        if not self.charm.unit.is_leader():
+            return
+
+        try:
+            self.update_acls(event=event)
+        except (
+            MembersSyncingError,
+            MemberNotReadyError,
+            QuorumLeaderNotFoundError,
+            KazooTimeoutError,
+            UnitNotFoundError,
+        ) as e:
+            logger.warning(str(e))
+            event.defer()
+            return
+
+        relation_config = self.relation_config(relation=event.relation)
+        if relation_config:
+            self.app_relation.data[self.charm.app].update(
+                {relation_config["username"]: relation_config["password"]}
+            )
+        
+        # roll leader unit to apply password to jaas config
+        self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
+        
+    # TODO: IS THIS NEEDED?
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_changed`.
 
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
-        # avoids failure from early relation
-        if not self.charm.cluster.quorum:
-            event.defer()
-            return
-
-        if self.charm.unit.is_leader():
-            try:
-                self.update_acls(event=event)
-            except (
-                MembersSyncingError,
-                MemberNotReadyError,
-                QuorumLeaderNotFoundError,
-                KazooTimeoutError,
-                UnitNotFoundError,
-            ) as e:
-                logger.warning(str(e))
-                event.defer()
-                return
-
-            self.apply_relation_data(event=event)
-            logger.debug(f"passwords set for {event.relation}")
-
         # don't trigger rolling restart until leader has finished updating relation data
         for config in self.relations_config(event=event).values():
             if config.get("chroot", None) and not config.get("password", None):
-                logger.debug("passwords not set for {event.relation}")
+                logger.info("passwords not set for {event.relation}")
                 event.defer()
                 return
 

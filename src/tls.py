@@ -19,7 +19,7 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
     generate_private_key,
 )
 from literals import PEER
-from ops.charm import ActionEvent, RelationJoinedEvent
+from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation
 from utils import generate_password, safe_write_to_file
@@ -156,9 +156,14 @@ class ZooKeeperTLS(Object):
 
         return True
 
-    def _on_certificates_created(self, _) -> None:
+    def _on_certificates_created(self, event: RelationCreatedEvent) -> None:
         """Handler for `certificates_relation_created` event."""
         if not self.charm.unit.is_leader():
+            return
+        
+        if not self.charm.cluster.stable:
+            logger.info("CERTIFICATES CREATED - NOT STABLE - DEFERRING")
+            event.defer()
             return
 
         # if this event fired, we don't know whether the cluster was fully running or not
@@ -168,7 +173,8 @@ class ZooKeeperTLS(Object):
 
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
-        if not self.cluster:
+        if not self.enabled:
+            logger.info("CERTIFICATES JOINED - NOT UPGRADING, NOT STABLE - DEFER")
             event.defer()
             return
 
@@ -186,10 +192,6 @@ class ZooKeeperTLS(Object):
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Handler for `certificates_available` event after provider updates signed certs."""
-        if not self.cluster:
-            event.defer()
-            return
-
         # avoid setting tls files and restarting
         if event.certificate_signing_request != self.csr:
             logger.error("Can't use certificate, found unknown CSR")
@@ -197,7 +199,7 @@ class ZooKeeperTLS(Object):
 
         # if certificate already exists, this event must be new, flag manual restart
         if self.certificate:
-            self.cluster.data[self.charm.unit].update({"manual-restart": "true"})
+            self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
         self.cluster.data[self.charm.unit].update(
             {"certificate": event.certificate, "ca": event.ca}

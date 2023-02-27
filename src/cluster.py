@@ -114,7 +114,7 @@ class ZooKeeperCluster:
     def stale_quorum(self) -> bool:
         """Checks whether it's necessary to update the servers in quorum.
 
-        Condition is dependent on all units being relating, and a unit not
+        Condition is dependent on all units being related, and a unit not
             yet been added to the quorum.
 
         Returns:
@@ -123,13 +123,25 @@ class ZooKeeperCluster:
         if not self.all_units_related:
             return False
 
+        if self.all_units_added:
+            return False
+
+        return True
+
+    @property
+    def all_units_added(self) -> bool:
+        """Checks whether all related units are added to the peer data quorum tracker.
+
+        Returns:
+            True if all related units have been added. Otherwise False
+        """
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
             if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
                 logger.debug(f"Unit {unit.name} needs adding")
-                return True
+                return False
 
-        return False
+        return True
 
     @property
     def active_hosts(self) -> List[str]:
@@ -446,24 +458,13 @@ class ZooKeeperCluster:
         return self.relation.data[self.charm.unit].get("state", None) == "started"
 
     @property
-    def quorum(self) -> Optional[str]:
+    def quorum(self) -> str:
         """Gets state of current quorum encryption.
 
         Returns:
-            String of either `ssl` or `non-ssl`. None if quorum not yet reached
+            String of either `ssl` or `non-ssl`. Defaults `non-ssl`.
         """
-        return self.relation.data[self.charm.app].get("quorum", None)
-
-    @property
-    def manual_restart(self) -> bool:
-        """Flag to ensure a rolling-restart will execute.
-
-        To be used during manually triggered restarts, where config doesn't change.
-
-        Returns:
-            True if manual-restart flag is set. Otherwise False
-        """
-        return bool(self.relation.data[self.charm.app].get("manual-restart", None))
+        return self.relation.data[self.charm.app].get("quorum", "non-ssl")
 
     @property
     def all_units_quorum(self) -> bool:
@@ -482,3 +483,25 @@ class ZooKeeperCluster:
             unit_quorums.add(unit_quorum)
 
         return len(unit_quorums) == 1
+
+    @property
+    def stable(self) -> bool:
+        """Attempt at a catch-all check for cluster stability during initialisation.
+
+        Returns:
+            True if all units related, quorum not stale and all units added to tracker.
+                Otherwise False.
+        """
+        if not self.all_units_related:
+            logger.debug("cluster not stable - not all units related")
+            return False
+
+        if self.stale_quorum:
+            logger.debug("cluster not stable - quorum needs updating")
+            return False
+
+        if not self.all_units_added:
+            logger.debug("cluster not stable - not all units added")
+            return False
+
+        return True
