@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 6
+LIBPATCH = 7
 
 
 logger = logging.getLogger(__name__)
@@ -235,10 +235,13 @@ class ZooKeeperManager:
         try:
             zk_pending_syncs = result["zk_pending_syncs"]
         except KeyError:  # missing key, no quorum, no syncing
-            logger.debug("no zk_pending_syncs key found, not syncing")
+            logger.debug("no zk_pending_syncs key found, units not syncing")
             return False
 
-        if result.get("zk_peer_state", "") == "leading - broadcast" and float(zk_pending_syncs) == 0:
+        if (
+            result.get("zk_peer_state", "") == "leading - broadcast"
+            and float(zk_pending_syncs) == 0
+        ):
             return False
 
         return True
