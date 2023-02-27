@@ -479,13 +479,15 @@ class ZooKeeperCluster:
         for unit in self.peer_units:
             unit_quorum = self.relation.data[unit].get("quorum", None)
             if unit_quorum != self.quorum:
-                logger.info(f'NOT ALL UNITS QUORUM - {unit.name} has {unit_quorum}, cluster has {self.quorum}')
+                logger.info(
+                    f"NOT ALL UNITS QUORUM - {unit.name} has {unit_quorum}, cluster has {self.quorum}"
+                )
                 return False
 
             unit_quorums.add(unit_quorum)
 
         if len(unit_quorums) != 1:
-            logger.info(f'NOT ALL UNITS QUORUM - {unit_quorums=}')
+            logger.info(f"NOT ALL UNITS QUORUM - {unit_quorums=}")
 
         return len(unit_quorums) == 1
 

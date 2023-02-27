@@ -106,7 +106,7 @@ class ZooKeeperCharm(CharmBase):
 
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
-            self.cluster.relation.data[self.app].update({"quorum": "initializing"})
+            self.cluster.relation.data[self.app].update({"quorum": "default"})
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
@@ -172,8 +172,8 @@ class ZooKeeperCharm(CharmBase):
             }
         )
 
-        # relation data won't get set unless cluster is stable
-        self.provider.apply_relation_data()
+        if self.provider.ready:
+            self.provider.apply_relation_data()
 
     def init_server(self):
         """Calls startup functions for server start.
@@ -317,10 +317,7 @@ class ZooKeeperCharm(CharmBase):
                 self.cluster.relation.data[self.app].update({"upgrading": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
 
-        if self.cluster.all_units_quorum and not self.tls.upgrading:
-            logger.info(
-                "all units running desired encryption, upgrade complete - applying relation data"
-            )
+        if self.provider.ready:
             self.provider.apply_relation_data()
 
     def add_init_leader(self) -> None:
