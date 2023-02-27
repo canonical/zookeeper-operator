@@ -63,6 +63,7 @@ class ZooKeeperCharm(CharmBase):
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
+        self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
@@ -105,7 +106,7 @@ class ZooKeeperCharm(CharmBase):
 
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
-            self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
+            self.cluster.relation.data[self.app].update({"quorum": "initializing"})
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
@@ -312,7 +313,7 @@ class ZooKeeperCharm(CharmBase):
                 self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
 
             if self.cluster.all_units_quorum:
-                logger.debug("all units running desired encyprtion - removing upgrading")
+                logger.debug("all units running desired encryption - removing upgrading")
                 self.cluster.relation.data[self.app].update({"upgrading": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
 
