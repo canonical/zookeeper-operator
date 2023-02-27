@@ -160,9 +160,9 @@ class ZooKeeperTLS(Object):
         """Handler for `certificates_relation_created` event."""
         if not self.charm.unit.is_leader():
             return
-        
+
         if not self.charm.cluster.stable:
-            logger.info("CERTIFICATES CREATED - NOT STABLE - DEFERRING")
+            logger.debug("certificates relation created - quroum not stable - deferring")
             event.defer()
             return
 
@@ -174,7 +174,9 @@ class ZooKeeperTLS(Object):
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
         if not self.enabled:
-            logger.info("CERTIFICATES JOINED - NOT UPGRADING, NOT STABLE - DEFER")
+            logger.info(
+                "certificates relation joined - tls not enabled and not upgrading - deferring"
+            )
             event.defer()
             return
 
