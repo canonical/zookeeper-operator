@@ -464,7 +464,7 @@ class ZooKeeperCluster:
         Returns:
             String of either `ssl` or `non-ssl`. Defaults `non-ssl`.
         """
-        return self.relation.data[self.charm.app].get("quorum", "non-ssl")
+        return self.relation.data[self.charm.app].get("quorum", "default - non-ssl")
 
     @property
     def all_units_quorum(self) -> bool:
@@ -474,20 +474,19 @@ class ZooKeeperCluster:
             True if all units are running the quorum encryption in app data.
                 Otherwise False.
         """
-        # FIXME: something might be going wrong here
         unit_quorums = set()
         for unit in self.peer_units:
             unit_quorum = self.relation.data[unit].get("quorum", None)
             if unit_quorum != self.quorum:
-                logger.info(
-                    f"NOT ALL UNITS QUORUM - {unit.name} has {unit_quorum}, cluster has {self.quorum}"
+                logger.debug(
+                    f"not all units quorum - {unit.name} has {unit_quorum}, cluster has {self.quorum}"
                 )
                 return False
 
             unit_quorums.add(unit_quorum)
 
         if len(unit_quorums) != 1:
-            logger.info(f"NOT ALL UNITS QUORUM - {unit_quorums=}")
+            logger.debug(f"not all unts quorum - {unit_quorums=}")
 
         return len(unit_quorums) == 1
 

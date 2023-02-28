@@ -233,7 +233,7 @@ class ZooKeeperProvider(Object):
         for relation_id, config in relations_config.items():
             # avoid adding relation data for related apps without acls
             if config["acls-added"] != "true":
-                logger.info(f"{relation_id} has yet to add acls")
+                logger.debug(f"{relation_id} has yet to add acls")
                 continue
 
             hosts = self.charm.cluster.active_hosts
@@ -255,7 +255,7 @@ class ZooKeeperProvider(Object):
                 ",".join([f"{host}:{port}" for host in hosts]) + config["chroot"]
             )
 
-            logger.info(f"setting relation data - {relation_data.items()}")
+            logger.debug(f"setting relation data - {relation_data.items()}")
             self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
                 relation_data
             )
@@ -273,7 +273,7 @@ class ZooKeeperProvider(Object):
 
         # ACLs created before passwords set to avoid restarting before successful adding
         try:
-            logger.info(f"adding acls for {getattr(event.app, 'name', None)}")
+            logger.debug(f"adding acls for {getattr(event.app, 'name', None)}")
             self.update_acls(event=event)
         except (
             MembersSyncingError,
@@ -289,7 +289,7 @@ class ZooKeeperProvider(Object):
         # new users won't have a password yet, one will be generated here
         relation_config = self.relation_config(relation=event.relation)
         if relation_config and relation_config.get("acls-added"):
-            logger.info(f"updating passwords for {getattr(event.app, 'name', None)}")
+            logger.debug(f"updating passwords for {getattr(event.app, 'name', None)}")
             # triggers relation_changed for other units to restart
             self.app_relation.data[self.charm.app].update(
                 {relation_config["username"]: relation_config["password"]}
@@ -324,19 +324,19 @@ class ZooKeeperProvider(Object):
             True if ready. Otherwise False
         """
         if not self.charm.cluster.all_units_quorum:
-            logger.info("provider not ready - not all units quorum")
+            logger.debug("provider not ready - not all units quorum")
             return False
 
         if self.charm.tls.upgrading:
-            logger.info("provider not ready - upgrading")
+            logger.debug("provider not ready - upgrading")
             return False
 
         if self.charm.tls.all_units_unified:
-            logger.info("provider not ready - all units unified")
+            logger.debug("provider not ready - all units unified")
             return False
 
         if not self.charm.cluster.stable:
-            logger.info("provider not ready - cluster not stable")
+            logger.debug("provider not ready - cluster not stable")
             return False
 
         return True

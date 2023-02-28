@@ -187,7 +187,7 @@ class ZooKeeperTLS(Object):
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
         if not self.enabled:
-            logger.info(
+            logger.debug(
                 "certificates relation joined - tls not enabled and not upgrading - deferring"
             )
             event.defer()

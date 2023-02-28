@@ -106,7 +106,7 @@ class ZooKeeperCharm(CharmBase):
 
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
-            self.cluster.relation.data[self.app].update({"quorum": "default"})
+            self.cluster.relation.data[self.app].update({"quorum": "default - non-ssl"})
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
