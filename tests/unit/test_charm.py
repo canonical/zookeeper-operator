@@ -729,3 +729,10 @@ def test_init_leader_is_added(harness):
         harness.set_planned_units(2)
 
         assert harness.charm.cluster.relation.data[harness.charm.app].get("0", None) == "added"
+
+
+def test_update_status_updates_quorum(harness):
+    with patch("charm.ZooKeeperCharm.update_quorum") as patched:
+        harness.charm.on.update_status.emit()
+
+    patched.assert_called_once()
