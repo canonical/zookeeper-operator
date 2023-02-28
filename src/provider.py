@@ -99,7 +99,7 @@ class ZooKeeperProvider(Object):
             "password": password,
             "chroot": chroot,
             "acl": acl,
-            "acls-added": str(acls_added),
+            "acls-added": acls_added,
         }
 
     def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:

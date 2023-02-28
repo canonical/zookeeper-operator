@@ -159,10 +159,6 @@ class ZooKeeperCharm(CharmBase):
         if self.cluster.relation.data[self.app].get("rotate-passwords"):
             self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
-        if not self.tls.unit_unified(unit=self.unit) and self.tls.upgrading:
-            # if unit restarted with `upgrading` app data, must be unified
-            logger.debug(f"{self.unit.name} setting unified status")
-
         self.cluster.relation.data[self.unit].update(
             {
                 # flag to declare unit running `portUnification` during ssl<->no-ssl upgrade
