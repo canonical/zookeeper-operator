@@ -53,37 +53,41 @@ def test_server_jvmflags_has_opts(harness):
 
 
 def test_jaas_users_are_added(harness):
-    harness.add_relation(REL_NAME, "application")
-    harness.update_relation_data(
-        harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
-    )
-    harness.update_relation_data(
-        harness.charm.provider.app_relation.id, CHARM_KEY, {"relation-2": "password"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation(REL_NAME, "application")
+        harness.update_relation_data(
+            harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
+        )
+        harness.update_relation_data(
+            harness.charm.provider.app_relation.id, CHARM_KEY, {"relation-2": "password"}
+        )
 
     assert len(harness.charm.zookeeper_config.jaas_users) == 1
 
 
 def test_multiple_jaas_users_are_added(harness):
-    harness.add_relation(REL_NAME, "application")
-    harness.add_relation(REL_NAME, "application2")
-    harness.update_relation_data(
-        harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
-    )
-    harness.update_relation_data(
-        harness.charm.provider.client_relations[1].id, "application2", {"chroot": "app2"}
-    )
-    harness.update_relation_data(
-        harness.charm.provider.app_relation.id,
-        CHARM_KEY,
-        {"relation-2": "password", "relation-3": "password"},
-    )
+    with harness.hooks_disabled():
+        harness.add_relation(REL_NAME, "application")
+        harness.add_relation(REL_NAME, "application2")
+        harness.update_relation_data(
+            harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
+        )
+        harness.update_relation_data(
+            harness.charm.provider.client_relations[1].id, "application2", {"chroot": "app2"}
+        )
+        harness.update_relation_data(
+            harness.charm.provider.app_relation.id,
+            CHARM_KEY,
+            {"relation-2": "password", "relation-3": "password"},
+        )
 
     assert len(harness.charm.zookeeper_config.jaas_users) == 2
 
 
 def test_tls_enabled(harness):
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+    with harness.hooks_disabled():
+        harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+
     assert "ssl.clientAuth=none" in harness.charm.zookeeper_config.zookeeper_properties
 
 
@@ -92,32 +96,45 @@ def test_tls_disabled(harness):
 
 
 def test_tls_upgrading(harness):
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"upgrading": "started"})
-    assert "portUnification=true" in harness.charm.zookeeper_config.zookeeper_properties
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.tls.cluster.id, CHARM_KEY, {"upgrading": "started"}
+        )
 
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"upgrading": ""})
-    assert "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
+        assert "portUnification=true" in harness.charm.zookeeper_config.zookeeper_properties
+
+        harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"upgrading": ""})
+
+        assert "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
 
 
 def test_tls_ssl_quorum(harness):
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"quorum": "ssl"})
-    assert "sslQuorum=true" in harness.charm.zookeeper_config.zookeeper_properties
+    with harness.hooks_disabled():
+        harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"quorum": "ssl"})
 
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"quorum": "non-ssl"})
-    assert "sslQuorum=true" not in harness.charm.zookeeper_config.zookeeper_properties
+        assert "sslQuorum=true" in harness.charm.zookeeper_config.zookeeper_properties
+
+        harness.update_relation_data(
+            harness.charm.tls.cluster.id, CHARM_KEY, {"quorum": "non-ssl"}
+        )
+
+        assert "sslQuorum=true" not in harness.charm.zookeeper_config.zookeeper_properties
 
 
 def test_properties_tls_uses_passwords(harness):
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
-    harness.update_relation_data(
-        harness.charm.tls.cluster.id, f"{CHARM_KEY}/0", {"keystore-password": "mellon"}
-    )
+    with harness.hooks_disabled():
+        harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+        harness.update_relation_data(
+            harness.charm.tls.cluster.id, f"{CHARM_KEY}/0", {"keystore-password": "mellon"}
+        )
+
     assert "ssl.keyStore.password=mellon" in harness.charm.zookeeper_config.zookeeper_properties
     assert "ssl.trustStore.password=mellon" in harness.charm.zookeeper_config.zookeeper_properties
 
 
 def test_properties_tls_gets_dynamic_config_file_property(harness):
-    harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+    with harness.hooks_disabled():
+        harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
 
     with open("/tmp/zoo.cfg", "w") as fp:
         fp.write("dynamicConfigFile=/gandalf/the/grey")
