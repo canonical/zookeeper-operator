@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 6
+LIBPATCH = 4
 
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ class ZooKeeperManager:
         hosts: List[str],
         username: str,
         password: str,
-        client_port: int = 2181,
+        client_port: int = 2181, 
         use_ssl: bool = False,
         keyfile_path: Optional[str] = "",
         keyfile_password: Optional[str] = "",
@@ -157,8 +157,8 @@ class ZooKeeperManager:
                     password=self.password,
                     use_ssl=self.use_ssl,
                     keyfile_path=self.keyfile_path,
-                    keyfile_password=self.keyfile_password,
-                    certfile_path=self.certfile_path,
+                    keyfile_password = self.keyfile_password,
+                    certfile_path = self.certfile_path,
                 ) as zk:
                     response = zk.srvr
                     if response.get("Mode") == "leader":
@@ -185,8 +185,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             members, _ = zk.config
 
@@ -206,8 +206,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             _, version = zk.config
 
@@ -227,23 +227,15 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             result = zk.mntr
-
-        try:
-            zk_pending_syncs = result["zk_pending_syncs"]
-        except KeyError:  # missing key, no quorum, no syncing
-            logger.debug("no zk_pending_syncs key found, units not syncing")
-            return False
-
         if (
             result.get("zk_peer_state", "") == "leading - broadcast"
-            and float(zk_pending_syncs) == 0
+            and result["zk_pending_syncs"] == "0"
         ):
             return False
-
         return True
 
     def add_members(self, members: Iterable[str]) -> None:
@@ -268,8 +260,8 @@ class ZooKeeperManager:
                     password=self.password,
                     use_ssl=self.use_ssl,
                     keyfile_path=self.keyfile_path,
-                    keyfile_password=self.keyfile_password,
-                    certfile_path=self.certfile_path,
+                    keyfile_password = self.keyfile_password,
+                    certfile_path = self.certfile_path,
                 ) as zk:
                     if not zk.is_ready:
                         raise MemberNotReadyError(f"Server is not ready: {host}")
@@ -285,8 +277,8 @@ class ZooKeeperManager:
                 password=self.password,
                 use_ssl=self.use_ssl,
                 keyfile_path=self.keyfile_path,
-                keyfile_password=self.keyfile_password,
-                certfile_path=self.certfile_path,
+                keyfile_password = self.keyfile_password,
+                certfile_path = self.certfile_path,
             ) as zk:
                 zk.client.reconfig(
                     joining=member, leaving=None, new_members=None, from_config=self.config_version
@@ -310,8 +302,8 @@ class ZooKeeperManager:
                 password=self.password,
                 use_ssl=self.use_ssl,
                 keyfile_path=self.keyfile_path,
-                keyfile_password=self.keyfile_password,
-                certfile_path=self.certfile_path,
+                keyfile_password = self.keyfile_password,
+                certfile_path = self.certfile_path,
             ) as zk:
                 zk.client.reconfig(
                     joining=None,
@@ -336,8 +328,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             all_znode_children = zk.get_all_znode_children(path=path)
 
@@ -357,8 +349,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             zk.create_znode(path=path, acls=acls)
 
@@ -376,8 +368,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             zk.set_acls(path=path, acls=acls)
 
@@ -394,8 +386,8 @@ class ZooKeeperManager:
             password=self.password,
             use_ssl=self.use_ssl,
             keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
+            keyfile_password = self.keyfile_password,
+            certfile_path = self.certfile_path,
         ) as zk:
             zk.delete_znode(path=path)
 
@@ -403,17 +395,7 @@ class ZooKeeperManager:
 class ZooKeeperClient:
     """Handler for ZooKeeper connections and running 4lw client commands."""
 
-    def __init__(
-        self,
-        host: str,
-        client_port: int,
-        username: str,
-        password: str,
-        use_ssl: bool = False,
-        keyfile_path: Optional[str] = None,
-        keyfile_password: Optional[str] = None,
-        certfile_path: Optional[str] = None,
-    ):
+    def __init__(self, host: str, client_port: int, username: str, password: str, use_ssl: bool = False, keyfile_path: Optional[str] = None, keyfile_password: Optional[str] = None, certfile_path: Optional[str] = None):
         self.host = host
         self.client_port = client_port
         self.username = username
