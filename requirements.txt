@@ -3,3 +3,4 @@ kazoo >= 2.8.0
 pure-sasl >= 0.6.2
 tenacity >= 8.0.1
 cryptography
+cosl
