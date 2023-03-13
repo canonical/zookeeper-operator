@@ -11,13 +11,7 @@ import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import (
-    check_key,
-    get_password,
-    ping_servers,
-    restart_unit,
-    write_key,
-)
+from .helpers import check_key, get_password, ping_servers, restart_unit, write_key
 
 logger = logging.getLogger(__name__)
 
