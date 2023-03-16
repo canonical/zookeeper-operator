@@ -2,7 +2,7 @@
 # See LICENSE file for licensing details.
 
 name: zookeeper
-display-name: Zookeeper 
+display-name: Zookeeper
 description: |
   ZooKeeper is a centralized service for maintaining configuration information, naming,
   providing distributed synchronization, and providing group services.
@@ -25,8 +25,8 @@ provides:
     interface: prometheus_scrape
   grafana-dashboard:
     interface: grafana_dashboard
-  cos-machine:
-    interface: cos_machine
+  cos-agent:
+    interface: cos_agent
 
 requires:
   certificates:

@@ -1,42 +1,197 @@
-#!/usr/bin/env python3
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Library for the cos_machine relation interface."""
+r"""## Overview.
+
+This library can be used to manage the cos_agent relation interface:
+
+- `COSAgentProvider`: Use in machine charms that need to have a workload's metrics
+  or logs scraped, or forward rule files or dashboards to Prometheus, Loki or Grafana through
+  the Grafana Agent machine charm.
+
+- `COSAgentConsumer`: Used in the Grafana Agent machine charm to manage the requirer side of
+  the `cos_agent` interface.
+
+
+## COSAgentProvider Library Usage
+
+Grafana Agent machine Charmed Operator interacts with its clients using the cos_agent library.
+Charms seeking to send telemetry, must do so using the `COSAgentProvider` object from
+this charm library.
+
+Using the `COSAgentProvider` object only requires instantiating it,
+typically in the `__init__` method of your charm (the one which sends telemetry).
+
+The constructor of `COSAgentProvider` has only one required and eight optional parameters:
+
+```python
+    def __init__(
+        self,
+        charm: CharmType,
+        relation_name: str = DEFAULT_RELATION_NAME,
+        metrics_endpoints: Optional[List[dict]] = None,
+        metrics_rules_dir: str = "./src/prometheus_alert_rules",
+        logs_rules_dir: str = "./src/loki_alert_rules",
+        recurse_rules_dirs: bool = False,
+        log_slots: Optional[List[str]] = None,
+        dashboard_dirs: Optional[List[str]] = None,
+        refresh_events: Optional[List] = None,
+    ):
+```
+
+### Parameters
+
+- `charm`: The instance of the charm that instantiates `COSAgentProvider`, typically `self`.
+
+- `relation_name`: If your charmed operator uses a relation name other than `cos-agent` to use
+    the `cos_agent` interface, this is where you have to specify that.
+
+- `metrics_endpoints`: In this parameter you can specify the metrics endpoints that Grafana Agent
+    machine Charmed Operator will scrape.
+
+- `metrics_rules_dir`: The directory in which the Charmed Operator stores its metrics alert rules
+  files.
+
+- `logs_rules_dir`: The directory in which the Charmed Operator stores its logs alert rules files.
+
+- `recurse_rules_dirs`: This parameters set whether Grafana Agent machine Charmed Operator has to
+  search alert rules files recursively in the previous two directories or not.
+
+- `log_slots`: Snap slots to connect to for scraping logs in the form ["snap-name:slot", ...].
+
+- `dashboard_dirs`: List of directories where the dashboards are stored in the Charmed Operator.
+
+- `refresh_events`: List of events on which to refresh relation data.
+
+
+### Example 1 - Minimal instrumentation:
+
+In order to use this object the following should be in the `charm.py` file.
+
+```python
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider
+...
+class TelemetryProviderCharm(CharmBase):
+    def __init__(self, *args):
+        ...
+        self._grafana_agent = COSAgentProvider(self)
+```
+
+### Example 2 - Full instrumentation:
+
+In order to use this object the following should be in the `charm.py` file.
+
+```python
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider
+...
+class TelemetryProviderCharm(CharmBase):
+    def __init__(self, *args):
+        ...
+        self._grafana_agent = COSAgentProvider(
+            self,
+            relation_name="custom-cos-agent",
+            metrics_endpoints=[
+                {"path": "/metrics", "port": 9000},
+                {"path": "/metrics", "port": 9001},
+                {"path": "/metrics", "port": 9002},
+            ],
+            metrics_rules_dir="./src/alert_rules/prometheus",
+            logs_rules_dir="./src/alert_rules/loki",
+            recursive_rules_dir=True,
+            log_slots=["my-app:slot"],
+            dashboard_dirs=["./src/dashboards_1", "./src/dashboards_2"],
+            refresh_events=["update-status", "upgrade-charm"],
+        )
+```
+
+## COSAgentConsumer Library Usage
+
+This object may be used by any Charmed Operator which gathers telemetry data by
+implementing the consumer side of the `cos_agent` interface.
+For instance Grafana Agent machine Charmed Operator.
+
+For this purpose the charm needs to instantiate the `COSAgentConsumer` object with one mandatory
+and two optional arguments.
+
+### Parameters
+
+- `charm`: A reference to the parent (Grafana Agent machine) charm.
+
+- `relation_name`: The name of the relation that the charm uses to interact
+  with its clients that provides telemetry data using the `COSAgentProvider` object.
+
+  If provided, this relation name must match a provided relation in metadata.yaml with the
+  `cos_agent` interface.
+  The default value of this argument is "cos-agent".
+
+- `refresh_events`: List of events on which to refresh relation data.
+
+
+### Example 1 - Minimal instrumentation:
+
+In order to use this object the following should be in the `charm.py` file.
+
+```python
+from charms.grafana_agent.v0.cos_agent import COSAgentConsumer
+...
+class GrafanaAgentMachineCharm(GrafanaAgentCharm)
+    def __init__(self, *args):
+        ...
+        self._cos = COSAgentRequirer(self)
+```
+
+
+### Example 2 - Full instrumentation:
+
+In order to use this object the following should be in the `charm.py` file.
+
+```python
+from charms.grafana_agent.v0.cos_agent import COSAgentConsumer
+...
+class GrafanaAgentMachineCharm(GrafanaAgentCharm)
+    def __init__(self, *args):
+        ...
+        self._cos = COSAgentRequirer(
+            self,
+            relation_name="cos-agent-consumer",
+            refresh_events=["update-status", "upgrade-charm"],
+        )
+```
+"""
 
 import base64
 import json
 import logging
 import lzma
+from collections import namedtuple
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-# FIXME: unify the alert rules format in cosl to drop these ASAP
+from cosl import JujuTopology
 from cosl.rules import AlertRules
-# from charms.loki_k8s.v0.loki_push_api import AlertRules as LogAlerts
-# from charms.prometheus_k8s.v0.prometheus_scrape import AlertRules as MetricsAlerts
 from ops.charm import RelationEvent
 from ops.framework import EventBase, EventSource, Object, ObjectEvents
 from ops.model import Relation
 from ops.testing import CharmType
 
-LIBID = "1212"  # FIXME: Need to get a valid ID from charmhub
+LIBID = "dc15fa84cef84ce58155fb84f6c6213a"
 LIBAPI = 0
 LIBPATCH = 1
 
 PYDEPS = ["cosl"]
 
-DEFAULT_RELATION_NAME = "cos-machine"
+DEFAULT_RELATION_NAME = "cos-agent"
 DEFAULT_METRICS_ENDPOINT = {
     "path": "/metrics",
     "port": 80,
 }
 
 logger = logging.getLogger(__name__)
+SnapEndpoint = namedtuple("SnapEndpoint", "owner, name")
 
 
-class COSMachineProvider(Object):
-    """Integration endpoint wrapper for the provider side of the cos_machine interface."""
+class COSAgentProvider(Object):
+    """Integration endpoint wrapper for the provider side of the cos_agent interface."""
 
     def __init__(
         self,
@@ -46,11 +201,11 @@ class COSMachineProvider(Object):
         metrics_rules_dir: str = "./src/prometheus_alert_rules",
         logs_rules_dir: str = "./src/loki_alert_rules",
         recurse_rules_dirs: bool = False,
-        logs_slots: Optional[List[str]] = None,
+        log_slots: Optional[List[str]] = None,
         dashboard_dirs: Optional[List[str]] = None,
         refresh_events: Optional[List] = None,
     ):
-        """Create a COSMachineProvider instance.
+        """Create a COSAgentProvider instance.
 
         Args:
             charm: The `CharmBase` instance that is instantiating this object.
@@ -58,8 +213,8 @@ class COSMachineProvider(Object):
             metrics_endpoints: List of endpoints in the form [{"path": path, "port": port}, ...].
             metrics_rules_dir: Directory where the metrics rules are stored.
             logs_rules_dir: Directory where the logs rules are stored.
-            recurse_rules_dirs: Whether or not to recurse into rule paths.
-            logs_slots: Snap slots to connect to for scraping logs
+            recurse_rules_dirs: Whether to recurse into rule paths.
+            log_slots: Snap slots to connect to for scraping logs
                 in the form ["snap-name:slot", ...].
             dashboard_dirs: Directory where the dashboards are stored.
             refresh_events: List of events on which to refresh relation data.
@@ -74,7 +229,7 @@ class COSMachineProvider(Object):
         self._metrics_rules = metrics_rules_dir
         self._logs_rules = logs_rules_dir
         self._recursive = recurse_rules_dirs
-        self._logs_slots = logs_slots or []
+        self._log_slots = log_slots or []
         self._dashboard_dirs = dashboard_dirs
         self._refresh_events = refresh_events or [self._charm.on.config_changed]
 
@@ -107,7 +262,7 @@ class COSMachineProvider(Object):
                 "alert_rules": self._metrics_alert_rules,
             },
             "logs": {
-                "targets": self._logs_slots,
+                "targets": self._log_slots,
                 "alert_rules": self._log_alert_rules,
             },
             "dashboards": {
@@ -129,14 +284,16 @@ class COSMachineProvider(Object):
     @property
     def _metrics_alert_rules(self) -> Dict:
         """Use (for now) the prometheus_scrape AlertRules to initialize this."""
-        alert_rules = AlertRules("promql")
+        alert_rules = AlertRules(
+            query_type="promql", topology=JujuTopology.from_charm(self._charm)
+        )
         alert_rules.add_path(self._metrics_rules, recursive=self._recursive)
         return alert_rules.as_dict()
 
     @property
     def _log_alert_rules(self) -> Dict:
         """Use (for now) the loki_push_api AlertRules to initialize this."""
-        alert_rules = AlertRules("logql")
+        alert_rules = AlertRules(query_type="logql", topology=JujuTopology.from_charm(self._charm))
         alert_rules.add_path(self._logs_rules, recursive=self._recursive)
         return alert_rules.as_dict()
 
@@ -157,20 +314,20 @@ class COSMachineProvider(Object):
         return base64.b64encode(lzma.compress(content)).decode("utf-8")
 
 
-class COSMachineDataChanged(EventBase):
-    """Event emitted by `COSMachineRequirer` when relation data changes."""
+class COSAgentDataChanged(EventBase):
+    """Event emitted by `COSAgentRequirer` when relation data changes."""
 
 
-class COSMachineRequirerEvents(ObjectEvents):
-    """`COSMachineRequirer` events."""
+class COSAgentRequirerEvents(ObjectEvents):
+    """`COSAgentRequirer` events."""
 
-    data_changed = EventSource(COSMachineDataChanged)
+    data_changed = EventSource(COSAgentDataChanged)
 
 
-class COSMachineRequirer(Object):
-    """Integration endpoint wrapper for the Requirer side of the cos_machine interface."""
+class COSAgentRequirer(Object):
+    """Integration endpoint wrapper for the Requirer side of the cos_agent interface."""
 
-    on = COSMachineRequirerEvents()
+    on = COSAgentRequirerEvents()
 
     def __init__(
         self,
@@ -178,12 +335,12 @@ class COSMachineRequirer(Object):
         relation_name: str = DEFAULT_RELATION_NAME,
         refresh_events: Optional[List[str]] = None,
     ):
-        """Create a COSMachineRequirer instance.
+        """Create a COSAgentRequirer instance.
 
         Args:
             charm: The `CharmBase` instance that is instantiating this object.
             relation_name: The name of the relation to communicate over.
-            refresh_events: List of events on which to resfresh relation data.
+            refresh_events: List of events on which to refresh relation data.
         """
         super().__init__(charm, relation_name)
         self._charm = charm
@@ -215,7 +372,7 @@ class COSMachineRequirer(Object):
         if not relation.data or not relation.app:
             return None
 
-        config = json.loads(relation.data[relation.app].get("config", {}))
+        config = json.loads(relation.data[relation.app].get("config", "{}"))
         return config.get(primary_key, {}).get(secondary_key, None)
 
     @property
@@ -223,8 +380,17 @@ class COSMachineRequirer(Object):
         """Fetch metrics alerts."""
         alert_rules = {}
         for relation in self._relations:
+            # This is only used for naming the file, so be as specific as we
+            # can be, but it's ok if the unit name isn't exactly correct, so
+            # long as we don't dedupe away the alerts, which will be
+            identifier = JujuTopology(
+                model=self._charm.model.name,
+                model_uuid=self._charm.model.uuid,
+                application=relation.app.name if relation.app else "unknown",
+                unit=self._charm.unit.name,
+            ).identifier
             if data := self._fetch_data_from_relation(relation, "metrics", "alert_rules"):
-                alert_rules.update(data)
+                alert_rules.update({identifier: data})
         return alert_rules
 
     @property
@@ -244,21 +410,46 @@ class COSMachineRequirer(Object):
         return scrape_jobs
 
     @property
-    def snap_log_plugs(self) -> List[str]:
-        """Fetch logging plugs exposed by related snaps."""
-        plugs = set()
+    def snap_log_endpoints(self) -> List[SnapEndpoint]:
+        """Fetch logging endpoints exposed by related snaps."""
+        plugs = []
         for relation in self._relations:
             if targets := self._fetch_data_from_relation(relation, "logs", "targets"):
-                plugs.update(targets)
-        return list(plugs)
+                for target in targets:
+                    if target in plugs:
+                        logger.warning(
+                            f"plug {target} already listed. "
+                            "The same snap is being passed from multiple "
+                            "endpoints; this should not happen."
+                        )
+                    else:
+                        plugs.append(target)
+
+        endpoints = []
+        for plug in plugs:
+            if ":" not in plug:
+                logger.error(f"invalid plug definition received: {plug}. Ignoring...")
+            else:
+                endpoint = SnapEndpoint(*plug.split(":"))
+                endpoints.append(endpoint)
+        return endpoints
 
     @property
     def logs_alerts(self) -> Dict[str, Any]:
         """Fetch log alerts."""
         alert_rules = {}
         for relation in self._relations:
+            # This is only used for naming the file, so be as specific as we
+            # can be, but it's ok if the unit name isn't exactly correct, so
+            # long as we don't dedupe away the alerts, which will be
+            identifier = JujuTopology(
+                model=self._charm.model.name,
+                model_uuid=self._charm.model.uuid,
+                application=relation.app.name if relation.app else "unknown",
+                unit=self._charm.unit.name,
+            ).identifier
             if rules := self._fetch_data_from_relation(relation, "logs", "alert_rules"):
-                alert_rules.update(rules)
+                alert_rules.update({identifier: rules})
         return alert_rules
 
     @property
