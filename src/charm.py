@@ -7,10 +7,10 @@
 import logging
 import time
 
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
 from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT, NODE_EXPORTER_PORT
@@ -64,11 +64,12 @@ class ZooKeeperCharm(CharmBase):
         )
 
         self._grafana_agent = COSAgentProvider(
-            self, metrics_endpoints=[
+            self,
+            metrics_endpoints=[
                 {"path": "/metrics", "port": NODE_EXPORTER_PORT},
                 {"path": "/metrics", "port": JMX_PORT},
                 {"path": "/metrics", "port": METRICS_PROVIDER_PORT},
-            ]
+            ],
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
