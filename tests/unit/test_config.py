@@ -11,6 +11,7 @@ from charm import ZooKeeperCharm
 from config import ZooKeeperConfig
 from literals import CHARM_KEY, PEER, REL_NAME
 from ops.testing import Harness
+from snap import ZooKeeperSnap
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def test_build_static_properties_removes_necessary_rows():
         "clientPort=2181",
         "authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider",
         "maxClientCnxns=60",
-        "dynamicConfigFile=/var/snap/zookeeper/common/zoo.cfg.dynamic.100000041",
+        f"dynamicConfigFile={ZooKeeperSnap.conf_path}/zoo.cfg.dynamic.100000041",
     ]
 
     static = ZooKeeperConfig.build_static_properties(properties=properties)
@@ -47,7 +48,7 @@ def test_build_static_properties_removes_necessary_rows():
 def test_server_jvmflags_has_opts(harness):
     server_jvmflags = ZooKeeperConfig(harness.charm).server_jvmflags
     assert (
-        f"-Djava.security.auth.login.config={harness.charm.snap.config_path}/zookeeper-jaas.cfg"
+        f"-Djava.security.auth.login.config={harness.charm.snap.conf_path}/zookeeper-jaas.cfg"
         in server_jvmflags
     )
 

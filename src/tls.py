@@ -37,7 +37,7 @@ class ZooKeeperTLS(Object):
     def __init__(self, charm):
         super().__init__(charm, "tls")
         self.charm = charm
-        self.config_path = self.charm.snap.config_path
+        self.config_path = self.charm.snap.conf_path
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
 
         self.framework.observe(

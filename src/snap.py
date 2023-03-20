@@ -7,7 +7,6 @@ import logging
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
-from literals import SNAP_COMMON_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +14,12 @@ logger = logging.getLogger(__name__)
 class ZooKeeperSnap:
     """Wrapper for performing common operations specific to the ZooKeeper Snap."""
 
-    def __init__(self) -> None:
-        self.config_path = f"{SNAP_COMMON_PATH}/conf"
-        self.logs_path = f"{SNAP_COMMON_PATH}/logs"
-        self.data_path = f"{SNAP_COMMON_PATH}/log-data"
-        self.jvm_path = f"{SNAP_COMMON_PATH}/jvm"
-        self.charm_opt_path = f"{SNAP_COMMON_PATH}/opt/charm"
-        self.zookeeper_opt_path = f"{SNAP_COMMON_PATH}/opt/zookeeper"
+    conf_path = "/var/snap/charmed-zookeeper/current/etc/zookeeper"
+    logs_path = "/var/snap/charmed-zookeeper/common/var/log/zookeeper"
+    data_path = "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"
+    binaries_path = "/snap/charmed-zookeeper/current/var/lib/zookeeper"
 
+    def __init__(self) -> None:
         self.zookeeper = snap.SnapCache()["zookeeper"]
 
     def install(self) -> bool:
@@ -35,7 +32,7 @@ class ZooKeeperSnap:
             apt.update()
             apt.add_package(["snapd", "openjdk-17-jre-headless"])
             cache = snap.SnapCache()
-            zookeeper = cache["zookeeper"]
+            zookeeper = cache["charmed-zookeeper"]
             node_exporter = cache["node-exporter"]
 
             if not zookeeper.present:
