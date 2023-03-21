@@ -29,11 +29,44 @@ authors = [""]
 
 [tool.poetry.dependencies]
 python = ">=3.8"
+ops = ">=2.0.0"
+kazoo = ">=2.8.0"
+tenacity = ">=8.0.1"
+pure-sasl = ">=0.6.2"
+cryptography = "^39.0.0"
+
+[tool.poetry.group.fmt]
+optional = true
+
+[tool.poetry.group.fmt.dependencies]
 black = "^22.3.0"
-kazoo = "^2.8.0"
-ops = "^2.0.0"
-pure-sasl = "^0.6.2"
-tenacity = "^8.0.1"
+ruff = ">=0.0.157"
+
+[tool.poetry.group.lint]
+optional = true
+
+[tool.poetry.group.lint.dependencies]
+black = "^22.3.0"
+ruff = ">=0.0.157"
+codespell = ">=2.2.2"
+
+[tool.poetry.group.unit]
+optional = true
+
+[tool.poetry.group.unit.dependencies]
+pytest = ">=7.2"
+coverage = {extras = ["toml"], version = ">7.0"}
+jsonschema = ">=4.10"
+
+[tool.poetry.group.integration]
+optional = true
+
+[tool.poetry.group.integration.dependencies]
+pytest = ">=7.2"
+juju = "==2.9.11"
+coverage = {extras = ["toml"], version = ">7.0"}
+pytest-operator = ">0.20"
+
 
 [tool.ruff]
 line-length = 99
@@ -44,6 +77,7 @@ extend-ignore = [
     "D213",
     "D215",
     "D400",
+    "D401",
     "D404",
     "D406",
     "D407",
