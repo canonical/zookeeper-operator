@@ -41,8 +41,10 @@ async def test_simple_scale_up(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_simple_scale_down(ops_test: OpsTest):
-    await ops_test.model.applications[APP_NAME].destroy_units(
-        f"{APP_NAME}/5", f"{APP_NAME}/4", f"{APP_NAME}/3"
+    await asyncio.gather(
+        ops_test.model.applications[APP_NAME].destroy_units(f"{APP_NAME}/5"),
+        ops_test.model.applications[APP_NAME].destroy_units(f"{APP_NAME}/4"),
+        ops_test.model.applications[APP_NAME].destroy_units(f"{APP_NAME}/3")
     )
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
