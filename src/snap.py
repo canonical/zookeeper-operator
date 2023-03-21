@@ -17,7 +17,7 @@ class ZooKeeperSnap:
     conf_path = "/var/snap/charmed-zookeeper/current/etc/zookeeper"
     logs_path = "/var/snap/charmed-zookeeper/common/var/log/zookeeper"
     data_path = "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"
-    binaries_path = "/snap/charmed-zookeeper/current/var/lib/zookeeper"
+    binaries_path = "/snap/charmed-zookeeper/current/opt/zookeeper"
 
     def __init__(self) -> None:
         self.zookeeper = snap.SnapCache()["zookeeper"]
