@@ -36,7 +36,7 @@ class ZooKeeperSnap:
             node_exporter = cache["node-exporter"]
 
             if not zookeeper.present:
-                zookeeper.ensure(snap.SnapState.Latest, channel="3.6/edge")
+                zookeeper.ensure(snap.SnapState.Latest, channel="3/edge")
             if not node_exporter.present:
                 node_exporter.ensure(snap.SnapState.Latest, channel="edge")
 
