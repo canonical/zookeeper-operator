@@ -53,7 +53,9 @@ class ZooKeeperConfig:
         self.jaas_filepath = f"{self.charm.snap.conf_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.charm.snap.conf_path}/keystore.p12"
         self.truststore_filepath = f"{self.charm.snap.conf_path}/truststore.jks"
-        self.jmx_prometheus_javaagent_filepath = f"{self.charm.snap.binaries_path}/jvm/java-8-openjdk-amd64/jre/lib/jmx_prometheus_javaagent.jar"
+        self.jmx_prometheus_javaagent_filepath = (
+            f"{self.charm.snap.binaries_path}/jmx_prometheus_javaagent.jar"
+        )
         self.jmx_prometheus_config_filepath = f"{self.charm.snap.conf_path}/jmx_prometheus.yaml"
 
     @property

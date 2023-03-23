@@ -14,13 +14,17 @@ logger = logging.getLogger(__name__)
 class ZooKeeperSnap:
     """Wrapper for performing common operations specific to the ZooKeeper Snap."""
 
-    conf_path = "/var/snap/charmed-zookeeper/current/etc/zookeeper"
-    logs_path = "/var/snap/charmed-zookeeper/common/var/log/zookeeper"
-    data_path = "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"
-    binaries_path = "/snap/charmed-zookeeper/current/opt/zookeeper"
+    SNAP_NAME = "charmed-zookeeper"
+    COMPONENT = "zookeeper"
+    SNAP_SERVICE = "daemon"
+
+    conf_path = f"/var/snap/{SNAP_NAME}/current/etc/{COMPONENT}"
+    logs_path = f"/var/snap/{SNAP_NAME}/common/var/log/{COMPONENT}"
+    data_path = f"/var/snap/{SNAP_NAME}/common/var/lib/{COMPONENT}"
+    binaries_path = f"/snap/{SNAP_NAME}/current/opt/{COMPONENT}"
 
     def __init__(self) -> None:
-        self.zookeeper = snap.SnapCache()["zookeeper"]
+        self.zookeeper = snap.SnapCache()[self.SNAP_NAME]
 
     def install(self) -> bool:
         """Loads the ZooKeeper snap from LP, returning a StatusBase for the Charm to set.
@@ -32,7 +36,7 @@ class ZooKeeperSnap:
             apt.update()
             apt.add_package(["snapd", "openjdk-17-jre-headless"])
             cache = snap.SnapCache()
-            zookeeper = cache["charmed-zookeeper"]
+            zookeeper = cache[self.SNAP_NAME]
             node_exporter = cache["node-exporter"]
 
             if not zookeeper.present:
@@ -57,49 +61,40 @@ class ZooKeeperSnap:
             logger.error(str(e))
             return False
 
-    def start_snap_service(self, snap_service: str) -> bool:
+    def start_snap_service(self) -> bool:
         """Starts snap service process.
-
-        Args:
-            snap_service: The desired service to run on the unit
 
         Returns:
             True if service successfully starts. False otherwise.
         """
         try:
-            self.zookeeper.start(services=[snap_service])
+            self.zookeeper.start(services=[self.SNAP_SERVICE])
             return True
         except snap.SnapError as e:
             logger.exception(str(e))
             return False
 
-    def stop_snap_service(self, snap_service: str) -> bool:
+    def stop_snap_service(self) -> bool:
         """Stops snap service process.
-
-        Args:
-            snap_service: The desired service to stop on the unit
 
         Returns:
             True if service successfully stops. False otherwise.
         """
         try:
-            self.zookeeper.stop(services=[snap_service])
+            self.zookeeper.stop(services=[self.SNAP_SERVICE])
             return True
         except snap.SnapError as e:
             logger.exception(str(e))
             return False
 
-    def restart_snap_service(self, snap_service: str) -> bool:
+    def restart_snap_service(self) -> bool:
         """Restarts snap service process.
-
-        Args:
-            snap_service: The desired service to run on the unit
 
         Returns:
             True if service successfully restarts. False otherwise.
         """
         try:
-            self.zookeeper.restart(services=[snap_service])
+            self.zookeeper.restart(services=[self.SNAP_SERVICE])
             return True
         except snap.SnapError as e:
             logger.exception(str(e))
