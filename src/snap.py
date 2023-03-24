@@ -46,16 +46,6 @@ class ZooKeeperSnap:
 
             self.zookeeper = zookeeper
 
-            [
-                node_exporter.connect(plug=plug)
-                for plug in [
-                    "hardware-observe",
-                    "network-observe",
-                    "mount-observe",
-                    "system-observe",
-                ]
-            ]
-
             return True
         except (snap.SnapError, apt.PackageNotFoundError) as e:
             logger.error(str(e))
