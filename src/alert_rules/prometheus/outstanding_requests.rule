@@ -1,5 +1,5 @@
 alert: ZookeeperOutstandingRequests
-expr: outstanding_requests{app=~'zookeeper.*'} > 10
+expr: outstanding_requests > 10
 for: 10m
 labels:
   severity: high
