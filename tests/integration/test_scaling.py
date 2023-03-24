@@ -28,9 +28,6 @@ async def test_deploy_active(ops_test: OpsTest):
 
     assert ops_test.model.applications[APP_NAME].status == "active"
 
-    await ops_test.model.set_config({"update-status-hook-interval": "60m"})
-
-
 @pytest.mark.abort_on_fail
 async def test_simple_scale_up(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=3)
