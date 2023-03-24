@@ -47,17 +47,16 @@ class ZooKeeperConfig:
 
     def __init__(self, charm):
         self.charm = charm
-        self.default_config_path = self.charm.snap.config_path
-        self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
-        self.log4j_properties_filepath = f"{self.default_config_path}/log4j.properties"
-        self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
-        self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
-        self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
-        self.truststore_filepath = f"{self.default_config_path}/truststore.jks"
+        self.properties_filepath = f"{self.charm.snap.conf_path}/zoo.cfg"
+        self.log4j_properties_filepath = f"{self.charm.snap.conf_path}/log4j.properties"
+        self.dynamic_filepath = f"{self.charm.snap.conf_path}/zookeeper-dynamic.properties"
+        self.jaas_filepath = f"{self.charm.snap.conf_path}/zookeeper-jaas.cfg"
+        self.keystore_filepath = f"{self.charm.snap.conf_path}/keystore.p12"
+        self.truststore_filepath = f"{self.charm.snap.conf_path}/truststore.jks"
         self.jmx_prometheus_javaagent_filepath = (
-            f"{self.charm.snap.zookeeper_opt_path}/jmx_prometheus_javaagent.jar"
+            f"{self.charm.snap.binaries_path}/jmx_prometheus_javaagent.jar"
         )
-        self.jmx_prometheus_config_filepath = f"{self.default_config_path}/jmx_prometheus.yaml"
+        self.jmx_prometheus_config_filepath = f"{self.charm.snap.conf_path}/jmx_prometheus.yaml"
 
     @property
     def cluster(self) -> Relation:
@@ -222,7 +221,7 @@ class ZooKeeperConfig:
 
         if not current_properties:
             logger.debug("zoo.cfg file not found - using default dynamic path")
-            return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
+            return f"dynamicConfigFile={self.dynamic_filepath}"
 
         for current_property in current_properties:
             if "dynamicConfigFile" in current_property:
@@ -230,7 +229,7 @@ class ZooKeeperConfig:
 
         logger.debug("dynamicConfigFile property missing - using default dynamic path")
 
-        return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
+        return f"dynamicConfigFile={self.dynamic_filepath}"
 
     @property
     def static_properties(self) -> List[str]:
