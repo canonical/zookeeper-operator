@@ -28,6 +28,7 @@ async def test_deploy_active(ops_test: OpsTest):
 
     assert ops_test.model.applications[APP_NAME].status == "active"
 
+
 @pytest.mark.abort_on_fail
 async def test_simple_scale_up(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=3)
