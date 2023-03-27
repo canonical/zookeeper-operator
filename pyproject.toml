@@ -50,6 +50,7 @@ optional = true
 black = "^22.3.0"
 ruff = ">=0.0.157"
 codespell = ">=2.2.2"
+pyright = "^1.1.300"
 
 [tool.poetry.group.unit]
 optional = true
@@ -68,6 +69,10 @@ juju = "==2.9.11"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
 
+
+
+[tool.poetry.group.format.dependencies]
+pyright = "^1.1.300"
 
 [tool.ruff]
 line-length = 99
@@ -93,3 +98,14 @@ target-version="py310"
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[tool.pyright]
+include = ["src"]
+extraPaths = ["./lib"]
+pythonVersion = "3.10"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportIncompatibleMethodOverride = false
+reportImportCycles = false
+reportMissingModuleSource = true
+stubPath = ""
