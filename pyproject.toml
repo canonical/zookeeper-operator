@@ -34,6 +34,7 @@ kazoo = ">=2.8.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
+cosl = ">=0.0.5"
 
 [tool.poetry.group.fmt]
 optional = true
