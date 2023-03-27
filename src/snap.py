@@ -37,12 +37,9 @@ class ZooKeeperSnap:
             apt.add_package(["snapd", "openjdk-17-jre-headless"])
             cache = snap.SnapCache()
             zookeeper = cache[self.SNAP_NAME]
-            node_exporter = cache["node-exporter"]
 
             if not zookeeper.present:
                 zookeeper.ensure(snap.SnapState.Latest, channel="3/edge")
-            if not node_exporter.present:
-                node_exporter.ensure(snap.SnapState.Latest, channel="edge")
 
             self.zookeeper = zookeeper
 
