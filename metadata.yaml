@@ -21,8 +21,8 @@ peers:
 provides:
   zookeeper:
     interface: zookeeper
-  cos-machine:
-    interface: cos_machine
+  cos-agent:
+    interface: cos_agent
 
 requires:
   certificates:
