@@ -23,8 +23,9 @@ APP_NAME = METADATA["name"]
 async def test_deploy_active(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_units=3
+    )
 
     assert ops_test.model.applications[APP_NAME].status == "active"
 
@@ -32,8 +33,9 @@ async def test_deploy_active(ops_test: OpsTest):
 @pytest.mark.abort_on_fail
 async def test_simple_scale_up(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=3)
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 6)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_units=6
+    )
     assert ping_servers(ops_test)
 
 
@@ -42,8 +44,9 @@ async def test_simple_scale_down(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].destroy_units(
         f"{APP_NAME}/5", f"{APP_NAME}/4", f"{APP_NAME}/3"
     )
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_units=3
+    )
     assert ping_servers(ops_test)
 
 
@@ -56,8 +59,9 @@ async def test_scale_up_replication(ops_test: OpsTest):
     password = get_password(model_full_name or "")
     write_key(host=host, password=password)
     await ops_test.model.applications[APP_NAME].add_units(count=1)
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=4
+    )
     check_key(host=host, password=password)
 
 
@@ -66,8 +70,9 @@ async def test_kill_quorum_leader_remove(ops_test: OpsTest):
     """Gracefully removes ZK quorum leader using `juju remove`."""
     await ops_test.model.set_config({"update-status-hook-interval": "1m"})
     await ops_test.model.applications[APP_NAME].destroy_units(f"{APP_NAME}/0")
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
+    )
     assert ping_servers(ops_test)
     await ops_test.model.set_config({"update-status-hook-interval": "60m"})
 
@@ -84,10 +89,9 @@ async def test_kill_juju_leader_remove(ops_test: OpsTest):
 
     if leader:
         await ops_test.model.applications[APP_NAME].destroy_units(leader)
-        await ops_test.model.block_until(
-            lambda: len(ops_test.model.applications[APP_NAME].units) == 2
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=2
         )
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
         assert ping_servers(ops_test)
     await ops_test.model.set_config({"update-status-hook-interval": "60m"})
 
@@ -105,10 +109,9 @@ async def test_kill_juju_leader_restart(ops_test: OpsTest):
     if leader:
         # adding another unit to ensure minimum units for quorum
         await ops_test.model.applications[APP_NAME].add_units(count=1)
-        await ops_test.model.block_until(
-            lambda: len(ops_test.model.applications[APP_NAME].units) == 3
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
         )
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
 
         model_full_name = ops_test.model_full_name
         if model_full_name:
@@ -126,8 +129,9 @@ async def test_same_model_application_deploys(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
     time.sleep(10)
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
-    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=3600)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
+    )
 
     assert ops_test.model.applications[APP_NAME].status == "active"
 
