@@ -23,6 +23,7 @@ provides:
     interface: zookeeper
   cos-agent:
     interface: cos_agent
+    limit: 1
 
 requires:
   certificates:

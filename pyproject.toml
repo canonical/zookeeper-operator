@@ -34,7 +34,7 @@ kazoo = ">=2.8.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
-cosl = ">=0.0.5"
+cosl = ">=0.0.5" # TODO: remove once PYDEPS feature in charmcraft is released
 
 [tool.poetry.group.fmt]
 optional = true
