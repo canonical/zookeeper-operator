@@ -7,12 +7,11 @@
 import logging
 import time
 
-from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
-from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT, NODE_EXPORTER_PORT
+from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -43,23 +42,15 @@ class ZooKeeperCharm(CharmBase):
         self.provider = ZooKeeperProvider(self)
         self.zookeeper_config = ZooKeeperConfig(self)
         self.tls = ZooKeeperTLS(self)
-        self.grafana_dashboards = GrafanaDashboardProvider(self)
-        self.metrics_endpoint = MetricsEndpointProvider(
+        self._grafana_agent = COSAgentProvider(
             self,
-            refresh_event=self.on.start,
-            jobs=[
-                {
-                    "static_configs": [
-                        {
-                            "targets": [
-                                f"*:{NODE_EXPORTER_PORT}",
-                                f"*:{JMX_PORT}",
-                                f"*:{METRICS_PROVIDER_PORT}",
-                            ]
-                        }
-                    ]
-                }
+            metrics_endpoints=[
+                {"path": "/metrics", "port": f"{JMX_PORT}"},
+                {"path": "/metrics", "port": f"{METRICS_PROVIDER_PORT}"},
             ],
+            metrics_rules_dir="./src/alert_rules/prometheus",
+            logs_rules_dir="./src/alert_rules/loki",
+            log_slots=["charmed-zookeeper:logs"],
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
