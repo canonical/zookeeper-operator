@@ -93,9 +93,9 @@ cryptography==39.0.2 ; python_version >= "3.8" \
 kazoo==2.9.0 ; python_version >= "3.8" \
     --hash=sha256:800318c7f3dab648cdf616dfb25bdabeefab2a6837aa6951e0fa3ff80e656969 \
     --hash=sha256:b73dd6829ae6b3a78cd37ba393749f9d30860dbe39debb27c36eff159949a14e
-ops==2.1.1 ; python_version >= "3.8" \
-    --hash=sha256:b2802068557c64121bf50ccfe101b043ed08c02ac5f958e55752c476b09de63d \
-    --hash=sha256:bed9f14b785efaa83f89b9c76b87bd1b3b82b0350c453b41dce778b39c7410b4
+ops==2.2.0 ; python_version >= "3.8" \
+    --hash=sha256:14d4c43f4a4dc0830af1b2cb21313ef93308d3c389f7bedecc14a70b69000b64 \
+    --hash=sha256:90fa55249f5c3a7bcb7cc73731227eac867f9bb8426100d10724fe461de142a8
 pure-sasl==0.6.2 ; python_version >= "3.8" \
     --hash=sha256:53c1355f5da95e2b85b2cc9a6af435518edc20c81193faa0eea65fdc835138f4 \
     --hash=sha256:edb33b1a46eb3c602c0166de0442c0fb41f5ac2bfccbde4775183b105ad89ab2

@@ -18,6 +18,19 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 
 
+def application_active(ops_test: OpsTest, expected_units: int) -> bool:
+    units = ops_test.model.applications[APP_NAME].units
+
+    if len(units) != expected_units:
+        return False
+
+    for unit in units:
+        if unit.workload_status != "active":
+            return False
+
+    return True
+
+
 def get_password(model_full_name: str) -> str:
     # getting relation data
     show_unit = check_output(
