@@ -10,7 +10,7 @@ import re
 import shutil
 import socket
 import subprocess
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
@@ -22,6 +22,9 @@ from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Unit
 from utils import generate_password, safe_write_to_file
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +38,7 @@ class ZooKeeperTLS(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "tls")
-        self.charm = charm
+        self.charm: "ZooKeeperCharm" = charm
         self.config_path = self.charm.snap.conf_path
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
 
@@ -138,7 +141,10 @@ class ZooKeeperTLS(Object):
         Returns:
             True if the cluster is running `portUnification`. Otherwise False
         """
-        if self.charm.cluster.relation.data[unit].get("unified"):
+        if not self.charm.peer_relation:
+            return False
+
+        if self.charm.peer_relation.data[unit].get("unified"):
             return True
 
         return False

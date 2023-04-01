@@ -7,7 +7,7 @@
 
 import logging
 import re
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -18,6 +18,9 @@ from charms.zookeeper.v0.client import (
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
 from ops.model import Unit
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ class ZooKeeperCluster:
 
     def __init__(
         self,
-        charm,
+        charm: "ZooKeeperCharm",
         client_port: int = 2181,
         secure_client_port: int = 2182,
         server_port: int = 2888,
@@ -55,7 +58,7 @@ class ZooKeeperCluster:
         Returns:
             Set of units in the current peer relation, including the running unit
         """
-        if not self.charm.relation:
+        if not self.charm.peer_relation:
             return set()
 
         return set([self.charm.unit] + list(self.charm.peer_relation.units))
@@ -96,6 +99,9 @@ class ZooKeeperCluster:
             Set of units with unit data "state" == "started". Shows only those units
                 currently found related to the current unit.
         """
+        if not self.charm.peer_relation:
+            return set()
+
         started_units = set()
         for unit in self.peer_units:
             if self.charm.peer_relation.data[unit].get("state", None) == "started":
@@ -227,6 +233,9 @@ class ZooKeeperCluster:
             UnitNotFoundError: When the target unit can't be found in the unit relation data,
                 and/or cannot extract the private-address
         """
+        if not self.charm.peer_relation:
+            return {}
+
         unit_id = None
         server_id = None
         if isinstance(unit, Unit):
@@ -409,6 +418,9 @@ class ZooKeeperCluster:
         Returns:
             result : bool
         """
+        if not self.charm.peer_relation:
+            return False
+
         all_finished = True
         for unit in self.peer_units:
             if self.charm.peer_relation.data[unit].get("password-rotated") is None:
@@ -467,6 +479,9 @@ class ZooKeeperCluster:
             True if all units are running the quorum encryption in app data.
                 Otherwise False.
         """
+        if not self.charm.peer_relation:
+            return False
+
         unit_quorums = set()
         for unit in self.peer_units:
             unit_quorum = self.charm.peer_relation.data[unit].get("quorum", None)

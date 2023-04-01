@@ -5,10 +5,13 @@
 """Manager for handling ZooKeeper auth configuration."""
 
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from literals import JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from utils import safe_get_file, safe_write_to_file
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ class ZooKeeperConfig:
     """Manager for handling ZooKeeper auth configuration."""
 
     def __init__(self, charm):
-        self.charm = charm
+        self.charm: "ZooKeeperCharm" = charm
         self.properties_filepath = f"{self.charm.snap.conf_path}/zoo.cfg"
         self.log4j_properties_filepath = f"{self.charm.snap.conf_path}/log4j.properties"
         self.dynamic_filepath = f"{self.charm.snap.conf_path}/zookeeper-dynamic.properties"

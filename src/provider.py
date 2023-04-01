@@ -6,7 +6,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -23,6 +23,9 @@ from ops.framework import EventBase, Object
 from ops.model import Relation
 from utils import generate_password
 
+if TYPE_CHECKING:
+    from charm import ZooKeeperCharm
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +35,7 @@ class ZooKeeperProvider(Object):
     def __init__(self, charm) -> None:
         super().__init__(charm, "client")
 
-        self.charm = charm
+        self.charm: "ZooKeeperCharm" = charm
 
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
@@ -255,9 +258,9 @@ class ZooKeeperProvider(Object):
             )
 
             logger.debug(f"setting relation data - {relation_data.items()}")
-            self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
-                relation_data
-            )
+
+            if relation := self.charm.model.get_relation(REL_NAME, int(relation_id)):
+                relation.data[self.charm.app].update(relation_data)
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_joined` events.
@@ -309,8 +312,8 @@ class ZooKeeperProvider(Object):
 
         if self.charm.unit.is_leader():
             username = f"relation-{event.relation.id}"
-            if username in self.charm.cluster.relation.data[self.charm.app]:
-                del self.charm.cluster.relation.data[self.charm.app][username]
+            if username in self.charm.app_peer_data:
+                del self.charm.app_peer_data[username]
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)
