@@ -6,12 +6,13 @@
 
 import logging
 import time
+from collections.abc import MutableMapping
 
-from charms.grafana_agent.v0.cos_agent import COSAgentProvider
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider, Optional, Relation
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT
+from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT, PEER
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -80,6 +81,27 @@ class ZooKeeperCharm(CharmBase):
         )
         self.framework.observe(getattr(self.on, "set_password_action"), self._set_password_action)
 
+    @property
+    def peer_relation(self) -> Optional[Relation]:
+        """The cluster peer relation."""
+        return self.model.get_relation(PEER)
+
+    @property
+    def app_peer_data(self) -> MutableMapping[str, str]:
+        """Application peer relation data object."""
+        if not self.peer_relation:
+            return {}
+
+        return self.peer_relation.data[self.app]
+
+    @property
+    def unit_peer_data(self) -> MutableMapping[str, str]:
+        """Unit peer relation data object."""
+        if not self.peer_relation:
+            return {}
+
+        return self.peer_relation.data[self.unit]
+
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
         self.unit.status = MaintenanceStatus("installing ZooKeeper Snap")
@@ -89,7 +111,7 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = BlockedStatus("unable to install ZooKeeper Snap")
 
         # don't complete install until passwords set
-        if not self.cluster.relation:
+        if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
@@ -98,12 +120,12 @@ class ZooKeeperCharm(CharmBase):
 
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
-            self.cluster.relation.data[self.app].update({"quorum": "default - non-ssl"})
+            self.app_peer_data.update({"quorum": "default - non-ssl"})
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
         # not all methods called
-        if not self.cluster.relation:
+        if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
@@ -148,10 +170,10 @@ class ZooKeeperCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
         # Indicate that unit has completed restart on password rotation
-        if self.cluster.relation.data[self.app].get("rotate-passwords"):
-            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+        if self.app_peer_data.get("rotate-passwords"):
+            self.unit_peer_data["password-rotated"] = "true"
 
-        self.cluster.relation.data[self.unit].update(
+        self.unit_peer_data.update(
             {
                 # flag to declare unit running `portUnification` during ssl<->no-ssl upgrade
                 "unified": "true" if self.tls.upgrading else "",
@@ -203,7 +225,7 @@ class ZooKeeperCharm(CharmBase):
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} started")
 
         # added here in case a `restart` was missed
-        self.cluster.relation.data[self.unit].update(
+        self.unit_peer_data.update(
             {
                 "state": "started",
                 "unified": "true" if self.tls.upgrading else "",
@@ -258,8 +280,8 @@ class ZooKeeperCharm(CharmBase):
             return
 
         if not self.cluster.passwords_set:
-            self.cluster.relation.data[self.app].update({"sync-password": generate_password()})
-            self.cluster.relation.data[self.app].update({"super-password": generate_password()})
+            self.app_peer_data.update({"sync-password": generate_password()})
+            self.app_peer_data.update({"super-password": generate_password()})
 
     def update_quorum(self, event: EventBase) -> None:
         """Updates the server quorum members for all currently started units in the relation.
@@ -282,7 +304,7 @@ class ZooKeeperCharm(CharmBase):
             updated_servers = self.cluster.update_cluster()
             logger.debug(f"{updated_servers=}")
             # triggers a `cluster_relation_changed` to wake up following units
-            self.cluster.relation.data[self.app].update(updated_servers)
+            self.app_peer_data.update(updated_servers)
 
         # default startup without ssl relation
         logger.debug("updating quorum - checking cluster stability")
@@ -295,14 +317,14 @@ class ZooKeeperCharm(CharmBase):
             logger.debug("all units unified")
             if self.tls.enabled:
                 logger.debug("tls enabled - switching to ssl")
-                self.cluster.relation.data[self.app].update({"quorum": "ssl"})
+                self.app_peer_data.update({"quorum": "ssl"})
             else:
                 logger.debug("tls disabled - switching to non-ssl")
-                self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
+                self.app_peer_data.update({"quorum": "non-ssl"})
 
             if self.cluster.all_units_quorum:
                 logger.debug("all units running desired encryption - removing upgrading")
-                self.cluster.relation.data[self.app].update({"upgrading": ""})
+                self.app_peer_data.update({"upgrading": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
 
         if self.provider.ready:
@@ -316,14 +338,12 @@ class ZooKeeperCharm(CharmBase):
         # units need to exist in the app data to be iterated through for next_turn
         for unit in self.cluster.started_units:
             unit_id = self.cluster.get_unit_id(unit)
-            current_value = self.cluster.relation.data[self.app].get(str(unit_id), None)
+            current_value = self.app_peer_data.get(str(unit_id), None)
 
             # sets to "added" for init quorum leader, if not already exists
             # may already exist if during the case of a failover of the first unit
             if unit_id == self.cluster.lowest_unit_id:
-                self.cluster.relation.data[self.app].update(
-                    {str(unit_id): current_value or "added"}
-                )
+                self.app_peer_data.update({str(unit_id): current_value or "added"})
 
     def rotate_passwords(self) -> bool:
         """Handle password rotation and check the status of the process.
@@ -335,14 +355,14 @@ class ZooKeeperCharm(CharmBase):
             bool: True when password rotation is finished, false otherwise.
         """
         # Logic for password rotation
-        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+        if self.app_peer_data.get("rotate-passwords"):
             # All units have rotated the password, we can remove the global flag
             if self.unit.is_leader() and self.cluster._all_rotated():
-                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+                self.app_peer_data["rotate-passwords"] = ""
                 return False
 
             # Own unit finished rotation, no need to issue a new lock
-            if self.cluster.relation.data[self.unit].get("password-rotated"):
+            if self.unit_peer_data.get("password-rotated"):
                 return False
 
             logger.info("Acquiring lock for password rotation")
@@ -352,7 +372,7 @@ class ZooKeeperCharm(CharmBase):
         else:
             # After removal of global flag, each unit can reset its state so more
             # password rotations can happen
-            self.cluster.relation.data[self.unit]["password-rotated"] = ""
+            self.unit_peer_data["password-rotated"] = ""
             return True
 
     def _get_super_password_action(self, event: ActionEvent) -> None:
@@ -390,10 +410,10 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # Store those passwords on application databag
-        self.cluster.relation.data[self.app].update({f"{username}-password": new_password})
+        self.app_peer_data.update({f"{username}-password": new_password})
 
         # Add password flag
-        self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
+        self.app_peer_data["rotate-passwords"] = "true"
         event.set_results({f"{username}-password": new_password})
 
 

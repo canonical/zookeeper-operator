@@ -17,7 +17,7 @@ from charms.zookeeper.v0.client import (
 from cluster import UnitNotFoundError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
-from literals import PEER, REL_NAME
+from literals import REL_NAME
 from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
 from ops.model import Relation
@@ -40,11 +40,6 @@ class ZooKeeperProvider(Object):
         self.framework.observe(
             self.charm.on[REL_NAME].relation_broken, self._on_client_relation_broken
         )
-
-    @property
-    def app_relation(self) -> Relation:
-        """Gets the current ZK peer relation."""
-        return self.charm.model.get_relation(PEER)
 
     @property
     def client_relations(self) -> List[Relation]:
@@ -75,7 +70,7 @@ class ZooKeeperProvider(Object):
         username = f"relation-{relation.id}"
 
         # Default to empty string in case passwords not set
-        password = self.app_relation.data[self.charm.app].get(username, "")
+        password = self.charm.app_peer_data.get(username, "")
         if password:
             acls_added = "true"
         else:
@@ -295,7 +290,7 @@ class ZooKeeperProvider(Object):
         if relation_config and relation_config.get("acls-added"):
             logger.debug(f"updating passwords for {getattr(event.app, 'name', None)}")
             # triggers relation_changed for other units to restart
-            self.app_relation.data[self.charm.app].update(
+            self.charm.app_peer_data.update(
                 {relation_config["username"]: relation_config["password"]}
             )
 

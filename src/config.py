@@ -7,8 +7,7 @@
 import logging
 from typing import List
 
-from literals import JMX_PORT, METRICS_PROVIDER_PORT, PEER, REL_NAME
-from ops.model import Relation
+from literals import JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from utils import safe_get_file, safe_write_to_file
 
 logger = logging.getLogger(__name__)
@@ -59,15 +58,6 @@ class ZooKeeperConfig:
         self.jmx_prometheus_config_filepath = f"{self.charm.snap.conf_path}/jmx_prometheus.yaml"
 
     @property
-    def cluster(self) -> Relation:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The peer relation instance
-        """
-        return self.charm.model.get_relation(PEER)
-
-    @property
     def server_jvmflags(self) -> List[str]:
         """Builds necessary server JVM flag env-vars for the ZooKeeper Snap."""
         return [
@@ -99,7 +89,7 @@ class ZooKeeperConfig:
         jaas_users = []
         for relation in client_relations:
             username = f"relation-{relation.id}"
-            password = self.cluster.data[self.charm.app].get(username, None)
+            password = self.charm.app_peer_data.get(username, None)
 
             if not (username and password):
                 continue
@@ -122,8 +112,8 @@ class ZooKeeperConfig:
         Returns:
             String of JAAS config for super/user config
         """
-        sync_password = self.cluster.data[self.charm.app].get("sync-password", None)
-        super_password = self.cluster.data[self.charm.app].get("super-password", None)
+        sync_password = self.charm.app_peer_data.get("sync-password", None)
+        super_password = self.charm.app_peer_data.get("super-password", None)
         users = "\n".join(self.jaas_users) or ""
 
         return f"""
