@@ -42,6 +42,7 @@ class ZooKeeperSnap:
                 zookeeper.ensure(snap.SnapState.Latest, channel="3/edge")
 
             self.zookeeper = zookeeper
+            self.zookeeper.hold()
 
             return True
         except (snap.SnapError, apt.PackageNotFoundError) as e:
