@@ -42,8 +42,8 @@ def test_install_fails_create_passwords_until_peer_relation(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.set_leader(True)
 
-    assert not harness.charm.cluster.relation.data[harness.charm.app].get("sync-password", None)
-    assert not harness.charm.cluster.relation.data[harness.charm.app].get("super-password", None)
+    assert not harness.charm.app_peer_data.get("sync-password", None)
+    assert not harness.charm.app_peer_data.get("super-password", None)
 
 
 def test_install_fails_creates_passwords_succeeds(harness):
@@ -55,8 +55,8 @@ def test_install_fails_creates_passwords_succeeds(harness):
     with patch("snap.ZooKeeperSnap.install"):
         harness.charm.on.install.emit()
 
-        assert harness.charm.cluster.relation.data[harness.charm.app].get("sync-password", None)
-        assert harness.charm.cluster.relation.data[harness.charm.app].get("super-password", None)
+        assert harness.charm.app_peer_data.get("sync-password", None)
+        assert harness.charm.app_peer_data.get("super-password", None)
 
 
 def test_install_blocks_snap_install_failure(harness):
@@ -97,7 +97,7 @@ def test_relation_changed_emitted_for_relation_changed(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
     with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
-        harness.charm.on.cluster_relation_changed.emit(harness.charm.cluster.relation)
+        harness.charm.on.cluster_relation_changed.emit(harness.charm.peer_relation)
         patched.assert_called_once()
 
 
@@ -107,7 +107,7 @@ def test_relation_changed_emitted_for_relation_joined(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
     with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
-        harness.charm.on.cluster_relation_joined.emit(harness.charm.cluster.relation)
+        harness.charm.on.cluster_relation_joined.emit(harness.charm.peer_relation)
         patched.assert_called_once()
 
 
@@ -117,7 +117,7 @@ def test_relation_changed_emitted_for_relation_departed(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
     with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
-        harness.charm.on.cluster_relation_departed.emit(harness.charm.cluster.relation)
+        harness.charm.on.cluster_relation_departed.emit(harness.charm.peer_relation)
         patched.assert_called_once()
 
 
@@ -329,10 +329,7 @@ def test_restart_sets_password_rotated_on_unit(harness):
     ):
         harness.charm._restart(EventBase)
 
-    assert (
-        harness.charm.cluster.relation.data[harness.charm.unit].get("password-rotated", None)
-        == "true"
-    )
+    assert harness.charm.unit_peer_data.get("password-rotated", None) == "true"
 
 
 def test_restart_sets_unified(harness):
@@ -349,9 +346,7 @@ def test_restart_sets_unified(harness):
         patch("time.sleep"),
     ):
         harness.charm._restart(EventBase)
-        assert (
-            harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None) == "true"
-        )
+        assert harness.charm.unit_peer_data.get("unified", None) == "true"
 
         harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": ""})
         with (
@@ -360,7 +355,7 @@ def test_restart_sets_unified(harness):
             patch("time.sleep"),
         ):
             harness.charm._restart(EventBase)
-            assert not harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None)
+            assert not harness.charm.unit_peer_data.get("unified", None)
 
 
 def test_init_server_maintenance_if_no_passwords(harness):
@@ -422,13 +417,9 @@ def test_init_server_calls_necessary_methods(harness):
         zookeeper_jaas_config.assert_called_once()
         start.assert_called_once()
 
-        assert harness.charm.cluster.relation.data[harness.charm.unit].get("quorum", None) == "ssl"
-        assert (
-            harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None) == "true"
-        )
-        assert (
-            harness.charm.cluster.relation.data[harness.charm.unit].get("state", None) == "started"
-        )
+        assert harness.charm.unit_peer_data.get("quorum", None) == "ssl"
+        assert harness.charm.unit_peer_data.get("unified", None) == "true"
+        assert harness.charm.unit_peer_data.get("state", None) == "started"
 
         assert isinstance(harness.charm.unit.status, ActiveStatus)
 
@@ -471,7 +462,7 @@ def test_adding_units_updates_relation_data(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/1", {"quorum": "ssl"})
 
-        assert harness.charm.cluster.relation.data[harness.charm.app].get("1", None) == "added"
+        assert harness.charm.app_peer_data.get("1", None) == "added"
 
 
 def test_update_quorum_skips_relation_departed(harness):
@@ -540,7 +531,7 @@ def test_update_quorum_does_not_set_ssl_quorum_until_unified(harness):
 
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"unified": ""})
 
-    assert not harness.charm.cluster.relation.data[harness.charm.app].get("quorum", None) == "ssl"
+    assert not harness.charm.app_peer_data.get("quorum", None) == "ssl"
 
 
 def test_update_quorum_does_not_unset_upgrading_until_all_quorum(harness):
@@ -554,7 +545,7 @@ def test_update_quorum_does_not_unset_upgrading_until_all_quorum(harness):
 
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"quorum": "non-ssl"})
 
-    assert not harness.charm.cluster.relation.data[harness.charm.app].get("quorum", None) == "ssl"
+    assert not harness.charm.app_peer_data.get("quorum", None) == "ssl"
 
 
 def test_update_quorum_unsets_upgrading_when_all_quorum(harness):
@@ -569,7 +560,7 @@ def test_update_quorum_unsets_upgrading_when_all_quorum(harness):
 
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"quorum": "ssl"})
 
-    assert harness.charm.cluster.relation.data[harness.charm.app].get("quorum", None) == "ssl"
+    assert harness.charm.app_peer_data.get("quorum", None) == "ssl"
 
 
 def test_config_changed_applies_relation_data(harness):
@@ -728,7 +719,7 @@ def test_init_leader_is_added(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
         harness.set_planned_units(2)
 
-        assert harness.charm.cluster.relation.data[harness.charm.app].get("0", None) == "added"
+        assert harness.charm.app_peer_data.get("0", None) == "added"
 
 
 def test_update_status_updates_quorum(harness):
