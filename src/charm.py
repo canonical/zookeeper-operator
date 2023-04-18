@@ -46,8 +46,8 @@ class ZooKeeperCharm(CharmBase):
         self._grafana_agent = COSAgentProvider(
             self,
             metrics_endpoints=[
-                {"path": "/metrics", "port": f"{JMX_PORT}"},
-                {"path": "/metrics", "port": f"{METRICS_PROVIDER_PORT}"},
+                {"path": "/metrics", "port": JMX_PORT},
+                {"path": "/metrics", "port": METRICS_PROVIDER_PORT},
             ],
             metrics_rules_dir="./src/alert_rules/prometheus",
             logs_rules_dir="./src/alert_rules/loki",
