@@ -55,7 +55,7 @@ class ZooKeeperCharm(CharmBase):
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
-        self.framework.observe(getattr(self.on, "start"), self._restart)
+        self.framework.observe(getattr(self.on, "start"), self._manual_restart)
         self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
@@ -152,6 +152,17 @@ class ZooKeeperCharm(CharmBase):
         # ensures events aren't lost during an upgrade on single units
         if self.tls.upgrading and len(self.cluster.peer_units) == 1:
             event.defer()
+
+    def _manual_restart(self, event: EventBase) -> None:
+        """Forces a rolling-restart event.
+
+        Necessary for ensuring that `on_start` restarts roll.
+        """
+        if not self.peer_relation or not self.cluster.stable:
+            event.defer()
+            return
+
+        self.on[f"{self.restart.name}"].acquire_lock.emit()
 
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""

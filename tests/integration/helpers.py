@@ -140,6 +140,8 @@ def srvr(host: str) -> Dict:
         f"echo srvr | nc {host} 2181", stderr=PIPE, shell=True, universal_newlines=True
     )
 
+    assert response, "ZooKeeper not running"
+
     result = {}
     for item in response.splitlines():
         k = re.split(": ", item)[0]

@@ -8,7 +8,7 @@ import logging
 from typing import TYPE_CHECKING, List
 
 from literals import JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
-from utils import safe_get_file, safe_write_to_file
+from utils import safe_get_file, safe_write_to_file, update_env
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
@@ -239,13 +239,7 @@ class ZooKeeperConfig:
 
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
-        server_jvmflags = " ".join(self.server_jvmflags)
-        jmx_jvmflags = " ".join(self.jmx_jvmflags)
-        safe_write_to_file(
-            content=f"SERVER_JVMFLAGS='{server_jvmflags} {jmx_jvmflags}'",
-            path="/etc/environment",
-            mode="w",
-        )
+        update_env(env={"SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)})
 
     def set_zookeeper_properties(self) -> None:
         """Writes built zoo.cfg file."""
