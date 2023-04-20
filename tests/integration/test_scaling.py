@@ -69,17 +69,21 @@ async def test_scale_up_replication(ops_test: OpsTest):
         lambda: application_active(ops_test, expected_units=3), timeout=600
     )
     assert ping_servers(ops_test)
+
     host = ops_test.model.applications[APP_NAME].units[0].public_address
     model_full_name = ops_test.model_full_name
     password = get_password(model_full_name or "")
     write_key(host=host, password=password)
+
     await ops_test.model.applications[APP_NAME].add_units(count=1)
     await ops_test.model.block_until(
         lambda: application_active(ops_test, expected_units=4), timeout=3600
     )
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", timeout=1000, idle_period=30, wait_for_exact_units=4
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=60, wait_for_exact_units=4
     )
+
+    host = ops_test.model.applications[APP_NAME].units[3].public_address
     check_key(host=host, password=password)
 
 

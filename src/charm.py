@@ -153,11 +153,15 @@ class ZooKeeperCharm(CharmBase):
         if self.tls.upgrading and len(self.cluster.peer_units) == 1:
             event.defer()
 
-    def _manual_restart(self, _: EventBase) -> None:
+    def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
 
         Necessary for ensuring that `on_start` restarts roll.
         """
+        if not self.peer_relation or not self.cluster.stable:
+            event.defer()
+            return
+
         self.on[f"{self.restart.name}"].acquire_lock.emit()
 
     def _restart(self, event: EventBase) -> None:
