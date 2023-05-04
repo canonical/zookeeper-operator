@@ -39,6 +39,7 @@ class ZooKeeperSnap:
             cache = snap.SnapCache()
             zookeeper = cache[self.SNAP_NAME]
 
+
             if not zookeeper.present:
                 zookeeper.ensure(snap.SnapState.Present, revision=ZOOKEEPER_SNAP_REVISION)
 
