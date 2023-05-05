@@ -7,7 +7,7 @@ import logging
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
-from literals import ZOOKEEPER_SNAP_REVISION
+from literals import CHARMED_ZOOKEEPER_SNAP_REVISION
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class ZooKeeperSnap:
             zookeeper = cache[self.SNAP_NAME]
 
             if not zookeeper.present:
-                zookeeper.ensure(snap.SnapState.Present, revision=ZOOKEEPER_SNAP_REVISION)
+                zookeeper.ensure(snap.SnapState.Present, revision=CHARMED_ZOOKEEPER_SNAP_REVISION)
 
             self.zookeeper = zookeeper
             self.zookeeper.hold()
