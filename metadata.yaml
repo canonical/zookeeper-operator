@@ -30,3 +30,10 @@ requires:
     interface: tls-certificates
     limit: 1
     optional: true
+
+storage:
+  data:
+    type: filesystem
+    description: Directories where the log data is stored
+    minimum-size: 10G
+    location: /var/snap/charmed-zookeeper/common/var/lib/zookeeper
