@@ -34,11 +34,6 @@ requires:
 storage:
   data:
     type: filesystem
-    description: Directories where the snapshot data is stored
+    description: Directories where snapshot and transaction data is stored
     minimum-size: 10G
-    location: /var/snap/charmed-zookeeper/common/var/lib/zookeeper/data
-  data-log:
-    type: filesystem
-    description: Directories where the transaction log data is stored
-    minimum-size: 10G
-    location: /var/snap/charmed-zookeeper/common/var/lib/zookeeper/data-log
+    location: /var/snap/charmed-zookeeper/common/var/lib/zookeeper

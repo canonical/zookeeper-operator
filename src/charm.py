@@ -216,7 +216,7 @@ class ZooKeeperCharm(CharmBase):
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} initializing")
 
         # setting default properties
-        self.zookeeper_config.set_zookeeper_myid()
+        self.zookeeper_config.set_zookeeper_data()
         self.zookeeper_config.set_server_jvmflags()
 
         # servers properties needs to be written to dynamic config
