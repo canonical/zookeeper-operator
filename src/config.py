@@ -7,7 +7,7 @@
 import logging
 from typing import TYPE_CHECKING, List
 
-from literals import JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
+from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from utils import safe_get_file, safe_write_to_file, update_env
 
 if TYPE_CHECKING:
@@ -153,8 +153,8 @@ class ZooKeeperConfig:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={self.charm.snap.data_path}",
-                f"dataLogDir={self.charm.snap.logs_path}",
+                f"dataDir={self.charm.snap.data_path}/{DATA_DIR}",
+                f"dataLogDir={self.charm.snap.data_path}/{DATALOG_DIR}",
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
@@ -257,7 +257,7 @@ class ZooKeeperConfig:
         """Writes ZooKeeper myid file to config/data."""
         safe_write_to_file(
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
-            path=f"{self.charm.snap.data_path}/myid",
+            path=f"{self.charm.snap.data_path}/{DATA_DIR}/myid",
         )
 
     @staticmethod
