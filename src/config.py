@@ -5,7 +5,6 @@
 """Manager for handling ZooKeeper auth configuration."""
 
 import logging
-import os
 from typing import TYPE_CHECKING, List
 
 from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
@@ -254,11 +253,8 @@ class ZooKeeperConfig:
         """Writes zookeeper-dynamic.properties containing server connection strings."""
         safe_write_to_file(content=servers, path=self.dynamic_filepath, mode="w")
 
-    def set_zookeeper_data(self) -> None:
-        """Writes ZooKeeper myid file to, and creates necessary data dirs."""
-        os.makedirs(os.path.dirname(f"{self.charm.snap.data_path}/{DATA_DIR}"), exist_ok=True)
-        os.makedirs(os.path.dirname(f"{self.charm.snap.data_path}/{DATALOG_DIR}"), exist_ok=True)
-
+    def set_zookeeper_myid(self) -> None:
+        """Writes ZooKeeper myid file to data dir."""
         safe_write_to_file(
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
             path=f"{self.charm.snap.data_path}/{DATA_DIR}/myid",

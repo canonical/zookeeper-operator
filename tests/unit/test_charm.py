@@ -399,7 +399,7 @@ def test_init_server_calls_necessary_methods(harness):
         )
     with (
         patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=True),
-        patch("config.ZooKeeperConfig.set_zookeeper_data") as zookeeper_data,
+        patch("config.ZooKeeperConfig.set_zookeeper_myid") as zookeeper_myid,
         patch("config.ZooKeeperConfig.set_server_jvmflags") as server_jvmflags,
         patch(
             "config.ZooKeeperConfig.set_zookeeper_dynamic_properties"
@@ -407,16 +407,18 @@ def test_init_server_calls_necessary_methods(harness):
         patch("config.ZooKeeperConfig.set_zookeeper_properties") as zookeeper_properties,
         patch("config.ZooKeeperConfig.set_jaas_config") as zookeeper_jaas_config,
         patch("snap.ZooKeeperSnap.start_snap_service") as start,
+        patch("charm.safe_make_dir") as safe_make_dir,
     ):
         harness.charm.init_server()
 
-        zookeeper_data.assert_called_once()
+        zookeeper_myid.assert_called_once()
         server_jvmflags.assert_called_once()
         zookeeper_dynamic_properties.assert_called_once()
         zookeeper_properties.assert_called_once()
         zookeeper_jaas_config.assert_called_once()
         start.assert_called_once()
 
+        assert safe_make_dir.call_count == 2
         assert harness.charm.unit_peer_data.get("quorum", None) == "ssl"
         assert harness.charm.unit_peer_data.get("unified", None) == "true"
         assert harness.charm.unit_peer_data.get("state", None) == "started"

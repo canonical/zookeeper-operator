@@ -14,6 +14,16 @@ from typing import List, Optional
 logger = logging.getLogger(__name__)
 
 
+def safe_make_dir(path: str) -> None:
+    """Ensures destination directory.
+
+    Args:
+        path: the full directory filepath to create
+    """
+    os.makedirs(path, exist_ok=True)
+    shutil.chown(path, user="snap_daemon", group="root")
+
+
 def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
     """Ensures destination filepath exists before writing.
 
@@ -22,7 +32,7 @@ def safe_write_to_file(content: str, path: str, mode: str = "w") -> None:
         path: the full destination filepath
         mode: the write mode. Usually "w" for write, or "a" for append. Default "w"
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    safe_make_dir(path=os.path.dirname(path))
     with open(path, mode) as f:
         f.write(content)
 
