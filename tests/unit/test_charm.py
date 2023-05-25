@@ -407,6 +407,7 @@ def test_init_server_calls_necessary_methods(harness):
         patch("config.ZooKeeperConfig.set_zookeeper_properties") as zookeeper_properties,
         patch("config.ZooKeeperConfig.set_jaas_config") as zookeeper_jaas_config,
         patch("snap.ZooKeeperSnap.start_snap_service") as start,
+        patch("charm.safe_make_dir") as safe_make_dir,
     ):
         harness.charm.init_server()
 
@@ -417,6 +418,7 @@ def test_init_server_calls_necessary_methods(harness):
         zookeeper_jaas_config.assert_called_once()
         start.assert_called_once()
 
+        assert safe_make_dir.call_count == 2
         assert harness.charm.unit_peer_data.get("quorum", None) == "ssl"
         assert harness.charm.unit_peer_data.get("unified", None) == "true"
         assert harness.charm.unit_peer_data.get("state", None) == "started"

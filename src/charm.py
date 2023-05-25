@@ -12,7 +12,15 @@ from charms.grafana_agent.v0.cos_agent import COSAgentProvider, Optional, Relati
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS, JMX_PORT, METRICS_PROVIDER_PORT, PEER
+from literals import (
+    CHARM_KEY,
+    CHARM_USERS,
+    DATA_DIR,
+    DATALOG_DIR,
+    JMX_PORT,
+    METRICS_PROVIDER_PORT,
+    PEER,
+)
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -26,7 +34,7 @@ from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingSta
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
 from tls import ZooKeeperTLS
-from utils import generate_password, safe_get_file
+from utils import generate_password, safe_get_file, safe_make_dir
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +222,10 @@ class ZooKeeperCharm(CharmBase):
 
         self.unit.status = MaintenanceStatus("starting ZooKeeper server")
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} initializing")
+
+        # creating necessary dirs + permissions
+        safe_make_dir(path=f"{self.snap.data_path}/{DATA_DIR}")
+        safe_make_dir(path=f"{self.snap.data_path}/{DATALOG_DIR}")
 
         # setting default properties
         self.zookeeper_config.set_zookeeper_myid()
