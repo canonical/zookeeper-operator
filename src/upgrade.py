@@ -78,6 +78,7 @@ class ZooKeeperUpgrade(DataUpgrade):
         for unit in self.charm.cluster.peer_units:
             config = self.charm.cluster.unit_config(unit=unit)
 
+            # upgrade quorum leader last
             if config["host"] == self.client.leader:
                 upgrade_stack.insert(0, config["unit_id"])
             else:
@@ -94,8 +95,9 @@ class ZooKeeperUpgrade(DataUpgrade):
         self.charm._restart(event)
 
         try:
+            # retry a few times in case it takes a while to re-join quorum?
             for _ in Retrying(wait=wait_fixed(3), stop=stop_after_attempt(2), reraise=True):
-                self.pre_upgrade_check()
+                self.pre_upgrade_check()  # TODO: other checks? Replication check maybe?
 
             self.set_unit_completed()
 
