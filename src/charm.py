@@ -20,6 +20,7 @@ from literals import (
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     PEER,
+    DEPENDENCIES,
 )
 from ops.charm import (
     ActionEvent,
@@ -33,6 +34,7 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
+from src.upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 from tls import ZooKeeperTLS
 from utils import generate_password, safe_get_file, safe_make_dir
 
@@ -60,6 +62,12 @@ class ZooKeeperCharm(CharmBase):
             metrics_rules_dir="./src/alert_rules/prometheus",
             logs_rules_dir="./src/alert_rules/loki",
             log_slots=["charmed-zookeeper:logs"],
+        )
+        self.upgrade = ZooKeeperUpgrade(
+            self,
+            dependency_model=ZooKeeperDependencyModel(
+                **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
+            ),
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
