@@ -17,7 +17,7 @@ r"""Handler for `upgrade` relation events for in-place upgrades on VMs."""
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Literal, Optional
+from typing import Iterable, List, Literal, Optional, Tuple
 
 from ops.charm import (
     ActionEvent,
@@ -39,7 +39,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 logger = logging.getLogger(__name__)
 
@@ -439,11 +439,11 @@ class DataUpgrade(Object, ABC):
             self.charm.on[relation_name].relation_changed, self.on_upgrade_changed
         )
         self.framework.observe(self.charm.on.upgrade_charm, self._on_upgrade_charm)
-        self.framework.observe(getattr(self.charm.on, "upgrade_granted"), self._on_upgrade_granted)
+        self.framework.observe(getattr(self.on, "upgrade_granted"), self._on_upgrade_granted)
 
         # actions
         self.framework.observe(
-            getattr(self.on, "pre_upgrade_check_action"), self._on_pre_upgrade_check_action
+            getattr(self.charm.on, "pre_upgrade_check_action"), self._on_pre_upgrade_check_action
         )
 
     @property
@@ -452,8 +452,8 @@ class DataUpgrade(Object, ABC):
         return self.charm.model.get_relation(self.relation_name)
 
     @property
-    def peer_units(self) -> Iterable[Unit]:
-        """The upgrade peer units."""
+    def app_units(self) -> Iterable[Unit]:
+        """The peer-related units in the application."""
         if not self.peer_relation:
             return []
 
@@ -530,7 +530,7 @@ class DataUpgrade(Object, ABC):
         if not self.peer_relation:
             return None
 
-        states = [self.peer_relation.data[unit].get("state", "") for unit in self.peer_units]
+        states = [self.peer_relation.data[unit].get("state", "") for unit in self.app_units]
 
         try:
             return sorted(states, key=self.STATES.index)[0]
@@ -559,7 +559,7 @@ class DataUpgrade(Object, ABC):
         """
         # don't raise if k8s substrate, uses default statefulset order
         if self.substrate == "k8s":
-            pass
+            return []
 
         raise NotImplementedError
 
@@ -621,7 +621,7 @@ class DataUpgrade(Object, ABC):
             if self.substrate == "k8s":
                 logger.info("Building upgrade stack for K8s...")
                 built_upgrade_stack = sorted(
-                    [int(unit.name.split("/")[1]) for unit in self.peer_units]
+                    [int(unit.name.split("/")[1]) for unit in self.app_units]
                 )
             else:
                 logger.info("Building upgrade stack for VMs...")
@@ -649,15 +649,31 @@ class DataUpgrade(Object, ABC):
         """
         keys = self.dependency_model.__fields__.keys()
 
+        compatible = True
+        incompatibilities: List[Tuple[str, str, str, str]] = []
         for key in keys:
             old_dep: DependencyModel = getattr(self.stored_dependencies, key)
             new_dep: DependencyModel = getattr(self.dependency_model, key)
 
             if not old_dep.can_upgrade(dependency=new_dep):
-                raise VersionError(
-                    message="Versions incompatible - {key} {old_dep.version} can not be upgraded to {new_dep.version}",
-                    cause=f"Upgrades only supported from {key} versions satisfying requirement {new_dep.version}",
+                compatible = False
+                incompatibilities.append(
+                    (key, old_dep.version, new_dep.version, new_dep.upgrade_supported)
                 )
+
+        base_message = "Versions incompatible"
+        base_cause = "Upgrades only supported for specific versions"
+        if not compatible:
+            for incompat in incompatibilities:
+                base_message += (
+                    f", {incompat[0]} {incompat[1]} can not be upgraded to {incompat[2]}"
+                )
+                base_cause += f", {incompat[0]} versions satisfying requirement {incompat[3]}"
+
+            raise VersionError(
+                message=base_message,
+                cause=base_cause,
+            )
 
     def _on_upgrade_charm(self, event: UpgradeCharmEvent) -> None:
         """Handler for `upgrade-charm` events."""
@@ -692,7 +708,6 @@ class DataUpgrade(Object, ABC):
     def on_upgrade_changed(self, event: RelationChangedEvent) -> None:
         """Handler for `upgrade-relation-changed` events."""
         if not self.peer_relation:
-            event.defer()
             return
 
         # if any other unit failed, mark as failed
