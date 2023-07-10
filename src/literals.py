@@ -18,7 +18,7 @@ METRICS_PROVIDER_PORT = 7000
 DATA_DIR = "data"
 DATALOG_DIR = "data-log"
 
-dependencies = {
+DEPENDENCIES = {
     "charm": {
         "dependencies": {},
         "name": "zookeeper",
