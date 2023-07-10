@@ -17,10 +17,10 @@ from literals import (
     CHARM_USERS,
     DATA_DIR,
     DATALOG_DIR,
+    DEPENDENCIES,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     PEER,
-    DEPENDENCIES,
 )
 from ops.charm import (
     ActionEvent,
@@ -34,9 +34,10 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
-from src.upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 from tls import ZooKeeperTLS
 from utils import generate_password, safe_get_file, safe_make_dir
+
+from src.upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 
 logger = logging.getLogger(__name__)
 
