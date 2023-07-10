@@ -17,3 +17,24 @@ METRICS_PROVIDER_PORT = 7000
 
 DATA_DIR = "data"
 DATALOG_DIR = "data-log"
+
+dependencies = {
+    "charm": {
+        "dependencies": {},
+        "name": "zookeeper",
+        "upgrade_supported": ">=99",
+        "version": "100",
+    },
+    "snap": {
+        "dependencies": {},
+        "name": "charmed-zookeeper",
+        "upgrade_supported": "^3.5",
+        "version": "3.6.4",
+    },
+    "service": {
+        "dependencies": {},
+        "name": "zookeeper",
+        "upgrade_supported": "^3.5",
+        "version": "3.6.4",
+    },
+}
