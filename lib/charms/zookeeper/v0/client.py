@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 5
+LIBPATCH = 6
 
 
 logger = logging.getLogger(__name__)
@@ -243,6 +243,33 @@ class ZooKeeperManager:
             and float(zk_pending_syncs) == 0
         ):
             return False
+
+        return True
+
+    @property
+    def members_not_broadcasting(self) -> bool:
+        """Flag to check if any quorum members are not currently broadcasting.
+
+        Returns:
+            True if any members are not currently broadcasting. Otherwise False.
+        """
+        for host in self.hosts:
+            try:
+                with ZooKeeperClient(
+                    host=host,
+                    client_port=self.client_port,
+                    username=self.username,
+                    password=self.password,
+                    use_ssl=self.use_ssl,
+                    keyfile_path=self.keyfile_path,
+                    keyfile_password=self.keyfile_password,
+                    certfile_path=self.certfile_path,
+                ) as zk:
+                    if not zk.is_ready:
+                        return False
+            except KazooTimeoutError:  # in the case of having a dead unit in relation data
+                logger.debug(f"TIMEOUT - {host}")
+                return False
 
         return True
 
