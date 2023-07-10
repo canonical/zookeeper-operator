@@ -3,6 +3,7 @@
 
 """Manager for handling ZooKeeper in-place upgrades."""
 
+import logging
 from functools import cached_property
 
 from charms.data_platform_libs.v0.upgrade import (
@@ -13,9 +14,12 @@ from charms.data_platform_libs.v0.upgrade import (
 )
 from charms.zookeeper.v0.client import QuorumLeaderNotFoundError, ZooKeeperManager
 from pydantic import BaseModel
+from tenacity import Retrying, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from src.charm import ZooKeeperCharm
+
+logger = logging.getLogger(__name__)
 
 
 class ZooKeeperDependencyModel(BaseModel):
@@ -60,6 +64,11 @@ class ZooKeeperUpgrade(DataUpgrade):
                     message=default_message, cause="Some quorum members are syncing data"
                 )
 
+            if not self.charm.cluster.stable:
+                raise ClusterNotReadyError(
+                    message=default_message, cause="Charm has not finished initialising"
+                )
+
         except QuorumLeaderNotFoundError:
             raise ClusterNotReadyError(message=default_message, cause="Quorum leader not found")
 
@@ -82,4 +91,14 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
-        raise NotImplementedError
+        self.charm._restart(event)
+
+        try:
+            for _ in Retrying(wait=wait_fixed(3), stop=stop_after_attempt(2), reraise=True):
+                self.pre_upgrade_check()
+
+            self.set_unit_completed()
+
+        except ClusterNotReadyError as e:
+            logger.error(e.cause)
+            self.set_unit_failed()
