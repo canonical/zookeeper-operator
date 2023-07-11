@@ -16,8 +16,11 @@ from charms.zookeeper.v0.client import QuorumLeaderNotFoundError, ZooKeeperManag
 from pydantic import BaseModel
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 from typing_extensions import override
+from typing import TYPE_CHECKING
 
-from src.charm import ZooKeeperCharm
+
+if TYPE_CHECKING:
+    from src.charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
