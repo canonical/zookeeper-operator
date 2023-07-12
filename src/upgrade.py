@@ -5,6 +5,7 @@
 
 import logging
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from charms.data_platform_libs.v0.upgrade import (
     ClusterNotReadyError,
@@ -14,13 +15,10 @@ from charms.data_platform_libs.v0.upgrade import (
 )
 from charms.zookeeper.v0.client import QuorumLeaderNotFoundError, ZooKeeperManager
 from pydantic import BaseModel
-from tenacity import Retrying, stop_after_attempt, wait_fixed
 from typing_extensions import override
-from typing import TYPE_CHECKING
-
 
 if TYPE_CHECKING:
-    from src.charm import ZooKeeperCharm
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +52,7 @@ class ZooKeeperUpgrade(DataUpgrade):
     def pre_upgrade_check(self) -> None:
         default_message = "Pre-upgrade check failed and cannot safely upgrade"
         try:
-            if self.client.members_not_broadcasting or not len(self.client.server_members) == len(
+            if not self.client.members_broadcasting or not len(self.client.server_members) == len(
                 self.charm.cluster.peer_units
             ):
                 raise ClusterNotReadyError(
@@ -91,18 +89,19 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def log_rollback_instructions(self) -> None:
-        raise NotImplementedError
+        logger.warning("SOME USEFUL INSTRUCTIONS")  # TODO: do it?
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
+        # TODO: reinstall snap
         self.charm._restart(event)
 
         try:
-            # retry a few times in case it takes a while to re-join quorum?
-            for _ in Retrying(wait=wait_fixed(3), stop=stop_after_attempt(2), reraise=True):
-                self.pre_upgrade_check()  # TODO: other checks? Replication check maybe?
-
+            self.pre_upgrade_check()  # TODO: other checks? Replication check maybe?
             self.set_unit_completed()
+
+            if self.charm.unit.is_leader():
+                self.on_upgrade_changed(event)
 
         except ClusterNotReadyError as e:
             logger.error(e.cause)
