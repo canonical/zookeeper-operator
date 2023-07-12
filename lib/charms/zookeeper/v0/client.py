@@ -247,11 +247,11 @@ class ZooKeeperManager:
         return True
 
     @property
-    def members_not_broadcasting(self) -> bool:
-        """Flag to check if any quorum members are not currently broadcasting.
+    def members_broadcasting(self) -> bool:
+        """Flag to check if any quorum members are currently broadcasting.
 
         Returns:
-            True if any members are not currently broadcasting. Otherwise False.
+            True if any members are currently broadcasting. Otherwise False.
         """
         for host in self.hosts:
             try:
