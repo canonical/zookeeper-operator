@@ -35,9 +35,8 @@ from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingSta
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
 from tls import ZooKeeperTLS
+from upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 from utils import generate_password, safe_get_file, safe_make_dir
-
-from src.upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 
 logger = logging.getLogger(__name__)
 
