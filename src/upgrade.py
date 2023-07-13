@@ -43,7 +43,7 @@ class ZooKeeperUpgrade(DataUpgrade):
         """Checks if cluster state is idle.
 
         Returns:
-            True if clutser state is idle. Otherwise False
+            True if cluster state is idle. Otherwise False
         """
         return self.cluster_state == "idle"
 
