@@ -38,6 +38,15 @@ class ZooKeeperUpgrade(DataUpgrade):
         super().__init__(charm, **kwargs)
         self.charm = charm
 
+    @property
+    def idle(self) -> bool:
+        """Checks if cluster state is idle.
+
+        Returns:
+            True if clutser state is idle. Otherwise False
+        """
+        return self.cluster_state == "idle"
+
     @cached_property
     def client(self) -> ZooKeeperManager:
         """Cached client manager application for performing ZK commands."""
@@ -89,7 +98,7 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def log_rollback_instructions(self) -> None:
-        logger.warning("SOME USEFUL INSTRUCTIONS")  # TODO: do it?
+        logger.warning("SOME USEFUL INSTRUCTIONS")  # TODO: figure it out
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
