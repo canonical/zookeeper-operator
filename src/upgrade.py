@@ -93,13 +93,18 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
-        # TODO: reinstall snap
+        if not self.charm.snap.install():
+            logger.error("Unable to install ZooKeeper Snap")
+            self.set_unit_failed()
+            return
+
         self.charm._restart(event)
 
         try:
-            self.pre_upgrade_check()  # TODO: other checks? Replication check maybe?
+            self.pre_upgrade_check()
             self.set_unit_completed()
 
+            # ensures leader gets it's own relation-changed when it upgrades
             if self.charm.unit.is_leader():
                 self.on_upgrade_changed(event)
 
