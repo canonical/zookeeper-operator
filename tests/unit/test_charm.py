@@ -269,6 +269,7 @@ def test_restart_restarts_snap_service_if_config_changed(harness):
 
     with (
         patch("snap.ZooKeeperSnap.restart_snap_service") as patched,
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
         patch("time.sleep"),
         patch("ops.framework.EventBase.defer"),
@@ -287,6 +288,7 @@ def test_restart_restarts_snap_service_sleeps(harness):
 
     with (
         patch("snap.ZooKeeperSnap.restart_snap_service"),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
         patch("time.sleep") as patched,
     ):
@@ -304,6 +306,7 @@ def test_restart_restarts_snap_sets_active_status(harness):
 
     with (
         patch("snap.ZooKeeperSnap.restart_snap_service"),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
         patch("time.sleep"),
     ):
@@ -323,6 +326,7 @@ def test_restart_sets_password_rotated_on_unit(harness):
 
     with (
         patch("snap.ZooKeeperSnap.restart_snap_service"),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
         patch("time.sleep"),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
@@ -341,6 +345,7 @@ def test_restart_sets_unified(harness):
 
     with (
         patch("snap.ZooKeeperSnap.restart_snap_service"),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
         patch("time.sleep"),
@@ -457,6 +462,7 @@ def test_config_changed_updates_properties_and_jaas(harness):
 def test_adding_units_updates_relation_data(harness):
     with (
         patch("cluster.ZooKeeperCluster.update_cluster", return_value={"1": "added"}),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
     ):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
@@ -668,6 +674,7 @@ def test_restart_updates_relation_data(harness):
 
     with (
         patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
@@ -704,6 +711,24 @@ def test_restart_fails_update_relation_data_if_not_ready(harness):
 
     with (
         patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
+        patch("cluster.ZooKeeperCluster.stable", return_value=True),
+        patch("provider.ZooKeeperProvider.ready", new_callable=PropertyMock(return_value=False)),
+        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+    ):
+        harness.charm._restart(EventBase)
+
+        patched.assert_not_called()
+
+
+def test_restart_fails_update_relation_data_if_not_idle(harness):
+    with harness.hooks_disabled():
+        _ = harness.add_relation(PEER, CHARM_KEY)
+        harness.set_leader(True)
+
+    with (
+        patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=False),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", new_callable=PropertyMock(return_value=False)),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
