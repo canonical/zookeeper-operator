@@ -182,8 +182,7 @@ class ZooKeeperCharm(CharmBase):
 
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
-        if not self.cluster.stable:
-            logger.debug("restart - cluster not stable - deferring")
+        if not self.cluster.stable or not self.upgrade.idle:
             event.defer()
             return
 
