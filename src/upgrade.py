@@ -107,14 +107,6 @@ class ZooKeeperUpgrade(DataUpgrade):
             self.set_unit_failed()
             return
 
-        ## keeping for testing
-        # subprocess.check_output(
-        #     f"snap install --dangerous /home/ubuntu/charmed-zookeeper_3.7.1_amd64.snap",
-        #     stderr=subprocess.PIPE,
-        #     shell=True,
-        #     universal_newlines=True,
-        # )
-
         self.charm._restart(event)
 
         try:
