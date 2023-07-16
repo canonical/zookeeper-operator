@@ -186,7 +186,7 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} restarting")
+        logger.info(f"{self.unit.name} restarting...")
         self.snap.restart_snap_service()
 
         # gives time for server to rejoin quorum, as command exits too fast
