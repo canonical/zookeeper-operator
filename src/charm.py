@@ -174,7 +174,7 @@ class ZooKeeperCharm(CharmBase):
 
         Necessary for ensuring that `on_start` restarts roll.
         """
-        if not self.peer_relation or not self.cluster.stable:
+        if not self.peer_relation or not self.cluster.stable or not self.upgrade.idle:
             event.defer()
             return
 
