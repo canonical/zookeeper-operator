@@ -38,7 +38,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 4
+LIBPATCH = 5
 
 PYDEPS = ["pydantic>=1.10,<2"]
 
@@ -578,12 +578,22 @@ class DataUpgrade(Object, ABC):
         if not self.peer_relation:
             return None
 
+        # needed to refresh the stack
+        # now leader pulls a fresh stack from newly updated relation data
+        if self.charm.unit.is_leader():
+            self._upgrade_stack = None
+
         self.peer_relation.data[self.charm.unit].update({"state": "failed"})
 
     def set_unit_completed(self) -> None:
         """Sets unit `state=completed` to the upgrade peer data."""
         if not self.peer_relation:
             return None
+
+        # needed to refresh the stack
+        # now leader pulls a fresh stack from newly updated relation data
+        if self.charm.unit.is_leader():
+            self._upgrade_stack = None
 
         self.peer_relation.data[self.charm.unit].update({"state": "completed"})
 
