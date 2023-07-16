@@ -235,7 +235,6 @@ class ZooKeeperManager:
         try:
             zk_pending_syncs = result["zk_pending_syncs"]
         except KeyError:  # missing key, no quorum, no syncing
-            logger.debug("no zk_pending_syncs key found, units not syncing")
             return False
 
         if (
