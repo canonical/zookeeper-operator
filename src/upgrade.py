@@ -13,7 +13,10 @@ from charms.data_platform_libs.v0.upgrade import (
     DependencyModel,
     UpgradeGrantedEvent,
 )
-from charms.zookeeper.v0.client import QuorumLeaderNotFoundError, ZooKeeperManager
+from charms.zookeeper.v0.client import (
+    QuorumLeaderNotFoundError,
+    ZooKeeperManager,
+)
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -102,19 +105,26 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
+        self.charm.snap.stop_snap_service()
+
         if not self.charm.snap.install():
             logger.error("Unable to install ZooKeeper Snap")
             self.set_unit_failed()
             return
 
-        self.charm._restart(event)
+        logger.info(f"{self.charm.unit.name} upgrading service...")
+        self.charm.snap.restart_snap_service()
 
         try:
+            logger.debug("Running post-upgrade check...")
             self.pre_upgrade_check()
+
+            logger.debug("Marking unit completed...")
             self.set_unit_completed()
 
             # ensures leader gets it's own relation-changed when it upgrades
             if self.charm.unit.is_leader():
+                logger.debug("Re-emitting upgrade-changed on leader...")
                 self.on_upgrade_changed(event)
 
         except ClusterNotReadyError as e:
