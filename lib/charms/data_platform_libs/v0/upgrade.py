@@ -632,12 +632,12 @@ class DataUpgrade(Object, ABC):
             self.pre_upgrade_check()
 
             if self.substrate == "k8s":
-                logger.info("Building upgrade stack for K8s...")
+                logger.info("Building upgrade-stack for K8s...")
                 built_upgrade_stack = sorted(
                     [int(unit.name.split("/")[1]) for unit in self.app_units]
                 )
             else:
-                logger.info("Building upgrade stack for VMs...")
+                logger.info("Building upgrade-stack for VMs...")
                 built_upgrade_stack = self.build_upgrade_stack()
 
             logger.debug(f"Built upgrade stack of {built_upgrade_stack}")
@@ -732,12 +732,12 @@ class DataUpgrade(Object, ABC):
 
         # if all units completed, mark as complete
         if not self.upgrade_stack:
-            if self.cluster_state == "idle":
-                logger.debug("upgrade-changed event handled before pre-checks, exiting...")
-                return
-            elif self.cluster_state == "completed":
+            if self.state == "completed" and self.cluster_state in ["idle", "completed"]:
                 logger.info("All units completed upgrade, setting idle upgrade state...")
                 self.peer_relation.data[self.charm.unit].update({"state": "idle"})
+                return
+            if self.cluster_state == "idle":
+                logger.debug("upgrade-changed event handled before pre-checks, exiting...")
                 return
             else:
                 logger.debug("Did not find upgrade-stack or completed cluster state, deferring...")
