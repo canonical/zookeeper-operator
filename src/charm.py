@@ -228,7 +228,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self.unit.status = MaintenanceStatus("starting ZooKeeper server")
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} initializing")
+        logger.info(f"{self.unit.name} initializing...")
 
         # creating necessary dirs + permissions
         safe_make_dir(path=f"{self.snap.data_path}/{DATA_DIR}")
@@ -252,7 +252,7 @@ class ZooKeeperCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} started")
+        logger.info(f"{self.unit.name} started")
 
         # added here in case a `restart` was missed
         self.unit_peer_data.update(
