@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(autouse=True)
 def patched_client(mocker):
-    mocker.patch.object(ZooKeeperManager, "get_leader")
+    mocker.patch.object(ZooKeeperManager, "get_leader", return_value="000.000.000")
     mocker.patch.object(KazooClient, "start")
 
 
@@ -40,6 +40,9 @@ def harness():
     harness.begin()
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/0")
+        harness.update_relation_data(
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "000.000.000"}
+        )
 
     return harness
 
@@ -128,3 +131,24 @@ def test_pre_upgrade_check_succeeds(harness, mocker):
     mocker.patch.object(ZooKeeperCluster, "stable", new_callable=PropertyMock, return_value=True)
 
     harness.charm.upgrade.pre_upgrade_check()
+
+
+def test_build_upgrade_stack(harness, mocker):
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "111.111.111"}
+        )
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
+        harness.update_relation_data(
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"private-address": "222.222.222"}
+        )
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/3")
+        harness.update_relation_data(
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/3", {"private-address": "333.333.333"}
+        )
+
+    stack = harness.charm.upgrade.build_upgrade_stack()
+
+    assert stack[0] == 0
+    assert len(stack) == 4
