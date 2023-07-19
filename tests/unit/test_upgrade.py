@@ -133,7 +133,7 @@ def test_pre_upgrade_check_succeeds(harness, mocker):
     harness.charm.upgrade.pre_upgrade_check()
 
 
-def test_build_upgrade_stack(harness, mocker):
+def test_build_upgrade_stack(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
