@@ -91,9 +91,9 @@ class ZooKeeperUpgrade(DataUpgrade):
 
             # upgrade quorum leader last
             if config["host"] == self.client.leader:
-                upgrade_stack.insert(0, config["unit_id"])
+                upgrade_stack.insert(0, int(config["unit_id"]))
             else:
-                upgrade_stack.append(config["unit_id"])
+                upgrade_stack.append(int(config["unit_id"]))
 
         return upgrade_stack
 
