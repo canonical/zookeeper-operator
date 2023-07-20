@@ -13,11 +13,10 @@ from charms.data_platform_libs.v0.upgrade import ClusterNotReadyError, Dependenc
 from charms.zookeeper.v0.client import ZooKeeperManager
 from cluster import ZooKeeperCluster
 from kazoo.client import KazooClient
-from literals import CHARM_KEY
+from literals import CHARM_KEY, DEPENDENCIES
 from ops.testing import Harness
-
-from src.literals import DEPENDENCIES
-from src.upgrade import ZooKeeperDependencyModel
+from snap import ZooKeeperSnap
+from upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 
 logger = logging.getLogger(__name__)
 
@@ -162,3 +161,80 @@ def test_zookeeper_dependency_model():
 
     for value in DEPENDENCIES.values():
         assert DependencyModel(**value)
+
+
+def test_upgrade_granted_sets_failed_if_failed_snap(harness, mocker):
+    mocker.patch.object(ZooKeeperSnap, "stop_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "restart_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "install", return_value=False)
+    mocker.patch.object(ZooKeeperUpgrade, "pre_upgrade_check")
+    mocker.patch.object(ZooKeeperUpgrade, "set_unit_completed")
+    mocker.patch.object(ZooKeeperUpgrade, "set_unit_failed")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade._on_upgrade_granted(mock_event)
+
+    ZooKeeperSnap.stop_snap_service.assert_called_once()
+    ZooKeeperSnap.install.assert_called_once()
+    ZooKeeperSnap.restart_snap_service.assert_not_called()
+    ZooKeeperUpgrade.set_unit_completed.assert_not_called()
+    ZooKeeperUpgrade.set_unit_failed.assert_called_once()
+
+
+def test_upgrade_granted_sets_failed_if_failed_upgrade_check(harness, mocker):
+    mocker.patch.object(ZooKeeperSnap, "stop_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "restart_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "install", return_value=False)
+    mocker.patch.object(ZooKeeperUpgrade, "set_unit_completed")
+    mocker.patch.object(ZooKeeperUpgrade, "set_unit_failed")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade._on_upgrade_granted(mock_event)
+
+    ZooKeeperSnap.stop_snap_service.assert_called_once()
+    ZooKeeperSnap.install.assert_called_once()
+    ZooKeeperSnap.restart_snap_service.assert_not_called()
+    ZooKeeperUpgrade.set_unit_completed.assert_not_called()
+    ZooKeeperUpgrade.set_unit_failed.assert_called_once()
+
+
+def test_upgrade_granted_succeeds(harness, mocker):
+    mocker.patch.object(ZooKeeperSnap, "stop_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "restart_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "install")
+    mocker.patch.object(ZooKeeperUpgrade, "pre_upgrade_check")
+    mocker.patch.object(ZooKeeperUpgrade, "set_unit_completed")
+    mocker.patch.object(ZooKeeperUpgrade, "set_unit_failed")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade._on_upgrade_granted(mock_event)
+
+    ZooKeeperSnap.stop_snap_service.assert_called_once()
+    ZooKeeperSnap.install.assert_called_once()
+    ZooKeeperSnap.restart_snap_service.assert_called_once()
+    ZooKeeperUpgrade.set_unit_completed.assert_called_once()
+    ZooKeeperUpgrade.set_unit_failed.assert_not_called()
+
+
+def test_upgrade_granted_recurses_upgrade_changed_on_leader(harness, mocker):
+    mocker.patch.object(ZooKeeperSnap, "stop_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "restart_snap_service")
+    mocker.patch.object(ZooKeeperSnap, "install")
+    mocker.patch.object(ZooKeeperUpgrade, "pre_upgrade_check")
+    mocker.patch.object(ZooKeeperUpgrade, "on_upgrade_changed")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade._on_upgrade_granted(mock_event)
+
+    ZooKeeperUpgrade.on_upgrade_changed.assert_not_called()
+
+    with harness.hooks_disabled():
+        harness.set_leader(True)
+
+    harness.charm.upgrade._on_upgrade_granted(mock_event)
+
+    ZooKeeperUpgrade.on_upgrade_changed.assert_called_once()
