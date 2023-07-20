@@ -9,12 +9,15 @@ from unittest.mock import PropertyMock
 import pytest
 import yaml
 from charm import ZooKeeperCharm
-from charms.data_platform_libs.v0.upgrade import ClusterNotReadyError
+from charms.data_platform_libs.v0.upgrade import ClusterNotReadyError, DependencyModel
 from charms.zookeeper.v0.client import ZooKeeperManager
 from cluster import ZooKeeperCluster
 from kazoo.client import KazooClient
 from literals import CHARM_KEY
 from ops.testing import Harness
+
+from src.literals import DEPENDENCIES
+from src.upgrade import ZooKeeperDependencyModel
 
 logger = logging.getLogger(__name__)
 
@@ -152,3 +155,10 @@ def test_build_upgrade_stack(harness):
 
     assert stack[0] == 0
     assert len(stack) == 4
+
+
+def test_zookeeper_dependency_model():
+    assert sorted(ZooKeeperDependencyModel.__fields__.keys()) == sorted(DEPENDENCIES.keys())
+
+    for value in DEPENDENCIES.values():
+        assert DependencyModel(**value)
