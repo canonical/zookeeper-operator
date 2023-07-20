@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 class ZooKeeperDependencyModel(BaseModel):
     """Model for ZooKeeper Operator dependencies."""
 
-    charm: DependencyModel
-    snap: DependencyModel
     service: DependencyModel
 
 
