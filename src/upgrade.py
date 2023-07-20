@@ -7,8 +7,6 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from kazoo.client import ConnectionClosedError
-
 from charms.data_platform_libs.v0.upgrade import (
     ClusterNotReadyError,
     DataUpgrade,
@@ -19,6 +17,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
+from kazoo.client import ConnectionClosedError
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -85,7 +84,9 @@ class ZooKeeperUpgrade(DataUpgrade):
         except QuorumLeaderNotFoundError:
             raise ClusterNotReadyError(message=default_message, cause="Quorum leader not found")
         except ConnectionClosedError:
-            raise ClusterNotReadyError(message=default_message, cause="Unable to connect to the cluster")
+            raise ClusterNotReadyError(
+                message=default_message, cause="Unable to connect to the cluster"
+            )
 
     @override
     def build_upgrade_stack(self) -> list[int]:
