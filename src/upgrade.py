@@ -104,7 +104,16 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def log_rollback_instructions(self) -> None:
-        logger.warning("SOME USEFUL INSTRUCTIONS")  # TODO: figure it out
+        logger.critical(
+            "\n".join(
+                [
+                    "Unit failed to upgrade and requires manual rollback to previous stable version.",
+                    "    1. Re-run `pre-upgrade-check` action on the leader unit to enter 'recovery' state",
+                    "    2. Run `juju refresh` to the previously deployed charm revision",
+                ]
+            )
+        )
+        return
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
