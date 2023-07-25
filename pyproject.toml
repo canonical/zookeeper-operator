@@ -29,13 +29,14 @@ authors = [""]
 
 [tool.poetry.dependencies]
 python = ">=3.8"
-ops = ">=2.0.0"
+ops = "^2.4.1"
 kazoo = ">=2.8.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
-cosl = ">=0.0.5" # TODO: remove once PYDEPS feature in charmcraft is released
-pydantic = "^1.10.7" # TODO: remove once PYDEPS feature in charmcraft is released
+cosl = ">=0.0.5"
+pydantic = "^1.10.7"
+pyyaml = "^6.0.1"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -51,7 +52,7 @@ optional = true
 black = "^22.3.0"
 ruff = ">=0.0.157"
 codespell = ">=2.2.2"
-pyright = "^1.1.300"
+pyright = "^1.1.318"
 
 [tool.poetry.group.unit]
 optional = true
@@ -69,11 +70,6 @@ pytest = ">=7.2"
 juju = "<3.1"  # The latest python-libjuju that supports both juju 2.9 and 3.0
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
-
-
-
-[tool.poetry.group.format.dependencies]
-pyright = "^1.1.300"
 
 [tool.ruff]
 line-length = 99
