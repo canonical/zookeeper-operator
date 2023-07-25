@@ -87,6 +87,9 @@ class ZooKeeperUpgrade(DataUpgrade):
             raise ClusterNotReadyError(
                 message=default_message, cause="Unable to connect to the cluster"
             )
+        except Exception as e:
+            logger.debug(str(e))
+            raise ClusterNotReadyError(message=default_message, cause="Unknown error")
 
     @override
     def build_upgrade_stack(self) -> list[int]:
