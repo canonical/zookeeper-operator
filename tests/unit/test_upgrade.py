@@ -185,7 +185,7 @@ def test_upgrade_granted_sets_failed_if_failed_snap(harness, mocker):
 def test_upgrade_granted_sets_failed_if_failed_upgrade_check(harness, mocker):
     mocker.patch.object(ZooKeeperSnap, "stop_snap_service")
     mocker.patch.object(ZooKeeperSnap, "restart_snap_service")
-    mocker.patch.object(ZooKeeperSnap, "install", return_value=False)
+    mocker.patch.object(ZooKeeperSnap, "install", return_value=True)
     mocker.patch.object(ZooKeeperUpgrade, "set_unit_completed")
     mocker.patch.object(ZooKeeperUpgrade, "set_unit_failed")
 
@@ -195,7 +195,6 @@ def test_upgrade_granted_sets_failed_if_failed_upgrade_check(harness, mocker):
 
     ZooKeeperSnap.stop_snap_service.assert_called_once()
     ZooKeeperSnap.install.assert_called_once()
-    ZooKeeperSnap.restart_snap_service.assert_not_called()
     ZooKeeperUpgrade.set_unit_completed.assert_not_called()
     ZooKeeperUpgrade.set_unit_failed.assert_called_once()
 
