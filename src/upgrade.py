@@ -59,6 +59,10 @@ class ZooKeeperUpgrade(DataUpgrade):
             password=self.charm.cluster.passwords[0],
         )
 
+    def post_upgrade_check(self) -> None:
+        """Runs necessary checks validating the unit is in a healthy state after upgrade."""
+        self.pre_upgrade_check()
+
     @override
     def pre_upgrade_check(self) -> None:
         default_message = "Pre-upgrade check failed and cannot safely upgrade"
@@ -132,7 +136,7 @@ class ZooKeeperUpgrade(DataUpgrade):
 
         try:
             logger.debug("Running post-upgrade check...")
-            self.pre_upgrade_check()
+            self.post_upgrade_check()
 
             logger.debug("Marking unit completed...")
             self.set_unit_completed()
