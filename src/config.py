@@ -25,7 +25,6 @@ autopurge.purgeInterval=0
 reconfigEnabled=true
 standaloneEnabled=false
 4lw.commands.whitelist=mntr,srvr,stat
-DigestAuthenticationProvider.digestAlg=SHA3-256
 quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true

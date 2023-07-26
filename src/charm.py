@@ -17,6 +17,7 @@ from literals import (
     CHARM_USERS,
     DATA_DIR,
     DATALOG_DIR,
+    DEPENDENCIES,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     PEER,
@@ -34,6 +35,7 @@ from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingSta
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
 from tls import ZooKeeperTLS
+from upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 from utils import generate_password, safe_get_file, safe_make_dir
 
 logger = logging.getLogger(__name__)
@@ -60,6 +62,12 @@ class ZooKeeperCharm(CharmBase):
             metrics_rules_dir="./src/alert_rules/prometheus",
             logs_rules_dir="./src/alert_rules/loki",
             log_slots=["charmed-zookeeper:logs"],
+        )
+        self.upgrade = ZooKeeperUpgrade(
+            self,
+            dependency_model=ZooKeeperDependencyModel(
+                **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
+            ),
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
@@ -166,7 +174,7 @@ class ZooKeeperCharm(CharmBase):
 
         Necessary for ensuring that `on_start` restarts roll.
         """
-        if not self.peer_relation or not self.cluster.stable:
+        if not self.peer_relation or not self.cluster.stable or not self.upgrade.idle:
             event.defer()
             return
 
@@ -174,12 +182,11 @@ class ZooKeeperCharm(CharmBase):
 
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
-        if not self.cluster.stable:
-            logger.debug("restart - cluster not stable - deferring")
+        if not self.cluster.stable or not self.upgrade.idle:
             event.defer()
             return
 
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} restarting")
+        logger.info(f"{self.unit.name} restarting...")
         self.snap.restart_snap_service()
 
         # gives time for server to rejoin quorum, as command exits too fast
@@ -221,7 +228,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self.unit.status = MaintenanceStatus("starting ZooKeeper server")
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} initializing")
+        logger.info(f"{self.unit.name} initializing...")
 
         # creating necessary dirs + permissions
         safe_make_dir(path=f"{self.snap.data_path}/{DATA_DIR}")
@@ -245,7 +252,7 @@ class ZooKeeperCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader
-        logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} started")
+        logger.info(f"{self.unit.name} started")
 
         # added here in case a `restart` was missed
         self.unit_peer_data.update(

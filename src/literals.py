@@ -17,3 +17,12 @@ METRICS_PROVIDER_PORT = 7000
 
 DATA_DIR = "data"
 DATALOG_DIR = "data-log"
+
+DEPENDENCIES = {
+    "service": {
+        "dependencies": {},
+        "name": "zookeeper",
+        "upgrade_supported": "^3.5",
+        "version": "3.6.4",
+    },
+}

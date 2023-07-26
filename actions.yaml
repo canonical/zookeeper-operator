@@ -8,6 +8,9 @@ get-super-password:
 get-sync-password:
   description: Returns the Zookeeper sync user password. This user is only for internal quorum handling.
 
+pre-upgrade-check:
+  description: Run necessary pre-upgrade checks before executing a charm upgrade.
+
 set-password:
   description: Change the system user's password, which is used by the charm.
     It is for internal charm users and SHOULD NOT be used by applications.
