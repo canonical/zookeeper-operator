@@ -51,7 +51,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     application_unit = ops_test.model.applications[DUMMY_NAME_1].units[0]
     # Get relation data
     relation_data = get_relation_data(
-        model_full_name=ops_test.model_full_name, unit=application_unit.name, app_name=APP_NAME
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=APP_NAME
     )
     # Get the super password
     super_password = get_password(model_full_name=ops_test.model_full_name)

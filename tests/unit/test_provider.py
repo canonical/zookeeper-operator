@@ -10,10 +10,11 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from charm import ZooKeeperCharm
-from literals import CHARM_KEY, PEER, REL_NAME
 from ops.charm import RelationBrokenEvent
 from ops.testing import Harness
+
+from charm import ZooKeeperCharm
+from literals import CHARM_KEY, PEER, REL_NAME
 
 logger = logging.getLogger(__name__)
 

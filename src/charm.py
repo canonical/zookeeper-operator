@@ -10,6 +10,17 @@ from collections.abc import MutableMapping
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider, Optional, Relation
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
+from ops.charm import (
+    ActionEvent,
+    CharmBase,
+    InstallEvent,
+    LeaderElectedEvent,
+    RelationDepartedEvent,
+)
+from ops.framework import EventBase
+from ops.main import main
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
+
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
 from literals import (
@@ -22,16 +33,6 @@ from literals import (
     METRICS_PROVIDER_PORT,
     PEER,
 )
-from ops.charm import (
-    ActionEvent,
-    CharmBase,
-    InstallEvent,
-    LeaderElectedEvent,
-    RelationDepartedEvent,
-)
-from ops.framework import EventBase
-from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from provider import ZooKeeperProvider
 from snap import ZooKeeperSnap
 from tls import ZooKeeperTLS

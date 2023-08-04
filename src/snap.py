@@ -7,6 +7,7 @@ import logging
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
+
 from literals import CHARMED_ZOOKEEPER_SNAP_REVISION
 
 logger = logging.getLogger(__name__)
