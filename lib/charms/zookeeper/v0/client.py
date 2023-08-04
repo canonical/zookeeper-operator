@@ -318,7 +318,7 @@ class ZooKeeperManager:
                     joining=member, leaving=None, new_members=None, from_config=self.config_version
                 )
 
-    def remove_members(self, members: Iterable[str]):
+    def remove_members(self, members: Iterable[str]) -> None:
         """Removes members from the members' dynamic config.
 
         Raises:
@@ -426,10 +426,10 @@ class ZooKeeperManager:
             zk.delete_znode(path=path)
 
     def get_version(self) -> str:
-        """Get ZooKeeper version.
+        """Get ZooKeeper service version from srvr 4lw.
 
-        Version will have a similar format to
-            3.6.4--d65253dcf68e9097c6e95a126463fd5fdeb4521c, built on 12/18/2022 18:10 GMT
+        Returns:
+            String of ZooKeeper service version
         """
         with ZooKeeperClient(
             host=self.leader,
@@ -441,7 +441,7 @@ class ZooKeeperManager:
             keyfile_password=self.keyfile_password,
             certfile_path=self.certfile_path,
         ) as zk:
-            return zk.srvr["Zookeeper version"]
+            return zk.srvr["Zookeeper version"].split("-", maxsplit=1)[0]
 
 
 class ZooKeeperClient:
