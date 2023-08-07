@@ -138,7 +138,7 @@ class ZooKeeperManager:
         Returns:
             ZooKeeperClient client class
         """
-        host = host or self.leader
+        host = host or self.leader # TODO doesn't work, as leader calls this method
         print(host)
         with ZooKeeperClient(
             host=host,
