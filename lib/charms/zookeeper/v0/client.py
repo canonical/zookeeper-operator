@@ -57,14 +57,12 @@ def update_cluster(new_members: List[str], event: EventBase) -> None:
 
 import logging
 import re
+from contextlib import contextmanager
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from kazoo.client import ACL, KazooClient
 from kazoo.handlers.threading import KazooTimeoutError
-from tenacity import RetryError, retry
-from tenacity.retry import retry_if_not_result
-from tenacity.stop import stop_after_attempt
-from tenacity.wait import wait_fixed
+from kazoo.retry import KazooRetry, RetryFailedError
 
 # The unique Charmhub library identifier, never change it
 LIBID = "4dc4430e6e5d492699391f57bd697fce"
@@ -127,14 +125,33 @@ class ZooKeeperManager:
 
         try:
             self.leader = self.get_leader()
-        except RetryError:
+        except RetryFailedError:
             raise QuorumLeaderNotFoundError("quorum leader not found")
 
-    @retry(
-        wait=wait_fixed(3),
-        stop=stop_after_attempt(2),
-        retry=retry_if_not_result(lambda result: True if result else False),
-    )
+    @contextmanager
+    def client(self, host=None) -> "ZooKeeperClient":
+        """Creates a Zookeeper client on a given hostname.
+
+        Args:
+            host: string with the hostname to connect to, defaults to self.leader
+
+        Returns:
+            ZooKeeperClient client class
+        """
+        host = host or self.leader
+        print(host)
+        with ZooKeeperClient(
+            host=host,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+            use_ssl=self.use_ssl,
+            keyfile_path=self.keyfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
+        ) as zk:
+            yield zk
+
     def get_leader(self) -> str:
         """Attempts to find the current ZK quorum leader.
 
@@ -145,21 +162,12 @@ class ZooKeeperManager:
             String of the host for the quorum leader
 
         Raises:
-            tenacity.RetryError: if the leader can't be found during the retry conditions
+            kazoo.RetryFailedError if the leader can't be found during the retry conditions
         """
         leader = None
         for host in self.hosts:
             try:
-                with ZooKeeperClient(
-                    host=host,
-                    client_port=self.client_port,
-                    username=self.username,
-                    password=self.password,
-                    use_ssl=self.use_ssl,
-                    keyfile_path=self.keyfile_path,
-                    keyfile_password=self.keyfile_password,
-                    certfile_path=self.certfile_path,
-                ) as zk:
+                with self.client(host) as zk:
                     response = zk.srvr
                     if response.get("Mode") == "leader":
                         leader = host
@@ -178,16 +186,7 @@ class ZooKeeperManager:
             A set of ZK member strings
                 e.g {"server.1=10.141.78.207:2888:3888:participant;0.0.0.0:2181"}
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             members, _ = zk.config
 
         return set(members)
@@ -199,16 +198,7 @@ class ZooKeeperManager:
         Returns:
             The zookeeper config version decoded from base16
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             _, version = zk.config
 
         return version
@@ -220,16 +210,7 @@ class ZooKeeperManager:
         Returns:
             True if any members are syncing. Otherwise False.
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             result = zk.mntr
 
         try:
@@ -254,16 +235,7 @@ class ZooKeeperManager:
         """
         for host in self.hosts:
             try:
-                with ZooKeeperClient(
-                    host=host,
-                    client_port=self.client_port,
-                    username=self.username,
-                    password=self.password,
-                    use_ssl=self.use_ssl,
-                    keyfile_path=self.keyfile_path,
-                    keyfile_password=self.keyfile_password,
-                    certfile_path=self.certfile_path,
-                ) as zk:
+                with self.client(host) as zk:
                     if not zk.is_ready:
                         return False
             except KazooTimeoutError:  # in the case of having a dead unit in relation data
@@ -287,16 +259,7 @@ class ZooKeeperManager:
 
             try:
                 # individual connections to each server
-                with ZooKeeperClient(
-                    host=host,
-                    client_port=self.client_port,
-                    username=self.username,
-                    password=self.password,
-                    use_ssl=self.use_ssl,
-                    keyfile_path=self.keyfile_path,
-                    keyfile_password=self.keyfile_password,
-                    certfile_path=self.certfile_path,
-                ) as zk:
+                with self.client(host) as zk:
                     if not zk.is_ready:
                         raise MemberNotReadyError(f"Server is not ready: {host}")
             except KazooTimeoutError as e:  # for when units are departing
@@ -304,16 +267,7 @@ class ZooKeeperManager:
                 continue
 
             # specific connection to leader
-            with ZooKeeperClient(
-                host=self.leader,
-                client_port=self.client_port,
-                username=self.username,
-                password=self.password,
-                use_ssl=self.use_ssl,
-                keyfile_path=self.keyfile_path,
-                keyfile_password=self.keyfile_password,
-                certfile_path=self.certfile_path,
-            ) as zk:
+            with self.client() as zk:
                 zk.client.reconfig(
                     joining=member, leaving=None, new_members=None, from_config=self.config_version
                 )
@@ -329,16 +283,7 @@ class ZooKeeperManager:
 
         for member in members:
             member_id = re.findall(r"server.([0-9]+)", member)[0]
-            with ZooKeeperClient(
-                host=self.leader,
-                client_port=self.client_port,
-                username=self.username,
-                password=self.password,
-                use_ssl=self.use_ssl,
-                keyfile_path=self.keyfile_path,
-                keyfile_password=self.keyfile_password,
-                certfile_path=self.certfile_path,
-            ) as zk:
+            with self.client() as zk:
                 zk.client.reconfig(
                     joining=None,
                     leaving=member_id,
@@ -355,16 +300,7 @@ class ZooKeeperManager:
         Returns:
             Set of all nested child zNodes
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             all_znode_children = zk.get_all_znode_children(path=path)
 
         return all_znode_children
@@ -376,16 +312,7 @@ class ZooKeeperManager:
             path: the zNode path to set
             acls: the ACLs to be set on that path
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             zk.create_znode(path=path, acls=acls)
 
     def set_acls_znode_leader(self, path: str, acls: List[ACL]) -> None:
@@ -395,16 +322,7 @@ class ZooKeeperManager:
             path: the zNode path to update
             acls: the new ACLs to be set on that path
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             zk.set_acls(path=path, acls=acls)
 
     def delete_znode_leader(self, path: str) -> None:
@@ -413,16 +331,7 @@ class ZooKeeperManager:
         Args:
             path: the zNode path to delete
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             zk.delete_znode(path=path)
 
     def get_version(self) -> str:
@@ -431,16 +340,7 @@ class ZooKeeperManager:
         Returns:
             String of ZooKeeper service version
         """
-        with ZooKeeperClient(
-            host=self.leader,
-            client_port=self.client_port,
-            username=self.username,
-            password=self.password,
-            use_ssl=self.use_ssl,
-            keyfile_path=self.keyfile_path,
-            keyfile_password=self.keyfile_password,
-            certfile_path=self.certfile_path,
-        ) as zk:
+        with self.client() as zk:
             return zk.srvr["Zookeeper version"].split("-", maxsplit=1)[0]
 
 
@@ -462,6 +362,7 @@ class ZooKeeperClient:
         self.client_port = client_port
         self.username = username
         self.password = password
+        self.retry = KazooRetry(max_tries=3, delay=3)
         self.client = KazooClient(
             hosts=f"{host}:{client_port}",
             timeout=1.0,
@@ -471,10 +372,17 @@ class ZooKeeperClient:
             certfile=certfile_path,
             verify_certs=False,
             use_ssl=use_ssl,
+            connection_retry=self.retry,
         )
         self.client.start()
 
     def __enter__(self):
+        return self
+
+    def __next__(self):
+        return self
+
+    def __iter__(self):
         return self
 
     def __exit__(self, object_type, value, traceback):
