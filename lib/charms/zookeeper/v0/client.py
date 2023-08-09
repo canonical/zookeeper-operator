@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 6
+LIBPATCH = 7
 
 
 logger = logging.getLogger(__name__)
@@ -318,7 +318,7 @@ class ZooKeeperManager:
                     joining=member, leaving=None, new_members=None, from_config=self.config_version
                 )
 
-    def remove_members(self, members: Iterable[str]):
+    def remove_members(self, members: Iterable[str]) -> None:
         """Removes members from the members' dynamic config.
 
         Raises:
@@ -424,6 +424,24 @@ class ZooKeeperManager:
             certfile_path=self.certfile_path,
         ) as zk:
             zk.delete_znode(path=path)
+
+    def get_version(self) -> str:
+        """Get ZooKeeper service version from srvr 4lw.
+
+        Returns:
+            String of ZooKeeper service version
+        """
+        with ZooKeeperClient(
+            host=self.leader,
+            client_port=self.client_port,
+            username=self.username,
+            password=self.password,
+            use_ssl=self.use_ssl,
+            keyfile_path=self.keyfile_path,
+            keyfile_password=self.keyfile_password,
+            certfile_path=self.certfile_path,
+        ) as zk:
+            return zk.srvr["Zookeeper version"].split("-", maxsplit=1)[0]
 
 
 class ZooKeeperClient:
