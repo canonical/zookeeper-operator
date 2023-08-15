@@ -1,9 +1,10 @@
-from pytest_operator.plugin import OpsTest
 import logging
-import yaml
-from pathlib import Path
 import re
 import subprocess
+from pathlib import Path
+
+import yaml
+from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +29,25 @@ def srvr(host: str) -> dict:
 
     return result
 
-async def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> str:
-    return ",".join([f"{unit.public_address}:{str(port)}" for unit in ops_test.model.applications[app_name].units])
 
-async def get_unit_host(ops_test: OpsTest, unit_name: str, app_name: str = APP_NAME, port: int = 2181) -> str:
-    return [f"{unit.public_address}:{str(port)}" for unit in ops_test.model.applications[app_name].units if unit.name == unit_name][0]
-    
+async def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> str:
+    return ",".join(
+        [
+            f"{unit.public_address}:{str(port)}"
+            for unit in ops_test.model.applications[app_name].units
+        ]
+    )
+
+
+async def get_unit_host(
+    ops_test: OpsTest, unit_name: str, app_name: str = APP_NAME, port: int = 2181
+) -> str:
+    return [
+        f"{unit.public_address}:{str(port)}"
+        for unit in ops_test.model.applications[app_name].units
+        if unit.name == unit_name
+    ][0]
+
 
 async def get_leader_name(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
     for unit in ops_test.model.applications[app_name].units:
@@ -46,6 +60,7 @@ async def get_leader_name(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
             return unit.name
 
     raise Exception("Leader not found")
+
 
 def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
     for unit in ops_test.model.applications[app_name].units:
@@ -67,7 +82,10 @@ def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
         if not password:
             raise Exception("no relations found")
 
-async def kill_unit_process(ops_test: OpsTest, unit_name: str, kill_code: str, app_name: str = APP_NAME) -> None:
+
+async def kill_unit_process(
+    ops_test: OpsTest, unit_name: str, kill_code: str, app_name: str = APP_NAME
+) -> None:
     if len(ops_test.model.applications[app_name].units) < 3:
         await ops_test.model.applications[app_name].add_unit(count=1)
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
@@ -79,5 +97,3 @@ async def kill_unit_process(ops_test: OpsTest, unit_name: str, kill_code: str, a
         raise Exception(
             f"Expected kill command {kill_cmd} to succeed instead it failed: {return_code}"
         )
-
-

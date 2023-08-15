@@ -1,14 +1,14 @@
+import logging
 import subprocess
 import sys
 import time
-import logging
-from kazoo.retry import KazooRetry
 
 from kazoo.client import KazooClient
-
+from kazoo.retry import KazooRetry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
+
 
 def continous_writes(parent: str, hosts: str, username: str, password: str):
     count = 0
@@ -19,7 +19,7 @@ def continous_writes(parent: str, hosts: str, username: str, password: str):
             timeout=10,
             sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
             connection_retry=KazooRetry(max_tries=10, delay=1),
-            command_retry=KazooRetry(max_tries=10, delay=1)
+            command_retry=KazooRetry(max_tries=10, delay=1),
         )
         client.start()
 
@@ -43,9 +43,11 @@ def start_continuous_writes(parent: str, hosts: str, username: str, password: st
         ]
     )
 
+
 def stop_continuous_writes():
     proc = subprocess.Popen(["pkill", "-9", "-f", "continous_writes.py"])
     proc.communicate()
+
 
 def get_last_znode(parent: str, hosts: str, username: str, password: str) -> int:
     client = KazooClient(
@@ -58,14 +60,15 @@ def get_last_znode(parent: str, hosts: str, username: str, password: str) -> int
     )
     client.start()
 
-    znodes = client.get_children(parent) 
+    znodes = client.get_children(parent)
     assert znodes
 
-    last_znode = sorted(list(map(lambda x: int(x), znodes)))[-1]
+    last_znode = sorted((int(x) for x in znodes))[-1]
 
     client.stop()
 
     return last_znode
+
 
 def count_znodes(parent: str, hosts: str, username: str, password: str) -> int:
     client = KazooClient(
@@ -78,13 +81,14 @@ def count_znodes(parent: str, hosts: str, username: str, password: str) -> int:
     )
     client.start()
 
-    znodes = client.get_children(parent) 
+    znodes = client.get_children(parent)
 
     assert znodes
 
     client.stop()
 
     return len(znodes) - 1  # to account for the parent node
+
 
 def main():
     parent = sys.argv[1]

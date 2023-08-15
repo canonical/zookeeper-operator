@@ -1,11 +1,12 @@
-import pytest
-from pytest_operator.plugin import OpsTest
 import logging
-import yaml
-from pathlib import Path
-import helpers
-import continuous_writes as cw
 import time
+from pathlib import Path
+
+import continuous_writes as cw
+import helpers
+import pytest
+import yaml
+from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
 
