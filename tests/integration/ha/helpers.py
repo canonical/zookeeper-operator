@@ -56,10 +56,13 @@ async def get_unit_host(
 
 
 async def get_leader_name(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
+    logger.info("Getting leader name...")
     for unit in ops_test.model.applications[app_name].units:
         host = unit.public_address
+        logger.info(f"{unit.name=} + {host=}")
         try:
             mode = srvr(host)["Mode"]
+            logger.info(f"{mode=}")
         except subprocess.CalledProcessError:  # unit is down
             continue
         if mode == "leader":

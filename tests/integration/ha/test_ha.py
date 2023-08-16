@@ -1,5 +1,5 @@
+import asyncio
 import logging
-import time
 from pathlib import Path
 
 import continuous_writes as cw
@@ -38,7 +38,7 @@ async def test_kill_db_process(ops_test: OpsTest, request):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=username, password=password)
-    time.sleep(10)
+    await asyncio.sleep(10)
 
     logger.info("Counting writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=username, password=password)
@@ -50,7 +50,7 @@ async def test_kill_db_process(ops_test: OpsTest, request):
     writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=username, password=password
     )
-    time.sleep(30)  # 3x client timeout
+    await asyncio.sleep(30)  # 3x client timeout
     new_writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=username, password=password
     )
