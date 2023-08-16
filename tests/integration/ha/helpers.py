@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 from pytest_operator.plugin import OpsTest
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,11 @@ APP_NAME = METADATA["name"]
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
 
+@retry(
+    wait=wait_fixed(5),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def srvr(host: str) -> dict:
     response = subprocess.check_output(
         f"echo srvr | nc {host} 2181", stderr=subprocess.PIPE, shell=True, universal_newlines=True

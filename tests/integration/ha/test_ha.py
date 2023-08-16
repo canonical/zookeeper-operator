@@ -36,15 +36,7 @@ async def test_kill_db_process(ops_test: OpsTest, request):
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
-    logger.info(f"{hosts=}")
-    logger.info(f"{leader_name=}")
-    logger.info(f"{leader_host=}")
-    logger.info(f"{username=}")
-    logger.info(f"{password=}")
-    logger.info(f"{parent=}")
-
     logger.info("Starting continuous_writes...")
-
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=username, password=password)
     time.sleep(10)
 
