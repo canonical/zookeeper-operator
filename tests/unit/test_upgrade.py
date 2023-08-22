@@ -8,13 +8,14 @@ from unittest.mock import PropertyMock
 
 import pytest
 import yaml
-from charm import ZooKeeperCharm
 from charms.data_platform_libs.v0.upgrade import ClusterNotReadyError, DependencyModel
 from charms.zookeeper.v0.client import ZooKeeperManager
-from cluster import ZooKeeperCluster
 from kazoo.client import KazooClient
-from literals import CHARM_KEY, DEPENDENCIES
 from ops.testing import Harness
+
+from charm import ZooKeeperCharm
+from cluster import ZooKeeperCluster
+from literals import CHARM_KEY, DEPENDENCIES
 from snap import ZooKeeperSnap
 from upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
 

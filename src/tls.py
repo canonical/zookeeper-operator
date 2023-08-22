@@ -21,6 +21,7 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
 from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Unit
+
 from utils import generate_password, safe_write_to_file
 
 if TYPE_CHECKING:

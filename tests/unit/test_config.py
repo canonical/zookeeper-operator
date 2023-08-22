@@ -7,10 +7,11 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from ops.testing import Harness
+
 from charm import ZooKeeperCharm
 from config import ZooKeeperConfig
 from literals import CHARM_KEY, PEER, REL_NAME
-from ops.testing import Harness
 from snap import ZooKeeperSnap
 
 logger = logging.getLogger(__name__)

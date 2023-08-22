@@ -4,9 +4,9 @@
 
 from unittest.mock import patch
 
-from utils import get_env, update_env
-
 from src.utils import map_env
+
+from utils import get_env, update_env
 
 
 def test_map_env_populated():

@@ -12,6 +12,7 @@ import yaml
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 from pytest_operator.plugin import OpsTest
+
 from snap import ZooKeeperSnap
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
@@ -161,6 +162,15 @@ async def ping_servers(ops_test: OpsTest) -> bool:
     return True
 
 
+async def correct_version_running(ops_test: OpsTest, expected_version: str) -> bool:
+    for unit in ops_test.model.applications[APP_NAME].units:
+        host = unit.public_address
+        if expected_version not in srvr(host)["Zookeeper version"]:
+            return False
+
+    return True
+
+
 def check_jaas_config(model_full_name: str, unit: str):
     config = check_output(
         f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'cat {ZooKeeperSnap.conf_path}/zookeeper-jaas.cfg'",
@@ -245,11 +255,11 @@ def get_relation_id(model_full_name: str, unit: str, app_name: str):
     raise Exception("No relation found!")
 
 
-def get_relation_data(model_full_name: str, unit: str, app_name: str):
+def get_relation_data(model_full_name: str, unit: str, endpoint: str):
     show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
     d_relations = show_unit[unit]["relation-info"]
     for relation in d_relations:
-        if relation["endpoint"] == app_name:
+        if relation["endpoint"] == endpoint:
             return relation["application-data"]
     raise Exception("No relation found!")
 

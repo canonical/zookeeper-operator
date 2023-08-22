@@ -8,11 +8,12 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
-from charm import ZooKeeperCharm
-from literals import CHARM_KEY, PEER
 from ops.framework import EventBase
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
+
+from charm import ZooKeeperCharm
+from literals import CHARM_KEY, PEER
 
 logger = logging.getLogger(__name__)
 
