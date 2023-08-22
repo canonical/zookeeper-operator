@@ -81,3 +81,46 @@ async def test_kill_db_process(ops_test: OpsTest, request):
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
+
+
+@pytest.mark.abort_on_fail
+async def test_two_clusters_not_replicated(ops_test: OpsTest, request):
+    """Confirms that writes to one cluster are not replicated to another."""
+    zk_2 = f"{APP_NAME}2"
+
+    logger.info("Deploying second cluster...")
+    charm = await ops_test.build_charm(".")
+    await ops_test.model.deploy(charm, application_name=zk_2, num_units=3)
+    await ops_test.model.wait_for_idle(
+        apps=[zk_2], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
+    )
+
+    assert ops_test.model.applications[zk_2].status == "active"
+
+    parent = request.node.name
+    username = "super"
+
+    hosts_1 = await helpers.get_hosts(ops_test)
+    hosts_2 = await helpers.get_hosts(ops_test, app_name=zk_2)
+    password_1 = helpers.get_super_password(ops_test)
+    password_2 = helpers.get_super_password(ops_test, app_name=zk_2)
+
+    logger.info("Starting continuous_writes on original cluster...")
+    cw.start_continuous_writes(
+        parent=parent, hosts=hosts_1, username=username, password=password_1
+    )
+    await asyncio.sleep(10)
+
+    logger.info("Counting writes are running at all...")
+    assert cw.count_znodes(parent=parent, hosts=hosts_1, username=username, password=password_2)
+
+    logger.info("Stopping continuous_writes...")
+    cw.stop_continuous_writes()
+
+    logger.info("Confirming writes on original cluster...")
+    assert cw.count_znodes(parent=parent, hosts=hosts_1, username=username, password=password_1)
+
+    with pytest.raises(Exception):
+        cw.count_znodes(parent=parent, hosts=hosts_2, username=username, password=password_2)
+
+    await ops_test.model.applications[zk_2].remove()
