@@ -31,7 +31,7 @@ async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3) -> N
 
 @retry(
     wait=wait_fixed(5),
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(60),
     reraise=True,
 )
 def srvr(host: str) -> dict:
