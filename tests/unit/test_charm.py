@@ -208,7 +208,7 @@ def test_relation_changed_defers_upgrading_single_unit(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
-        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": "started"})
+        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"tls-upgrading": "started"})
 
     with (
         patch("ops.framework.EventBase.defer") as patched,
@@ -342,7 +342,7 @@ def test_restart_sets_unified(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
-        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": "started"})
+        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"tls-upgrading": "started"})
 
     with (
         patch("snap.ZooKeeperSnap.restart_snap_service"),
@@ -354,7 +354,7 @@ def test_restart_sets_unified(harness):
         harness.charm._restart(EventBase)
         assert harness.charm.unit_peer_data.get("unified", None) == "true"
 
-        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": ""})
+        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"tls-upgrading": ""})
         with (
             patch("snap.ZooKeeperSnap.restart_snap_service"),
             patch("charm.ZooKeeperCharm.config_changed", return_value=True),
@@ -399,7 +399,7 @@ def test_init_server_calls_necessary_methods(harness):
             {
                 "sync-password": "mellon",
                 "super-password": "mellon",
-                "upgrading": "started",
+                "tls-upgrading": "started",
                 "quorum": "ssl",
             },
         )
@@ -548,7 +548,9 @@ def test_update_quorum_does_not_unset_upgrading_until_all_quorum(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
         harness.update_relation_data(
-            peer_rel_id, CHARM_KEY, {"tls": "enabled", "upgrading": "started", "quorum": "non-ssl"}
+            peer_rel_id,
+            CHARM_KEY,
+            {"tls": "enabled", "tls-upgrading": "started", "quorum": "non-ssl"},
         )
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
 
@@ -562,7 +564,7 @@ def test_update_quorum_unsets_upgrading_when_all_quorum(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
         harness.update_relation_data(
-            peer_rel_id, CHARM_KEY, {"tls": "enabled", "upgrading": "started", "quorum": "ssl"}
+            peer_rel_id, CHARM_KEY, {"tls": "enabled", "tls-upgrading": "started", "quorum": "ssl"}
         )
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/1", {"quorum": "ssl"})
