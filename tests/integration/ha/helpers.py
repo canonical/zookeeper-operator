@@ -43,7 +43,17 @@ def srvr(host: str) -> dict:
     return result
 
 
-async def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> str:
+def get_hosts_from_status(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181):
+    ips = subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju status {app_name} --format json | jq '.. .\"public-address\"? // empty' | xargs | tr -d '\"'",
+        shell=True,
+        universal_newlines=True,
+    ).split()
+
+    return [f"{ip}:{port}" for ip in ips]
+
+
+def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> str:
     return ",".join(
         [
             f"{unit.public_address}:{str(port)}"
