@@ -202,12 +202,15 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     )
     assert last_write == total_writes
 
+    new_hosts = helpers.get_hosts_from_status(ops_test)
+    new_leader_host = max(set(new_hosts) - set(hosts))
+
     logger.info("Checking old leader caught up...")
     last_write_leader = cw.get_last_znode(
-        parent=parent, hosts=leader_host, username=username, password=password
+        parent=parent, hosts=new_leader_host, username=USERNAME, password=password
     )
     total_writes_leader = cw.count_znodes(
-        parent=parent, hosts=leader_host, username=username, password=password
+        parent=parent, hosts=new_leader_host, username=USERNAME, password=password
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
