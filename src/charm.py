@@ -331,7 +331,7 @@ class ZooKeeperCharm(CharmBase):
                 event,
                 (RelationDepartedEvent, LeaderElectedEvent),
             )
-            or self.cluster.all_units_added  # to ensure run on update-status
+            or self.healthy  # to ensure run on update-status
         ):
             updated_servers = self.cluster.update_cluster()
             logger.debug(f"{updated_servers=}")
@@ -447,6 +447,18 @@ class ZooKeeperCharm(CharmBase):
         # Add password flag
         self.app_peer_data["rotate-passwords"] = "true"
         event.set_results({f"{username}-password": new_password})
+
+    @property
+    def healthy(self) -> bool:
+        """Flag to check if charm is healthy and stable."""
+        if (
+            self.cluster.all_units_added
+            and not self.app_peer_data.get("rotate-passwords")
+            and not self.tls.upgrading
+        ):
+            return True
+
+        return False
 
 
 if __name__ == "__main__":
