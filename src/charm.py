@@ -454,6 +454,7 @@ class ZooKeeperCharm(CharmBase):
         if (
             self.cluster.all_units_added
             and not self.app_peer_data.get("rotate-passwords")
+            and self.cluster._all_rotated()
             and not self.tls.upgrading
         ):
             return True
