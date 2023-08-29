@@ -62,7 +62,7 @@ def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> 
     )
 
 
-async def get_unit_host(
+def get_unit_host(
     ops_test: OpsTest, unit_name: str, app_name: str = APP_NAME, port: int = 2181
 ) -> str:
     return [
@@ -72,20 +72,106 @@ async def get_unit_host(
     ][0]
 
 
-async def get_leader_name(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
-    logger.info("Getting leader name...")
-    for unit in ops_test.model.applications[app_name].units:
-        host = unit.public_address
-        logger.info(f"{unit.name=} + {host=}")
+def get_unit_name_from_host(ops_test: OpsTest, host: str, app_name: str = APP_NAME) -> str:
+    return [
+        unit.name
+        for unit in ops_test.model.applications[app_name].units
+        if unit.public_address == host.split(":")[0]
+    ][0]
+
+
+def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> str:
+    for host in hosts.split(","):
         try:
-            mode = srvr(host)["Mode"]
-            logger.info(f"{mode=}")
+            mode = srvr(host.split(":")[0])["Mode"]
         except subprocess.CalledProcessError:  # unit is down
             continue
         if mode == "leader":
-            return unit.name
+            leader_name = get_unit_name_from_host(ops_test, host, app_name)
+            return leader_name
 
-    raise Exception("Leader not found")
+    return ""
+
+
+async def get_unit_machine_name(ops_test: OpsTest, unit_name: str) -> str:
+    _, raw_hostname, _ = await ops_test.juju("ssh", unit_name, "hostname")
+    return raw_hostname.strip()
+
+
+def cut_unit_network(machine_name: str) -> None:
+    cut_network_command = f"lxc config device add {machine_name} eth0 none"
+    subprocess.check_call(cut_network_command.split())
+
+
+def restore_unit_network(machine_name: str) -> None:
+    restore_network_command = f"lxc config device remove {machine_name} eth0"
+    subprocess.check_call(restore_network_command.split())
+
+
+def app_is_rootfs(ops_test) -> bool:
+    proc = subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju storage --format yaml",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    response = yaml.safe_load(proc)
+    storages = response["filesystems"]
+
+    for fs in storages.values():
+        if fs["pool"] == "rootfs":
+            return True
+
+    return False
+
+
+def get_storage_id(ops_test, unit_name: str) -> str:
+    proc = subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju storage --format yaml",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    response = yaml.safe_load(proc)
+    storages = response["storage"]
+
+    for storage_id, storage in storages.items():
+        if unit_name in storage["attachments"]["units"]:
+            return storage_id
+
+    raise Exception(f"storage id not found for {unit_name}")
+
+
+async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
+    """Removes and adds back a unit, reusing it's storage.
+
+    Returns:
+        String of new unit host
+    """
+    logger.info("Scaling down unit...")
+    unit_to_remove = ops_test.model.applications[APP_NAME].units[0]
+    unit_storage_id = get_storage_id(ops_test, unit_name=unit_to_remove.name)
+    await ops_test.model.applications[APP_NAME].destroy_units(unit_to_remove.name)
+    await wait_idle(ops_test, units=2)
+
+    old_units = ops_test.model.applications[app_name].units
+
+    logger.info("Adding new unit with old unit's storage...")
+    subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju add-unit {app_name} --attach-storage={unit_storage_id}",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    await wait_idle(ops_test, apps=[app_name])
+
+    new_units = ops_test.model.applications[app_name].units
+    added_unit = list(set(new_units) - set(old_units))[0]
+
+    logger.info("Verifying storage re-use...")
+    assert get_storage_id(ops_test, unit_name=added_unit.name) == unit_storage_id
+
+    return get_unit_host(ops_test, added_unit.name)
 
 
 def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
