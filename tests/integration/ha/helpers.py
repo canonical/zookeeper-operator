@@ -15,6 +15,13 @@ APP_NAME = METADATA["name"]
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
 
+async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3):
+    await ops_test.model.wait_for_idle(
+        apps=apps, status="active", timeout=3600, idle_period=30, wait_for_exact_units=units
+    )
+    assert ops_test.model.applications[APP_NAME].status == "active"
+
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(3),
