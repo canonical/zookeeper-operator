@@ -222,38 +222,99 @@ async def test_two_clusters_not_replicated(ops_test: OpsTest, request):
     zk_2 = f"{APP_NAME}2"
 
     logger.info("Deploying second cluster...")
-    charm = await ops_test.build_charm(".")
-    await ops_test.model.deploy(charm, application_name=zk_2, num_units=3)
-    await ops_test.model.wait_for_idle(
-        apps=[zk_2], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
-    )
-
-    assert ops_test.model.applications[zk_2].status == "active"
+    new_charm = await ops_test.build_charm(".")
+    await ops_test.model.deploy(new_charm, application_name=zk_2, num_units=3)
+    await helpers.wait_idle(ops_test, apps=[APP_NAME, zk_2])
 
     parent = request.node.name
-    username = "super"
 
-    hosts_1 = await helpers.get_hosts(ops_test)
-    hosts_2 = await helpers.get_hosts(ops_test, app_name=zk_2)
+    hosts_1 = helpers.get_hosts(ops_test)
+    hosts_2 = helpers.get_hosts(ops_test, app_name=zk_2)
     password_1 = helpers.get_super_password(ops_test)
     password_2 = helpers.get_super_password(ops_test, app_name=zk_2)
 
     logger.info("Starting continuous_writes on original cluster...")
     cw.start_continuous_writes(
-        parent=parent, hosts=hosts_1, username=username, password=password_1
+        parent=parent, hosts=hosts_1, username=USERNAME, password=password_1
     )
-    await asyncio.sleep(10)
+    await asyncio.sleep(30)  # letting client set up and start writing
 
-    logger.info("Counting writes are running at all...")
-    assert cw.count_znodes(parent=parent, hosts=hosts_1, username=username, password=password_2)
+    logger.info("Checking writes are running at all...")
+    assert cw.count_znodes(parent=parent, hosts=hosts_1, username=USERNAME, password=password_1)
 
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()
 
     logger.info("Confirming writes on original cluster...")
-    assert cw.count_znodes(parent=parent, hosts=hosts_1, username=username, password=password_1)
+    assert cw.count_znodes(parent=parent, hosts=hosts_1, username=USERNAME, password=password_1)
 
+    logger.info("Confirming writes not replicated to new cluster...")
     with pytest.raises(Exception):
-        cw.count_znodes(parent=parent, hosts=hosts_2, username=username, password=password_2)
+        cw.count_znodes(parent=parent, hosts=hosts_2, username=USERNAME, password=password_2)
 
+    logger.info("Cleaning up old cluster...")
     await ops_test.model.applications[zk_2].remove()
+    await helpers.wait_idle(ops_test)
+
+
+@pytest.mark.abort_on_fail
+async def test_scale_up_replication(ops_test: OpsTest, request):
+    hosts = helpers.get_hosts(ops_test)
+    password = helpers.get_super_password(ops_test)
+    parent = request.node.name
+
+    logger.info("Starting continuous_writes...")
+    cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+    await asyncio.sleep(30)  # letting client set up and start writing
+
+    logger.info("Checking writes are running at all...")
+    assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+
+    logger.info("Adding new unit...")
+    await ops_test.model.applications[APP_NAME].add_units(count=1)
+    await helpers.wait_idle(ops_test, units=4)
+
+    original_hosts = set(hosts.split(","))
+    new_hosts = set((helpers.get_hosts(ops_test)).split(","))
+    new_host = max(new_hosts - original_hosts)
+    new_unit_name = helpers.get_unit_name_from_host(ops_test, host=new_host)
+
+    logger.info("Confirming writes replicated on new unit...")
+    assert cw.count_znodes(parent=parent, hosts=new_host, username=USERNAME, password=password)
+
+    logger.info("Stopping continuous_writes...")
+    cw.stop_continuous_writes()
+
+    logger.info("Cleaning up extraneous unit...")
+    await ops_test.model.applications[APP_NAME].destroy_units(new_unit_name)
+    await helpers.wait_idle(ops_test)
+
+
+# FIXME: This test needs actually running on a cloud
+@pytest.mark.abort_on_fail
+async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
+    if helpers.app_is_rootfs(ops_test):
+        pytest.skip(
+            "re-use of storage can only be used on deployments with persistent storage not on rootfs deployments"
+        )
+
+    hosts = helpers.get_hosts(ops_test)
+    password = helpers.get_super_password(ops_test)
+    parent = request.node.name
+
+    logger.info("Starting continuous_writes...")
+    cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+    await asyncio.sleep(30)  # letting client set up and start writing
+
+    logger.info("Checking writes are running at all...")
+    assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+
+    logger.info("Stopping continuous_writes...")
+    cw.stop_continuous_writes()
+    await helpers.wait_idle(ops_test)
+
+    logger.info("Scaling down and up and re-using storage...")
+    new_host = await helpers.reuse_storage(ops_test)
+
+    logger.info("Confirming writes replicated on new unit...")
+    assert cw.count_znodes(parent=parent, hosts=new_host, username=USERNAME, password=password)
