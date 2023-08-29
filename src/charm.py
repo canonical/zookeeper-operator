@@ -331,6 +331,7 @@ class ZooKeeperCharm(CharmBase):
                 event,
                 (RelationDepartedEvent, LeaderElectedEvent),
             )
+            or self.cluster.all_units_added  # to ensure run on update-status
         ):
             updated_servers = self.cluster.update_cluster()
             logger.debug(f"{updated_servers=}")
