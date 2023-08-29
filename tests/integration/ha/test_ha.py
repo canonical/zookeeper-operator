@@ -12,52 +12,48 @@ logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
+USERNAME = "super"
 
 
 @pytest.mark.abort_on_fail
 async def test_deploy_active(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
-    )
-
-    assert ops_test.model.applications[APP_NAME].status == "active"
+    await helpers.wait_idle(ops_test)
 
 
 @pytest.mark.abort_on_fail
 async def test_kill_db_process(ops_test: OpsTest, request):
-    """Gracefully removes ZK quorum leader using `juju remove`."""
-    hosts = await helpers.get_hosts(ops_test)
-    leader_name = await helpers.get_leader_name(ops_test)
-    leader_host = await helpers.get_unit_host(ops_test, leader_name)
-    username = "super"
+    """SIGKILLs leader process and checks recovery + re-election."""
+    hosts = helpers.get_hosts(ops_test)
+    leader_name = helpers.get_leader_name(ops_test, hosts)
+    leader_host = helpers.get_unit_host(ops_test, leader_name)
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
     logger.info("Starting continuous_writes...")
-    cw.start_continuous_writes(parent=parent, hosts=hosts, username=username, password=password)
-    await asyncio.sleep(10)
+    cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+    await asyncio.sleep(30)  # letting client set up and start writing
 
-    logger.info("Counting writes are running at all...")
-    assert cw.count_znodes(parent=parent, hosts=hosts, username=username, password=password)
+    logger.info("Checking writes are running at all...")
+    assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Killing leader process...")
     await helpers.kill_unit_process(ops_test=ops_test, unit_name=leader_name, kill_code="SIGKILL")
 
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
-        parent=parent, hosts=non_leader_hosts, username=username, password=password
+        parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
-    await asyncio.sleep(30)  # 3x client timeout
+    await asyncio.sleep(30)  # increasing writes
     new_writes = cw.count_znodes(
-        parent=parent, hosts=non_leader_hosts, username=username, password=password
+        parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
     assert new_writes > writes, "writes not continuing to ZK"
 
     logger.info("Checking leader re-election...")
-    new_leader_name = await helpers.get_leader_name(ops_test)
+    new_leader_name = helpers.get_leader_name(ops_test, non_leader_hosts)
     assert new_leader_name != leader_name
 
     logger.info("Stopping continuous_writes...")
