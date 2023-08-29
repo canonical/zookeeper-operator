@@ -15,7 +15,14 @@ APP_NAME = METADATA["name"]
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
 
-async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3):
+async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3) -> None:
+    """Waits for active/idle on specified application.
+
+    Args:
+        ops_test: OpsTest
+        apps: list of application names to wait for
+        units: integer number of units to wait for for each application
+    """
     await ops_test.model.wait_for_idle(
         apps=apps, status="active", timeout=3600, idle_period=30, wait_for_exact_units=units
     )
@@ -28,6 +35,14 @@ async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3):
     reraise=True,
 )
 def srvr(host: str) -> dict:
+    """Calls srvr 4lw command to specified host.
+
+    Args:
+        host: ZooKeeper address and port to issue srvr 4lw command to
+
+    Returns:
+        Dict of srvr command output key/values
+    """
     response = subprocess.check_output(
         f"echo srvr | nc {host} 2181", stderr=subprocess.PIPE, shell=True, universal_newlines=True
     )
@@ -43,7 +58,23 @@ def srvr(host: str) -> dict:
     return result
 
 
-def get_hosts_from_status(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181):
+def get_hosts_from_status(
+    ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181
+) -> list[str]:
+    """Manually calls `juju status` and grabs the host addresses from there for a given application.
+
+    Needed as after an ip change (e.g network cut test), OpsTest does not recognise the new address.
+
+    Args:
+        ops_test: OpsTest
+        app_name: the Juju application to get hosts from
+            Defaults to `zookeeper`
+        port: the desired ZooKeeper port.
+            Defaults to `2181`
+
+    Returns:
+        List of ZooKeeper server addresses and ports
+    """
     ips = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju status {app_name} --format json | jq '.. .\"public-address\"? // empty' | xargs | tr -d '\"'",
         shell=True,
@@ -54,6 +85,18 @@ def get_hosts_from_status(ops_test: OpsTest, app_name: str = APP_NAME, port: int
 
 
 def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> str:
+    """Gets all ZooKeeper server addresses for a given application.
+
+    Args:
+        ops_test: OpsTest
+        app_name: the Juju application to get hosts from
+            Defaults to `zookeeper`
+        port: the desired ZooKeeper port.
+            Defaults to `2181`
+
+    Returns:
+        Comma-delimited string of ZooKeeper server addresses and ports
+    """
     return ",".join(
         [
             f"{unit.public_address}:{str(port)}"
@@ -65,6 +108,19 @@ def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> 
 def get_unit_host(
     ops_test: OpsTest, unit_name: str, app_name: str = APP_NAME, port: int = 2181
 ) -> str:
+    """Gets ZooKeeper server address for a given unit name.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit to get host from
+        app_name: the Juju application the unit belongs to
+            Defaults to `zookeeper`
+        port: the desired ZooKeeper port.
+            Defaults to `2181`
+
+    Returns:
+        String of ZooKeeper server address and port
+    """
     return [
         f"{unit.public_address}:{str(port)}"
         for unit in ops_test.model.applications[app_name].units
@@ -73,6 +129,17 @@ def get_unit_host(
 
 
 def get_unit_name_from_host(ops_test: OpsTest, host: str, app_name: str = APP_NAME) -> str:
+    """Gets unit name for a given ZooKeeper server address.
+
+    Args:
+        ops_test: OpsTest
+        host: the ZooKeeper ip address and port
+        app_name: the Juju application the ZooKeeper server belongs to
+            Defaults to `zookeeper`
+
+    Returns:
+        String of unit name
+    """
     return [
         unit.name
         for unit in ops_test.model.applications[app_name].units
@@ -81,6 +148,17 @@ def get_unit_name_from_host(ops_test: OpsTest, host: str, app_name: str = APP_NA
 
 
 def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> str:
+    """Gets current ZooKeeper quorum leader for a given application.
+
+    Args:
+        ops_test: OpsTest
+        hosts: comma-delimited list of ZooKeeper ip addresses and ports
+        app_name: the Juju application the unit belongs to
+            Defaults to `zookeeper`
+
+    Returns:
+        String of unit name of the ZooKeeper quorum leader
+    """
     for host in hosts.split(","):
         try:
             mode = srvr(host.split(":")[0])["Mode"]
@@ -94,21 +172,51 @@ def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> 
 
 
 async def get_unit_machine_name(ops_test: OpsTest, unit_name: str) -> str:
+    """Gets current LXD machine name for a given unit name.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit name to get from
+
+    Returns:
+        String of LXD machine name
+            e.g juju-123456-0
+    """
     _, raw_hostname, _ = await ops_test.juju("ssh", unit_name, "hostname")
     return raw_hostname.strip()
 
 
 def cut_unit_network(machine_name: str) -> None:
+    """Cuts network access for a given LXD container.
+
+    Args:
+        machine_name: the LXD machine name to cut network for
+            e.g `juju-123456-0`
+    """
     cut_network_command = f"lxc config device add {machine_name} eth0 none"
     subprocess.check_call(cut_network_command.split())
 
 
 def restore_unit_network(machine_name: str) -> None:
+    """Restores network access for a given LXD container.
+
+    Args:
+        machine_name: the LXD machine name to restore network for
+            e.g `juju-123456-0`
+    """
     restore_network_command = f"lxc config device remove {machine_name} eth0"
     subprocess.check_call(restore_network_command.split())
 
 
 def app_is_rootfs(ops_test) -> bool:
+    """Checks if any application in the current Juju model has rootfs storage filesystem.
+
+    Args:
+        ops_test: OpsTest
+
+    Returns:
+        True if any rootfs filesystem in the Juju model. Otherwise False
+    """
     proc = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju storage --format yaml",
         stderr=subprocess.PIPE,
@@ -126,6 +234,15 @@ def app_is_rootfs(ops_test) -> bool:
 
 
 def get_storage_id(ops_test, unit_name: str) -> str:
+    """Gets the current Juju storage ID for a given unit name.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit name to get storage ID of
+
+    Returns:
+        String of Juju storage ID
+    """
     proc = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju storage --format yaml",
         stderr=subprocess.PIPE,
@@ -144,6 +261,11 @@ def get_storage_id(ops_test, unit_name: str) -> str:
 
 async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
     """Removes and adds back a unit, reusing it's storage.
+
+    Args:
+        ops_test: OpsTest
+        app_name: the Juju application ZooKeeper belongs to
+            Defaults to `zookeeper`
 
     Returns:
         String of new unit host
@@ -175,6 +297,16 @@ async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
 
 
 def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
+    """Gets current `super-password` for a given ZooKeeper application.
+
+    Args:
+        ops_test: OpsTest
+        app_name: the ZooKeeper Juju application
+
+
+    Returns:
+        String of password for the `super` user
+    """
     for unit in ops_test.model.applications[app_name].units:
         show_unit = subprocess.check_output(
             f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {unit.name}",
@@ -198,6 +330,15 @@ def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
 async def kill_unit_process(
     ops_test: OpsTest, unit_name: str, kill_code: str, app_name: str = APP_NAME
 ) -> None:
+    """Issues given job control signals to a ZooKeeper process on a given Juju unit.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit running the ZooKeeper process
+        kill_code: the signal to issue
+            e.g `SIGKILL`, `SIGSTOP`
+        app_name: the ZooKeeper Juju application
+    """
     if len(ops_test.model.applications[app_name].units) < 3:
         await ops_test.model.applications[app_name].add_unit(count=1)
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
