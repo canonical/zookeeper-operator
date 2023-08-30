@@ -290,14 +290,8 @@ async def test_scale_up_replication(ops_test: OpsTest, request):
     await helpers.wait_idle(ops_test)
 
 
-# FIXME: This test needs actually running on a cloud
 @pytest.mark.abort_on_fail
 async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
-    if helpers.app_is_rootfs(ops_test):
-        pytest.skip(
-            "re-use of storage can only be used on deployments with persistent storage not on rootfs deployments"
-        )
-
     hosts = helpers.get_hosts(ops_test)
     password = helpers.get_super_password(ops_test)
     parent = request.node.name

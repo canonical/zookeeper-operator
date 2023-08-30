@@ -208,31 +208,6 @@ def restore_unit_network(machine_name: str) -> None:
     subprocess.check_call(restore_network_command.split())
 
 
-def app_is_rootfs(ops_test) -> bool:
-    """Checks if any application in the current Juju model has rootfs storage filesystem.
-
-    Args:
-        ops_test: OpsTest
-
-    Returns:
-        True if any rootfs filesystem in the Juju model. Otherwise False
-    """
-    proc = subprocess.check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju storage --format yaml",
-        stderr=subprocess.PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    response = yaml.safe_load(proc)
-    storages = response["filesystems"]
-
-    for fs in storages.values():
-        if fs["pool"] == "rootfs":
-            return True
-
-    return False
-
-
 def get_storage_id(ops_test, unit_name: str) -> str:
     """Gets the current Juju storage ID for a given unit name.
 
@@ -259,25 +234,15 @@ def get_storage_id(ops_test, unit_name: str) -> str:
     raise Exception(f"storage id not found for {unit_name}")
 
 
-async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
+async def reuse_storage(ops_test, unit_storage_id: str, app_name: str = APP_NAME) -> None:
     """Removes and adds back a unit, reusing it's storage.
 
     Args:
         ops_test: OpsTest
+        unit_storage_id: the Juju storage id to be re-used
         app_name: the Juju application ZooKeeper belongs to
             Defaults to `zookeeper`
-
-    Returns:
-        String of new unit host
     """
-    logger.info("Scaling down unit...")
-    unit_to_remove = ops_test.model.applications[APP_NAME].units[0]
-    unit_storage_id = get_storage_id(ops_test, unit_name=unit_to_remove.name)
-    await ops_test.model.applications[APP_NAME].destroy_units(unit_to_remove.name)
-    await wait_idle(ops_test, units=2)
-
-    old_units = [unit.name for unit in ops_test.model.applications[app_name].units]
-
     logger.info("Adding new unit with old unit's storage...")
     subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju add-unit {app_name} --attach-storage={unit_storage_id}",
@@ -286,16 +251,6 @@ async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
         universal_newlines=True,
     )
     await wait_idle(ops_test, apps=[app_name])
-
-    new_units = [unit.name for unit in ops_test.model.applications[app_name].units]
-    added_unit_name = list(set(new_units) - set(old_units))[0]
-
-    logger.info("Verifying storage re-use...")
-    new_id = get_storage_id(ops_test, unit_name=added_unit_name)
-
-    assert new_id == unit_storage_id
-
-    return get_unit_host(ops_test, added_unit_name)
 
 
 def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
