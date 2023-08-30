@@ -308,7 +308,7 @@ class ZooKeeperTLS(Object):
         """Adds CA to JKS truststore."""
         try:
             subprocess.check_output(
-                f"keytool -import -v -alias ca -file ca.pem -keystore truststore.jks -storepass {self.keystore_password} -noprompt",
+                f"charmed-zookeeper.keytool -import -v -alias ca -file ca.pem -keystore truststore.jks -storepass {self.keystore_password} -noprompt",
                 stderr=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
