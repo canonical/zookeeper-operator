@@ -284,26 +284,24 @@ def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
             raise Exception("no relations found")
 
 
-async def kill_unit_process(
-    ops_test: OpsTest, unit_name: str, kill_code: str, app_name: str = APP_NAME
+async def send_control_signal(
+    ops_test: OpsTest, unit_name: str, signal: str, app_name: str = APP_NAME
 ) -> None:
     """Issues given job control signals to a ZooKeeper process on a given Juju unit.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
-        kill_code: the signal to issue
-            e.g `SIGKILL`, `SIGSTOP`
+        signal: the signal to issue
+            e.g `SIGKILL`, `SIGSTOP`, `SIGCONT` etc
         app_name: the ZooKeeper Juju application
     """
     if len(ops_test.model.applications[app_name].units) < 3:
         await ops_test.model.applications[app_name].add_unit(count=1)
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
 
-    kill_cmd = f"run --unit {unit_name} -- pkill --signal {kill_code} -f {PROCESS}"
-    return_code, _, _ = await ops_test.juju(*kill_cmd.split())
+    cmd = f"run --unit {unit_name} -- pkill --signal {signal} -f {PROCESS}"
+    return_code, _, _ = await ops_test.juju(*cmd.split())
 
     if return_code != 0:
-        raise Exception(
-            f"Expected kill command {kill_cmd} to succeed instead it failed: {return_code}"
-        )
+        raise Exception(f"Expected kill command {cmd} to succeed instead it failed: {return_code}")

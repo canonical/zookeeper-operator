@@ -40,7 +40,9 @@ async def test_kill_db_process(ops_test: OpsTest, request):
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Killing leader process...")
-    await helpers.kill_unit_process(ops_test=ops_test, unit_name=leader_name, kill_code="SIGKILL")
+    await helpers.send_control_signal(
+        ops_test=ops_test, unit_name=leader_name, kill_code="SIGKILL"
+    )
 
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
@@ -97,7 +99,9 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Stopping leader process...")
-    await helpers.kill_unit_process(ops_test=ops_test, unit_name=leader_name, kill_code="SIGSTOP")
+    await helpers.send_control_signal(
+        ops_test=ops_test, unit_name=leader_name, kill_code="SIGSTOP"
+    )
     await asyncio.sleep(30)  # to give time for re-election
 
     logger.info("Checking writes are increasing...")
@@ -115,7 +119,9 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
     assert new_leader_name != leader_name
 
     logger.info("Continuing leader process...")
-    await helpers.kill_unit_process(ops_test=ops_test, unit_name=leader_name, kill_code="SIGCONT")
+    await helpers.send_control_signal(
+        ops_test=ops_test, unit_name=leader_name, kill_code="SIGCONT"
+    )
     await asyncio.sleep(30)  # letting writes continue while unit rejoins
 
     logger.info("Stopping continuous_writes...")
