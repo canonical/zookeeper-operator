@@ -132,7 +132,7 @@ class ZooKeeperTLS(Object):
         Returns:
             True if the cluster is switching. Otherwise False
         """
-        return bool(self.charm.app_peer_data.get("tls-upgrading", None) == "started")
+        return bool(self.charm.app_peer_data.get("upgrading", None) == "started")
 
     def unit_unified(self, unit: Unit) -> bool:
         """Checks if the unit is running `portUnification` configuration option.
@@ -179,7 +179,7 @@ class ZooKeeperTLS(Object):
         # if this event fired, we don't know whether the cluster was fully running or not
         # assume it's already running, and trigger `upgrade` from non-ssl -> ssl
         # ideally trigger this before any other `certificates_*` step
-        self.charm.app_peer_data.update({"tls": "enabled", "tls-upgrading": "started"})
+        self.charm.app_peer_data.update({"tls": "enabled", "upgrading": "started"})
 
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
@@ -235,7 +235,7 @@ class ZooKeeperTLS(Object):
 
         # if this event fired, trigger `upgrade` from ssl -> non-ssl
         # ideally trigger this before any other `certificates_*` step
-        self.charm.app_peer_data.update({"tls": "", "tls-upgrading": "started"})
+        self.charm.app_peer_data.update({"tls": "", "upgrading": "started"})
 
     def _on_certificate_expiring(self, _) -> None:
         """Handler for `certificate_expiring` event."""

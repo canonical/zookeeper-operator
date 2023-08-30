@@ -356,7 +356,7 @@ class ZooKeeperCharm(CharmBase):
 
             if self.cluster.all_units_quorum:
                 logger.debug("all units running desired encryption - removing upgrading")
-                self.app_peer_data.update({"tls-upgrading": ""})
+                self.app_peer_data.update({"upgrading": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
 
         if self.provider.ready:

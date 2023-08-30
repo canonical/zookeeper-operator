@@ -100,14 +100,12 @@ def test_tls_disabled(harness):
 def test_tls_upgrading(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.peer_relation.id, CHARM_KEY, {"tls-upgrading": "started"}
+            harness.charm.peer_relation.id, CHARM_KEY, {"upgrading": "started"}
         )
 
         assert "portUnification=true" in harness.charm.zookeeper_config.zookeeper_properties
 
-        harness.update_relation_data(
-            harness.charm.peer_relation.id, CHARM_KEY, {"tls-upgrading": ""}
-        )
+        harness.update_relation_data(harness.charm.peer_relation.id, CHARM_KEY, {"upgrading": ""})
 
         assert "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
 
