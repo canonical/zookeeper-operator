@@ -18,7 +18,12 @@ USERNAME = "super"
 @pytest.mark.abort_on_fail
 async def test_deploy_active(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
-    await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
+    await ops_test.model.deploy(
+        charm,
+        application_name=APP_NAME,
+        num_units=3,
+        storage={"data": {"pool": "lxd-btrfs", "size": 10240}},
+    )
     await helpers.wait_idle(ops_test)
 
 
@@ -313,8 +318,24 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     cw.stop_continuous_writes()
     await helpers.wait_idle(ops_test)
 
+    logger.info("Scaling down unit...")
+    unit_to_remove = ops_test.model.applications[APP_NAME].units[0]
+    unit_storage_id = helpers.get_storage_id(ops_test, unit_name=unit_to_remove.name)
+    await ops_test.model.applications[APP_NAME].destroy_units(unit_to_remove.name)
+    await helpers.wait_idle(ops_test, units=2)
+
+    old_units = [unit.name for unit in ops_test.model.applications[APP_NAME].units]
+
     logger.info("Scaling down and up and re-using storage...")
-    new_host = await helpers.reuse_storage(ops_test)
+    await helpers.reuse_storage(ops_test, unit_storage_id=unit_storage_id)
+
+    new_units = [unit.name for unit in ops_test.model.applications[APP_NAME].units]
+    added_unit_name = list(set(new_units) - set(old_units))[0]
+
+    logger.info("Verifying storage re-use...")
+    assert helpers.get_storage_id(ops_test, unit_name=added_unit_name) == unit_storage_id
+
+    new_host = helpers.get_unit_host(ops_test, added_unit_name)
 
     logger.info("Confirming writes replicated on new unit...")
     assert cw.count_znodes(parent=parent, hosts=new_host, username=USERNAME, password=password)
