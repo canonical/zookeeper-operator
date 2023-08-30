@@ -276,7 +276,7 @@ async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
     await ops_test.model.applications[APP_NAME].destroy_units(unit_to_remove.name)
     await wait_idle(ops_test, units=2)
 
-    old_units = ops_test.model.applications[app_name].units
+    old_units = [unit.name for unit in ops_test.model.applications[app_name].units]
 
     logger.info("Adding new unit with old unit's storage...")
     subprocess.check_output(
@@ -287,13 +287,15 @@ async def reuse_storage(ops_test, app_name: str = APP_NAME) -> str:
     )
     await wait_idle(ops_test, apps=[app_name])
 
-    new_units = ops_test.model.applications[app_name].units
-    added_unit = list(set(new_units) - set(old_units))[0]
+    new_units = [unit.name for unit in ops_test.model.applications[app_name].units]
+    added_unit_name = list(set(new_units) - set(old_units))[0]
 
     logger.info("Verifying storage re-use...")
-    assert get_storage_id(ops_test, unit_name=added_unit.name) == unit_storage_id
+    new_id = get_storage_id(ops_test, unit_name=added_unit_name)
 
-    return get_unit_host(ops_test, added_unit.name)
+    assert new_id == unit_storage_id
+
+    return get_unit_host(ops_test, added_unit_name)
 
 
 def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:

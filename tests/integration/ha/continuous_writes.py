@@ -63,12 +63,14 @@ def get_last_znode(parent: str, hosts: str, username: str, password: str) -> int
     client.start()
 
     znodes = client.get_children(parent)
-    assert znodes
-
-    last_znode = sorted((int(x) for x in znodes))[-1]
 
     client.stop()
     client.close()
+
+    if not znodes:
+        raise Exception(f"No child znodes found under {parent}")
+
+    last_znode = sorted((int(x) for x in znodes))[-1]
 
     return last_znode
 
@@ -82,10 +84,11 @@ def count_znodes(parent: str, hosts: str, username: str, password: str) -> int:
 
     znodes = client.get_children(parent)
 
-    assert znodes
-
     client.stop()
     client.close()
+
+    if not znodes:
+        raise Exception(f"No child znodes found under {parent}")
 
     return len(znodes) - 1  # to account for the parent node
 
