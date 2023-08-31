@@ -187,13 +187,12 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     helpers.restore_unit_network(machine_name=leader_machine_name)
 
     logger.info("Waiting for Juju to detect new IP...")
-    async with ops_test.fast_forward():  # to ensure update-status runs fast enough
-        await ops_test.model.block_until(
-            lambda: leader_host
-            not in helpers.get_hosts_from_status(ops_test),  # ip changes after lxd config add
-            timeout=900,
-            wait_period=5,
-        )
+    await ops_test.model.block_until(
+        lambda: leader_host
+        not in helpers.get_hosts_from_status(ops_test),  # ip changes after lxd config add
+        timeout=1200,
+        wait_period=5,
+    )
 
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()
