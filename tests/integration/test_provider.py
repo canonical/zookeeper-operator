@@ -9,6 +9,7 @@ import pytest
 from pytest_operator.plugin import OpsTest
 
 from .helpers import (
+    APP_NAME,
     check_acl_permission,
     check_jaas_config,
     get_application_hosts,
@@ -19,7 +20,6 @@ from .helpers import (
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "zookeeper"
 DUMMY_NAME_1 = "app"
 DUMMY_NAME_2 = "appii"
 

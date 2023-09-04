@@ -5,13 +5,12 @@
 import asyncio
 import logging
 import time
-from pathlib import Path
 
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
 from .helpers import (
+    APP_NAME,
     application_active,
     check_key,
     get_password,
@@ -21,9 +20,6 @@ from .helpers import (
 )
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 
 
 @pytest.mark.abort_on_fail

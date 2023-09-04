@@ -1,28 +1,27 @@
 import asyncio
 import logging
-from pathlib import Path
 
 import continuous_writes as cw
 import helpers
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 
 
 @pytest.mark.abort_on_fail
 async def test_deploy_active(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
-    await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
+    await ops_test.model.deploy(charm, application_name=helpers.APP_NAME, num_units=3)
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", timeout=3600, idle_period=30, wait_for_exact_units=3
+        apps=[helpers.APP_NAME],
+        status="active",
+        timeout=3600,
+        idle_period=30,
+        wait_for_exact_units=3,
     )
 
-    assert ops_test.model.applications[APP_NAME].status == "active"
+    assert ops_test.model.applications[helpers.APP_NAME].status == "active"
 
 
 @pytest.mark.abort_on_fail
