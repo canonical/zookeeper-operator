@@ -14,6 +14,8 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 USERNAME = "super"
 
+CLIENT_TIMEOUT = 10
+
 
 @pytest.mark.abort_on_fail
 async def test_deploy_active(ops_test: OpsTest):
@@ -39,7 +41,7 @@ async def test_kill_db_process(ops_test: OpsTest, request):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
-    await asyncio.sleep(30)  # letting client set up and start writing
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
 
     logger.info("Checking writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
@@ -51,7 +53,7 @@ async def test_kill_db_process(ops_test: OpsTest, request):
     writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
-    await asyncio.sleep(30)  # increasing writes
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # increasing writes
     new_writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
@@ -96,20 +98,20 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
-    await asyncio.sleep(30)  # letting client set up and start writing
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
 
     logger.info("Checking writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Stopping leader process...")
     await helpers.send_control_signal(ops_test=ops_test, unit_name=leader_name, signal="SIGSTOP")
-    await asyncio.sleep(30)  # to give time for re-election
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # to give time for re-election
 
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
-    await asyncio.sleep(30)  # increasing writes
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # increasing writes
     new_writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
@@ -121,11 +123,11 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
 
     logger.info("Continuing leader process...")
     await helpers.send_control_signal(ops_test=ops_test, unit_name=leader_name, signal="SIGCONT")
-    await asyncio.sleep(30)  # letting writes continue while unit rejoins
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting writes continue while unit rejoins
 
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()
-    await asyncio.sleep(10)  # buffer to ensure writes sync
+    await asyncio.sleep(CLIENT_TIMEOUT)  # buffer to ensure writes sync
 
     logger.info("Counting writes on surviving units...")
     last_write = cw.get_last_znode(
@@ -161,20 +163,22 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
-    await asyncio.sleep(30)  # letting client set up and start writing
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
 
     logger.info("Checking writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Cutting leader network...")
     helpers.cut_unit_network(machine_name=leader_machine_name)
-    await asyncio.sleep(60)  # to give time for re-election, longer as network cut is weird
+    await asyncio.sleep(
+        CLIENT_TIMEOUT * 6
+    )  # to give time for re-election, longer as network cut is weird
 
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
-    await asyncio.sleep(30)  # increasing writes
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # increasing writes
     new_writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
     )
@@ -242,7 +246,7 @@ async def test_two_clusters_not_replicated(ops_test: OpsTest, request):
     cw.start_continuous_writes(
         parent=parent, hosts=hosts_1, username=USERNAME, password=password_1
     )
-    await asyncio.sleep(30)  # letting client set up and start writing
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
 
     logger.info("Checking writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts_1, username=USERNAME, password=password_1)
@@ -270,7 +274,7 @@ async def test_scale_up_replication(ops_test: OpsTest, request):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
-    await asyncio.sleep(30)  # letting client set up and start writing
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
 
     logger.info("Checking writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
@@ -303,7 +307,7 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
-    await asyncio.sleep(30)  # letting client set up and start writing
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
 
     logger.info("Checking writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
@@ -328,6 +332,9 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
 
     logger.info("Verifying storage re-use...")
     assert helpers.get_storage_id(ops_test, unit_name=added_unit_name) == unit_storage_id
+
+    # long sleep to ensure CI can provision resources and fully set-up
+    await asyncio.sleep(CLIENT_TIMEOUT * 10)
 
     new_host = helpers.get_unit_host(ops_test, added_unit_name)
 
