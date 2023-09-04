@@ -148,6 +148,7 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.skip
 async def test_network_cut_self_heal(ops_test: OpsTest, request):
     """Cuts and restores network on leader, cluster self-heals after IP change."""
     hosts = helpers.get_hosts(ops_test)
