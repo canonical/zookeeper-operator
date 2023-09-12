@@ -298,7 +298,7 @@ def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
 
 
 async def send_control_signal(
-    ops_test: OpsTest, unit_name: str, signal: str, app_name: str = APP_NAME
+    ops_test: OpsTest, unit_name: str, kill_code: str, app_name: str = APP_NAME
 ) -> None:
     """Issues given job control signals to a ZooKeeper process on a given Juju unit.
 
