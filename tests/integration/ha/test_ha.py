@@ -300,6 +300,7 @@ async def test_scale_up_replication(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.skip  # FIXME: Issue https://github.com/canonical/zookeeper-operator/issues/85
 async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     password = helpers.get_super_password(ops_test)
