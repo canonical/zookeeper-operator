@@ -45,6 +45,21 @@ async def test_deploy_active(ops_test: OpsTest):
     await helpers.wait_idle(ops_test)
 
 
+async def test_replication(ops_test: OpsTest):
+    host_0 = ops_test.model.applications[APP_NAME].units[0].public_address
+    host_1 = ops_test.model.applications[APP_NAME].units[1].public_address
+    host_2 = ops_test.model.applications[APP_NAME].units[2].public_address
+    model_full_name = ops_test.model_full_name
+    password = helpers.get_password(model_full_name or "")
+
+    helpers.write_key(host=host_0, password=password)
+    await asyncio.sleep(1)
+
+    helpers.check_key(host=host_0, password=password)
+    helpers.check_key(host=host_1, password=password)
+    helpers.check_key(host=host_2, password=password)
+
+
 @pytest.mark.abort_on_fail
 async def test_replication(ops_test: OpsTest):
     host_0 = ops_test.model.applications[APP_NAME].units[0].public_address
