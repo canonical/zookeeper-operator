@@ -3,32 +3,38 @@ import subprocess
 import sys
 import time
 
-from kazoo.client import KazooClient
-from kazoo.retry import KazooRetry
+from kazoo.client import KazooClient, SessionExpiredError
+from kazoo.handlers.threading import KazooTimeoutError
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
 
 def continous_writes(parent: str, hosts: str, username: str, password: str):
     count = 0
-
     while True:
-        client = KazooClient(
-            hosts=hosts,
-            timeout=10,
-            sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
-            connection_retry=KazooRetry(max_tries=10, delay=1),
-            command_retry=KazooRetry(max_tries=10, delay=1),
-        )
-        client.start()
+        try:
+            client = KazooClient(
+                hosts=hosts,
+                sasl_options={
+                    "mechanism": "DIGEST-MD5",
+                    "username": username,
+                    "password": password,
+                },
+            )
+            client.start()
+            client.create(f"{parent}/{count}", acl=[], makepath=True)
+            logger.info(f"Wrote {parent}/{count}...")
+            time.sleep(1)
+            count += 1
+            client.stop()
+            client.close()
 
-        client.create(f"{parent}/{count}", acl=[], makepath=True)
-
-        client.stop()
-
-        time.sleep(1)
-        count += 1
+        # kazoo.client randomly picks a single host out of the provided comma-delimeted string
+        # if that unit's network is down, it will just fail to connect rather than re-discovering
+        # as such, retry write rather than count as missed
+        except (SessionExpiredError, KazooTimeoutError):
+            time.sleep(1)
+            continue
 
 
 def start_continuous_writes(parent: str, hosts: str, username: str, password: str):
@@ -45,27 +51,26 @@ def start_continuous_writes(parent: str, hosts: str, username: str, password: st
 
 
 def stop_continuous_writes():
-    proc = subprocess.Popen(["pkill", "-9", "-f", "continous_writes.py"])
+    proc = subprocess.Popen(["pkill", "-9", "-f", "continuous_writes.py"])
     proc.communicate()
 
 
 def get_last_znode(parent: str, hosts: str, username: str, password: str) -> int:
     client = KazooClient(
         hosts=hosts,
-        timeout=5,
         sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
-        connection_retry=KazooRetry(max_tries=10, delay=1),
-        command_retry=KazooRetry(max_tries=10, delay=1),
-        read_only=True,
     )
     client.start()
 
     znodes = client.get_children(parent)
-    assert znodes
+
+    if not znodes:
+        raise Exception(f"No child znodes found under {parent}")
 
     last_znode = sorted((int(x) for x in znodes))[-1]
 
     client.stop()
+    client.close()
 
     return last_znode
 
@@ -73,19 +78,17 @@ def get_last_znode(parent: str, hosts: str, username: str, password: str) -> int
 def count_znodes(parent: str, hosts: str, username: str, password: str) -> int:
     client = KazooClient(
         hosts=hosts,
-        timeout=5,
         sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
-        connection_retry=KazooRetry(max_tries=10, delay=1),
-        command_retry=KazooRetry(max_tries=10, delay=1),
-        read_only=True,
     )
     client.start()
 
     znodes = client.get_children(parent)
 
-    assert znodes
-
     client.stop()
+    client.close()
+
+    if not znodes:
+        raise Exception(f"No child znodes found under {parent}")
 
     return len(znodes) - 1  # to account for the parent node
 

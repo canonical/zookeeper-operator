@@ -34,7 +34,9 @@ async def test_deploy_active(ops_test: OpsTest):
         await ops_test.model.block_until(
             lambda: len(ops_test.model.applications[APP_NAME].units) == 3
         )
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+        )
 
     assert ops_test.model.applications[APP_NAME].status == "active"
 
@@ -61,14 +63,18 @@ async def test_password_rotation(ops_test: OpsTest):
     result = await set_password(ops_test, username="super", num_unit=leader_num)
     assert "super-password" in result.keys()
 
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+    )
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ping_servers(ops_test)
 
     result = await set_password(ops_test, username="sync", num_unit=leader_num)
     assert "sync-password" in result.keys()
 
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+    )
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ping_servers(ops_test)
 

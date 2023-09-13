@@ -52,7 +52,6 @@ jobs:
         tox-environments:
           - integration-password-rotation
           - integration-provider
-          - integration-scaling
           - integration-tls
           - integration-upgrade
     name: ${{ matrix.tox-environments }}

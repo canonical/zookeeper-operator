@@ -548,7 +548,9 @@ def test_update_quorum_does_not_unset_upgrading_until_all_quorum(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
         harness.update_relation_data(
-            peer_rel_id, CHARM_KEY, {"tls": "enabled", "upgrading": "started", "quorum": "non-ssl"}
+            peer_rel_id,
+            CHARM_KEY,
+            {"tls": "enabled", "upgrading": "started", "quorum": "non-ssl"},
         )
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
 
