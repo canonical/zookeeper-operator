@@ -25,7 +25,8 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
         ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3),
         ops_test.model.deploy(
             "tls-certificates-operator",
-            channel="beta",
+            application_name="tls-certificates-operator",
+            channel="stable",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
         ),
@@ -69,7 +70,8 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
     await asyncio.gather(
         ops_test.model.deploy(
             "tls-certificates-operator",
-            channel="beta",
+            application_name="tls-certificates-operator",
+            channel="stable",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
         ),

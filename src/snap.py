@@ -36,7 +36,7 @@ class ZooKeeperSnap:
         """
         try:
             apt.update()
-            apt.add_package(["snapd", "openjdk-17-jre-headless"])
+            apt.add_package(["snapd"])
             cache = snap.SnapCache()
             zookeeper = cache[self.SNAP_NAME]
 
