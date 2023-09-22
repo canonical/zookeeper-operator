@@ -196,8 +196,7 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip
-async def test_network_cut_self_heal(ops_test: OpsTest, request):
+async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     """Cuts and restores network on leader, cluster self-heals after IP change."""
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
@@ -215,7 +214,7 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Cutting leader network...")
-    helpers.cut_unit_network(machine_name=leader_machine_name)
+    helpers.cut_network_from_unit_without_ip_change(machine_name=leader_machine_name)
     await asyncio.sleep(
         CLIENT_TIMEOUT * 6
     )  # to give time for re-election, longer as network cut is weird
@@ -235,7 +234,7 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     assert new_leader_name != leader_name
 
     logger.info("Restoring leader network...")
-    helpers.restore_unit_network(machine_name=leader_machine_name)
+    helpers.restore_network_for_unit_without_ip_change(machine_name=leader_machine_name)
 
     logger.info("Waiting for Juju to detect new IP...")
     await ops_test.model.block_until(

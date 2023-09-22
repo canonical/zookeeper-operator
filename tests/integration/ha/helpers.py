@@ -210,6 +210,40 @@ def cut_unit_network(machine_name: str) -> None:
     subprocess.check_call(cut_network_command.split())
 
 
+def cut_network_from_unit_without_ip_change(machine_name: str) -> None:
+    """Cut network from a lxc container (without causing the change of the unit IP address).
+
+    Args:
+        machine_name: lxc container hostname
+    """
+    override_command = f"lxc config device override {machine_name} eth0"
+    try:
+        subprocess.check_call(override_command.split())
+    except subprocess.CalledProcessError:
+        # Ignore if the interface was already overridden.
+        pass
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.egress=0kbit"
+    subprocess.check_call(limit_set_command.split())
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.ingress=1kbit"
+    subprocess.check_call(limit_set_command.split())
+    limit_set_command = f"lxc config set {machine_name} limits.network.priority=10"
+    subprocess.check_call(limit_set_command.split())
+
+
+def restore_network_for_unit_without_ip_change(machine_name: str) -> None:
+    """Restore network from a lxc container (without causing the change of the unit IP address).
+
+    Args:
+        machine_name: lxc container hostname
+    """
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.egress="
+    subprocess.check_call(limit_set_command.split())
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.ingress="
+    subprocess.check_call(limit_set_command.split())
+    limit_set_command = f"lxc config set {machine_name} limits.network.priority="
+    subprocess.check_call(limit_set_command.split())
+
+
 def restore_unit_network(machine_name: str) -> None:
     """Restores network access for a given LXD container.
 
