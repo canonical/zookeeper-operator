@@ -210,7 +210,7 @@ def cut_unit_network(machine_name: str) -> None:
     subprocess.check_call(cut_network_command.split())
 
 
-def cut_network_from_unit_without_ip_change(machine_name: str) -> None:
+def network_throttle(machine_name: str) -> None:
     """Cut network from a lxc container (without causing the change of the unit IP address).
 
     Args:
@@ -230,7 +230,7 @@ def cut_network_from_unit_without_ip_change(machine_name: str) -> None:
     subprocess.check_call(limit_set_command.split())
 
 
-def restore_network_for_unit_without_ip_change(machine_name: str) -> None:
+def network_release(machine_name: str) -> None:
     """Restore network from a lxc container (without causing the change of the unit IP address).
 
     Args:

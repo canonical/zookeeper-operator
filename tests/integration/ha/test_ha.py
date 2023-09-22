@@ -214,7 +214,7 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Cutting leader network...")
-    helpers.cut_network_from_unit_without_ip_change(machine_name=leader_machine_name)
+    helpers.network_throttle(machine_name=leader_machine_name)
     await asyncio.sleep(
         CLIENT_TIMEOUT * 6
     )  # to give time for re-election, longer as network cut is weird
@@ -234,7 +234,7 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     assert new_leader_name != leader_name
 
     logger.info("Restoring leader network...")
-    helpers.restore_network_for_unit_without_ip_change(machine_name=leader_machine_name)
+    helpers.network_release(machine_name=leader_machine_name)
 
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()
