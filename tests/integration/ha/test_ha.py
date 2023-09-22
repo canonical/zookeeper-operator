@@ -25,7 +25,9 @@ RESTART_DELAY = 60
 @pytest.fixture()
 async def restart_delay(ops_test: OpsTest):
     for unit in ops_test.model.applications[APP_NAME].units:
-        await helpers.patch_restart_delay(ops_test=ops_test, unit_name=unit.name, delay=60)
+        await helpers.patch_restart_delay(
+            ops_test=ops_test, unit_name=unit.name, delay=RESTART_DELAY
+        )
     yield
     for unit in ops_test.model.applications[APP_NAME].units:
         await helpers.remove_restart_delay(ops_test=ops_test, unit_name=unit.name)
@@ -264,7 +266,7 @@ async def test_full_cluster_crash(ops_test: OpsTest, request, restart_delay):
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
-    await asyncio.sleep(10)
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)
 
     logger.info("Counting writes are running at all...")
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)

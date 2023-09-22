@@ -322,10 +322,10 @@ async def send_control_signal(
         )
 
 
-def get_password(model_full_name: str) -> str:
+def get_password(ops_test: OpsTest) -> str:
     # getting relation data
     show_unit = subprocess.check_output(
-        f"JUJU_MODEL={model_full_name} juju show-unit {APP_NAME}/0",
+        f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {APP_NAME}/0",
         stderr=subprocess.PIPE,
         shell=True,
         universal_newlines=True,
