@@ -200,11 +200,11 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     """Cuts and restores network on leader, cluster self-heals after IP change."""
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
-    leader_host = helpers.get_unit_host(ops_test, leader_name)
+    initial_leader_host = helpers.get_unit_host(ops_test, leader_name)
     leader_machine_name = await helpers.get_unit_machine_name(ops_test, leader_name)
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
-    non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
+    non_leader_hosts = ",".join([host for host in hosts.split(",") if host != initial_leader_host])
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
@@ -236,14 +236,6 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     logger.info("Restoring leader network...")
     helpers.restore_network_for_unit_without_ip_change(machine_name=leader_machine_name)
 
-    logger.info("Waiting for Juju to detect new IP...")
-    await ops_test.model.block_until(
-        lambda: leader_host
-        not in helpers.get_hosts_from_status(ops_test),  # ip changes after lxd config add
-        timeout=1200,
-        wait_period=5,
-    )
-
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()
 
@@ -256,15 +248,12 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     )
     assert last_write == total_writes
 
-    new_hosts = helpers.get_hosts_from_status(ops_test)
-    new_leader_host = max(set(new_hosts) - set(hosts))
-
     logger.info("Checking old leader caught up...")
     last_write_leader = cw.get_last_znode(
-        parent=parent, hosts=new_leader_host, username=USERNAME, password=password
+        parent=parent, hosts=initial_leader_host, username=USERNAME, password=password
     )
     total_writes_leader = cw.count_znodes(
-        parent=parent, hosts=new_leader_host, username=USERNAME, password=password
+        parent=parent, hosts=initial_leader_host, username=USERNAME, password=password
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
