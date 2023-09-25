@@ -1,18 +1,31 @@
+#!/usr/bin/env python3
+# Copyright 2023 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 import logging
 import re
 import subprocess
 from pathlib import Path
 
 import yaml
+from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import RetryError, Retrying, retry, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
-
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
+SERVICE_DEFAULT_PATH = "/etc/systemd/system/snap.charmed-zookeeper.daemon.service"
+
+
+class ProcessError(Exception):
+    """Raised when a process fails."""
+
+
+class ProcessRunningError(Exception):
+    """Raised when a process is running when it is not expected to be."""
 
 
 async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3) -> None:
@@ -300,8 +313,121 @@ async def send_control_signal(
         await ops_test.model.applications[app_name].add_unit(count=1)
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
 
-    cmd = f"run --unit {unit_name} -- pkill --signal {signal} -f {PROCESS}"
-    return_code, _, _ = await ops_test.juju(*cmd.split())
+    kill_cmd = f"exec --unit {unit_name} -- pkill --signal {signal} -f {PROCESS}"
+    return_code, stdout, stderr = await ops_test.juju(*kill_cmd.split())
 
     if return_code != 0:
-        raise Exception(f"Expected kill command {cmd} to succeed instead it failed: {return_code}")
+        raise Exception(
+            f"Expected kill command {kill_cmd} to succeed instead it failed: {return_code}, {stdout}, {stderr}"
+        )
+
+
+def get_password(ops_test: OpsTest) -> str:
+    # getting relation data
+    show_unit = subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {APP_NAME}/0",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    response = yaml.safe_load(show_unit)
+    relations_info = response[f"{APP_NAME}/0"]["relation-info"]
+
+    for info in relations_info:
+        if info["endpoint"] == "cluster":
+            password = info["application-data"]["super-password"]
+            return password
+    else:
+        raise Exception("no relations found")
+
+
+def write_key(host: str, password: str, username: str = "super") -> None:
+    """Write a key to the ZooKeeper server.
+
+    Args:
+        host: host to connect to
+        username: user for ZooKeeper
+        password: password of the user
+    """
+    kc = KazooClient(
+        hosts=host,
+        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
+    )
+    kc.start()
+    kc.create_async("/legolas", b"hobbits")
+    kc.stop()
+    kc.close()
+
+
+def check_key(host: str, password: str, username: str = "super") -> None:
+    """Assert that a key is read on a ZooKeeper server.
+
+    Args:
+        host: host to connect to
+        username: user for ZooKeeper
+        password: password of the user
+    """
+    kc = KazooClient(
+        hosts=host,
+        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
+    )
+    kc.start()
+    assert kc.exists_async("/legolas")
+    value, _ = kc.get_async("/legolas") or None, None
+
+    stored_value = ""
+    if value:
+        stored_value = value.get()
+    if stored_value:
+        assert stored_value[0] == b"hobbits"
+        return
+
+    raise KeyError
+
+
+async def all_db_processes_down(ops_test: OpsTest) -> bool:
+    """Verifies that all units of the charm do not have the DB process running."""
+    try:
+        for attempt in Retrying(stop=stop_after_attempt(10), wait=wait_fixed(5)):
+            with attempt:
+                for unit in ops_test.model.applications[APP_NAME].units:
+                    search_db_process = f"run --unit {unit.name} pgrep -x java"
+                    _, processes, _ = await ops_test.juju(*search_db_process.split())
+                    # splitting processes by "\n" results in one or more empty lines, hence we
+                    # need to process these lines accordingly.
+                    processes = [proc for proc in processes.split("\n") if len(proc) > 0]
+                    if len(processes) > 0:
+                        raise ProcessRunningError
+    except RetryError:
+        return False
+
+    return True
+
+
+async def patch_restart_delay(ops_test: OpsTest, unit_name: str, delay: int) -> None:
+    """Adds a restart delay in the DB service file.
+
+    When the DB service fails it will now wait for `delay` number of seconds.
+    """
+    add_delay_cmd = (
+        f"exec --unit {unit_name} -- "
+        f"sudo sed -i -e '/^[Service]/a RestartSec={delay}' "
+        f"{SERVICE_DEFAULT_PATH}"
+    )
+    await ops_test.juju(*add_delay_cmd.split(), check=True)
+
+    # reload the daemon for systemd to reflect changes
+    reload_cmd = f"exec --unit {unit_name} -- sudo systemctl daemon-reload"
+    await ops_test.juju(*reload_cmd.split(), check=True)
+
+
+async def remove_restart_delay(ops_test: OpsTest, unit_name: str) -> None:
+    """Removes the restart delay from the service."""
+    remove_delay_cmd = (
+        f"exec --unit {unit_name} -- sed -i -e '/^RestartSec=.*/d' {SERVICE_DEFAULT_PATH}"
+    )
+    await ops_test.juju(*remove_delay_cmd.split(), check=True)
+
+    # reload the daemon for systemd to reflect changes
+    reload_cmd = f"exec --unit {unit_name} -- sudo systemctl daemon-reload"
+    await ops_test.juju(*reload_cmd.split(), check=True)
