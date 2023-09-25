@@ -49,8 +49,7 @@ async def test_replication(ops_test: OpsTest):
     host_0 = ops_test.model.applications[APP_NAME].units[0].public_address
     host_1 = ops_test.model.applications[APP_NAME].units[1].public_address
     host_2 = ops_test.model.applications[APP_NAME].units[2].public_address
-    model_full_name = ops_test.model_full_name
-    password = helpers.get_password(model_full_name or "")
+    password = helpers.get_password(ops_test=ops_test)
 
     helpers.write_key(host=host_0, password=password)
     await asyncio.sleep(1)
