@@ -385,6 +385,24 @@ def check_key(host: str, password: str, username: str = "super") -> None:
     raise KeyError
 
 
+async def is_down(ops_test: OpsTest, unit: str) -> bool:
+    """Check if a unit zookeeper process is down."""
+    try:
+        for attempt in Retrying(stop=stop_after_attempt(10), wait=wait_fixed(5)):
+            with attempt:
+                search_db_process = f"run --unit {unit} pgrep -x java"
+                _, processes, _ = await ops_test.juju(*search_db_process.split())
+                # splitting processes by "\n" results in one or more empty lines, hence we
+                # need to process these lines accordingly.
+                processes = [proc for proc in processes.split("\n") if len(proc) > 0]
+                if len(processes) > 0:
+                    raise ProcessRunningError
+    except RetryError:
+        return False
+
+    return True
+
+
 async def all_db_processes_down(ops_test: OpsTest) -> bool:
     """Verifies that all units of the charm do not have the DB process running."""
     try:
