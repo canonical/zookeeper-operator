@@ -368,6 +368,53 @@ async def test_full_cluster_crash(ops_test: OpsTest, request, restart_delay):
     assert last_write == total_writes
 
 
+async def test_full_cluster_restart(ops_test: OpsTest, request):
+    hosts = helpers.get_hosts(ops_test)
+    leader_name = helpers.get_leader_name(ops_test, hosts)
+    leader_host = helpers.get_unit_host(ops_test, leader_name)
+    password = helpers.get_super_password(ops_test)
+    parent = request.node.name
+    non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
+
+    logger.info("Starting continuous_writes...")
+    cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+    await asyncio.sleep(10)
+
+    logger.info("Counting writes are running at all...")
+    assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
+
+    # kill all units "simultaneously"
+    await asyncio.gather(
+        *[
+            helpers.send_control_signal(ops_test, unit.name, signal="SIGTERM")
+            for unit in ops_test.model.applications[APP_NAME].units
+        ]
+    )
+    await asyncio.sleep(CLIENT_TIMEOUT)
+
+    logger.info("Checking writes are increasing...")
+    writes = cw.count_znodes(
+        parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
+    )
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
+    new_writes = cw.count_znodes(
+        parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
+    )
+    assert new_writes > writes, "writes not continuing to ZK"
+
+    logger.info("Stopping continuous_writes...")
+    cw.stop_continuous_writes()
+
+    logger.info("Counting writes on surviving units...")
+    last_write = cw.get_last_znode(
+        parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
+    )
+    total_writes = cw.count_znodes(
+        parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
+    )
+    assert last_write == total_writes
+
+
 @pytest.mark.abort_on_fail
 async def test_two_clusters_not_replicated(ops_test: OpsTest, request):
     """Confirms that writes to one cluster are not replicated to another."""
