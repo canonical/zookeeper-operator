@@ -3,7 +3,7 @@ import subprocess
 import sys
 import time
 
-from kazoo.client import KazooClient, SessionExpiredError
+from kazoo.client import ConnectionLoss, KazooClient, SessionExpiredError
 from kazoo.handlers.threading import KazooTimeoutError
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def continous_writes(parent: str, hosts: str, username: str, password: str):
         # kazoo.client randomly picks a single host out of the provided comma-delimeted string
         # if that unit's network is down, it will just fail to connect rather than re-discovering
         # as such, retry write rather than count as missed
-        except (SessionExpiredError, KazooTimeoutError):
+        except (SessionExpiredError, KazooTimeoutError, ConnectionLoss):
             time.sleep(1)
             continue
 

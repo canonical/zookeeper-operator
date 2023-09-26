@@ -242,16 +242,15 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip
-async def test_network_cut_self_heal(ops_test: OpsTest, request):
+async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     """Cuts and restores network on leader, cluster self-heals after IP change."""
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
-    leader_host = helpers.get_unit_host(ops_test, leader_name)
+    initial_leader_host = helpers.get_unit_host(ops_test, leader_name)
     leader_machine_name = await helpers.get_unit_machine_name(ops_test, leader_name)
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
-    non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
+    non_leader_hosts = ",".join([host for host in hosts.split(",") if host != initial_leader_host])
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
@@ -261,11 +260,8 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     assert cw.count_znodes(parent=parent, hosts=hosts, username=USERNAME, password=password)
 
     logger.info("Cutting leader network...")
-    helpers.cut_unit_network(machine_name=leader_machine_name)
-    await asyncio.sleep(
-        CLIENT_TIMEOUT * 6
-    )  # to give time for re-election, longer as network cut is weird
-
+    helpers.network_throttle(machine_name=leader_machine_name)
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
@@ -281,15 +277,8 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     assert new_leader_name != leader_name
 
     logger.info("Restoring leader network...")
-    helpers.restore_unit_network(machine_name=leader_machine_name)
-
-    logger.info("Waiting for Juju to detect new IP...")
-    await ops_test.model.block_until(
-        lambda: leader_host
-        not in helpers.get_hosts_from_status(ops_test),  # ip changes after lxd config add
-        timeout=1200,
-        wait_period=5,
-    )
+    helpers.network_release(machine_name=leader_machine_name)
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # Give time for unit to rejoin
 
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()
@@ -303,15 +292,12 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     )
     assert last_write == total_writes
 
-    new_hosts = helpers.get_hosts_from_status(ops_test)
-    new_leader_host = max(set(new_hosts) - set(hosts))
-
     logger.info("Checking old leader caught up...")
     last_write_leader = cw.get_last_znode(
-        parent=parent, hosts=new_leader_host, username=USERNAME, password=password
+        parent=parent, hosts=initial_leader_host, username=USERNAME, password=password
     )
     total_writes_leader = cw.count_znodes(
-        parent=parent, hosts=new_leader_host, username=USERNAME, password=password
+        parent=parent, hosts=initial_leader_host, username=USERNAME, password=password
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
