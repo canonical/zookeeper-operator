@@ -7,6 +7,7 @@
 
 import logging
 import re
+import socket
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 from charms.zookeeper.v0.client import (
@@ -205,6 +206,23 @@ class ZooKeeperCluster:
 
         raise UnitNotFoundError
 
+    def get_hostname_mapping(self) -> dict[str, str]:
+        """Collects hostname mapping for current unit.
+
+        Returns:
+            Dict of string keys 'hostname', 'fqdn', 'ip' and their values
+        """
+        hostname = socket.gethostname()
+        fqdn = socket.getfqdn()
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        s.connect(("10.10.10.10", 1))
+        ip = s.getsockname()[0]
+        s.close()
+
+        return {"hostname": hostname, "fqdn": fqdn, "ip": ip}
+
     def unit_config(
         self, unit: Union[Unit, int], state: str = "ready", role: str = "participant"
     ) -> Dict[str, str]:
@@ -231,7 +249,7 @@ class ZooKeeperCluster:
 
         Raises:
             UnitNotFoundError: When the target unit can't be found in the unit relation data,
-                and/or cannot extract the private-address
+                and/or cannot extract the hostname written during the `install` hook
         """
         if not self.charm.peer_relation:
             return {}
@@ -248,7 +266,7 @@ class ZooKeeperCluster:
             unit = self.get_unit_from_id(unit)
 
         try:
-            host = self.charm.peer_relation.data[unit]["private-address"]
+            host = self.charm.peer_relation.data[unit]["hostname"]
         except KeyError:
             raise UnitNotFoundError
 
@@ -461,6 +479,16 @@ class ZooKeeperCluster:
             True if the unit has started. Otherwise False
         """
         return self.charm.unit_peer_data.get("state", None) == "started"
+
+    @property
+    def added(self) -> bool:
+        """Flag to check the whether the running unit has been added to the quorum.
+
+        Returns:
+            True if the unit has been added. Otherwise False
+        """
+        unit_id = self.get_unit_id(self.charm.unit)
+        return self.charm.app_peer_data.get(str(unit_id), None) == "added"
 
     @property
     def quorum(self) -> str:

@@ -29,7 +29,8 @@ quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-audit.enable=true"""
+audit.enable=true
+"""
 
 TLS_PROPERTIES = """
 secureClientPort=2182
@@ -231,6 +232,33 @@ class ZooKeeperConfig:
             List of static properties to compared to current zoo.cfg
         """
         return self.build_static_properties(self.zookeeper_properties)
+
+    @property
+    def etc_hosts_entries(self) -> list[str]:
+        """Gets full `/etc/hosts` entry for resolving peer-related unit hosts.
+
+        Returns:
+            Multiline string of `/etc/hosts` entries
+        """
+        if not self.charm.peer_relation or not self.charm.cluster.all_units_related:
+            return []
+
+        hosts_entries = []
+        for unit in self.charm.cluster.started_units:
+            ip = self.charm.peer_relation.data[unit].get("ip", None)
+            hostname = self.charm.peer_relation.data[unit].get("hostname", None)
+            fqdn = self.charm.peer_relation.data[unit].get("fqdn", None)
+
+            if not all([ip, hostname, fqdn]):
+                return []
+
+            hosts_entries.append(f"{ip} {fqdn} {hostname} # unit={unit.name}")
+
+        return hosts_entries
+
+    def set_etc_hosts(self) -> None:
+        """Writes to /etc/hosts with peer-related units."""
+        safe_write_to_file(content="\n".join(self.etc_hosts_entries), path="/etc/hosts")
 
     def set_jaas_config(self) -> None:
         """Sets the ZooKeeper JAAS config."""

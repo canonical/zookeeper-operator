@@ -73,7 +73,9 @@ class ZooKeeperCharm(CharmBase):
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._manual_restart)
-        self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
+        self.framework.observe(
+            getattr(self.on, "update_status"), self._on_cluster_relation_changed
+        )
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
@@ -135,6 +137,9 @@ class ZooKeeperCharm(CharmBase):
 
         self.set_passwords()
 
+        # refreshing unit hostname relation data in case ip changed
+        self.unit_peer_data.update(self.cluster.get_hostname_mapping())
+
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
@@ -145,6 +150,19 @@ class ZooKeeperCharm(CharmBase):
         if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
+
+        # refreshing unit hostname relation data in case ip changed
+        self.unit_peer_data.update(self.cluster.get_hostname_mapping())
+
+        # don't run (and restart) if some units are still joining
+        # instead, wait for relation-changed from it's setting of 'started'
+        if not self.cluster.all_units_related:
+            return
+
+        # don't run (and restart) if some units still need to set ip
+        for unit in self.cluster.peer_units:
+            if not self.peer_relation.data[unit].get("ip", None):
+                return
 
         # If a password rotation is needed, or in progress
         if not self.rotate_passwords():
@@ -163,7 +181,7 @@ class ZooKeeperCharm(CharmBase):
 
         # check whether restart is needed for all `*_changed` events
         # only restart where necessary to avoid slowdowns
-        if (self.config_changed() or self.tls.upgrading) and self.cluster.started:
+        if (self.config_changed() or self.tls.upgrading) and self.cluster.added:
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
         # ensures events aren't lost during an upgrade on single units
@@ -179,7 +197,10 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        self.on[f"{self.restart.name}"].acquire_lock.emit()
+        # not needed during application init
+        # only needed for scenarios where the LXD goes down (e.g PC shutdown)
+        if not self.snap.active:
+            self.on[f"{self.restart.name}"].acquire_lock.emit()
 
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
@@ -239,6 +260,9 @@ class ZooKeeperCharm(CharmBase):
         self.zookeeper_config.set_zookeeper_myid()
         self.zookeeper_config.set_server_jvmflags()
 
+        # setting ip, fqdn and hostname
+        self.unit_peer_data.update(self.cluster.get_hostname_mapping())
+
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)
         logger.debug(f"{servers=}")
@@ -276,7 +300,15 @@ class ZooKeeperCharm(CharmBase):
         jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or []
         jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
 
-        if not (properties_changed or jaas_changed):
+        etc_hosts_config = safe_get_file("/etc/hosts") or []
+        if not self.zookeeper_config.etc_hosts_entries:  # in the case units not fully related
+            etc_hosts_changed = set()
+        else:
+            etc_hosts_changed = set(etc_hosts_config) ^ set(
+                self.zookeeper_config.etc_hosts_entries
+            )
+
+        if not (properties_changed or jaas_changed or etc_hosts_changed):
             return False
 
         if properties_changed:
@@ -302,6 +334,16 @@ class ZooKeeperCharm(CharmBase):
                 )
             )
             self.zookeeper_config.set_jaas_config()
+
+        if etc_hosts_changed:
+            logger.info(
+                (
+                    f"Server.{self.cluster.get_unit_id(self.unit)} updating /etc/hosts - "
+                    f"OLD HOSTS = {set(etc_hosts_config) - set(self.zookeeper_config.etc_hosts_entries)}, "
+                    f"NEW HOSTS = {set(self.zookeeper_config.etc_hosts_entries) - set(etc_hosts_config)}, "
+                )
+            )
+            self.zookeeper_config.set_etc_hosts()
 
         return True
 

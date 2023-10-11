@@ -72,6 +72,41 @@ def test_install_blocks_snap_install_failure(harness):
         assert isinstance(harness.model.unit.status, BlockedStatus)
 
 
+def test_install_sets_ip_hostname_fqdn(harness):
+    with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.set_leader(True)
+
+    with patch("snap.ZooKeeperSnap.install", return_value=False):
+        harness.charm.on.install.emit()
+
+        assert harness.charm.unit_peer_data.get("ip")
+        assert harness.charm.unit_peer_data.get("fqdn")
+        assert harness.charm.unit_peer_data.get("hostname")
+
+
+def test_relation_changed_updates_ip_hostname_fqdn(harness):
+    with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.set_leader(True)
+        harness.update_relation_data(
+            peer_rel_id, f"{CHARM_KEY}/0", {"ip": "gandalf-the-grey", "state": "started"}
+        )
+
+    with (
+        patch(
+            "cluster.ZooKeeperCluster.get_hostname_mapping",
+            return_value={"ip": "gandalf-the-white"},
+        ),
+        patch("charm.ZooKeeperCharm.config_changed"),
+    ):
+        harness.charm.on.cluster_relation_changed.emit(harness.charm.peer_relation)
+
+    assert harness.charm.unit_peer_data.get("ip") == "gandalf-the-white"
+
+
 def test_relation_changed_emitted_for_leader_elected(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
@@ -392,7 +427,11 @@ def test_init_server_calls_necessary_methods(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"private-address": "gimli"})
+        harness.update_relation_data(
+            peer_rel_id,
+            f"{CHARM_KEY}/0",
+            {"ip": "aragorn", "fqdn": "legolas", "hostname": "gimli"},
+        )
         harness.update_relation_data(
             peer_rel_id,
             CHARM_KEY,
@@ -432,7 +471,7 @@ def test_init_server_calls_necessary_methods(harness):
         assert isinstance(harness.charm.unit.status, ActiveStatus)
 
 
-def test_config_changed_updates_properties_and_jaas(harness):
+def test_config_changed_updates_properties_jaas_hosts(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -440,24 +479,32 @@ def test_config_changed_updates_properties_and_jaas(harness):
     with (
         patch("config.ZooKeeperConfig.build_static_properties", return_value=["gandalf=white"]),
         patch("config.ZooKeeperConfig.static_properties", return_value="gandalf=grey"),
-        patch("config.ZooKeeperConfig.jaas_config", return_value=""),
+        patch("config.ZooKeeperConfig.set_jaas_config"),
+        patch("config.ZooKeeperConfig.set_etc_hosts"),
         patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
-        patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
     ):
         harness.charm.config_changed()
         set_props.assert_called_once()
-        set_jaas.assert_not_called()
 
     with (
         patch("config.ZooKeeperConfig.jaas_config", return_value="gandalf=white"),
         patch("charm.safe_get_file", return_value=["gandalf=grey"]),
-        patch("config.ZooKeeperConfig.build_static_properties", return_value=[]),
-        patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
+        patch("config.ZooKeeperConfig.set_zookeeper_properties"),
+        patch("config.ZooKeeperConfig.set_etc_hosts"),
         patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
     ):
         harness.charm.config_changed()
-        set_props.assert_not_called()
         set_jaas.assert_called_once()
+
+    with (
+        patch("config.ZooKeeperConfig.etc_hosts_entries", return_value=["gandalf=white"]),
+        patch("charm.safe_get_file", return_value=["gandalf=grey"]),
+        patch("config.ZooKeeperConfig.set_zookeeper_properties"),
+        patch("config.ZooKeeperConfig.set_jaas_config"),
+        patch("config.ZooKeeperConfig.set_etc_hosts") as set_etc_hosts,
+    ):
+        harness.charm.config_changed()
+        set_etc_hosts.assert_called_once()
 
 
 def test_adding_units_updates_relation_data(harness):
@@ -750,10 +797,3 @@ def test_init_leader_is_added(harness):
         harness.set_planned_units(2)
 
         assert harness.charm.app_peer_data.get("0", None) == "added"
-
-
-def test_update_status_updates_quorum(harness):
-    with patch("charm.ZooKeeperCharm.update_quorum") as patched:
-        harness.charm.on.update_status.emit()
-
-    patched.assert_called_once()

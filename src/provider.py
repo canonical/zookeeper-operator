@@ -229,8 +229,13 @@ class ZooKeeperProvider(Object):
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
-        if not self.charm.unit.is_leader():
+        if not self.charm.unit.is_leader() or not self.charm.peer_relation:
             return
+
+        hosts = [
+            self.charm.peer_relation.data[unit].get("ip", "")
+            for unit in self.charm.cluster.peer_units
+        ]
 
         relations_config = self.relations_config(event=event)
         for relation_id, config in relations_config.items():
@@ -238,8 +243,6 @@ class ZooKeeperProvider(Object):
             if config["acls-added"] != "true":
                 logger.debug(f"{relation_id} has yet to add acls")
                 continue
-
-            hosts = self.charm.cluster.active_hosts
 
             relation_data = {}
             relation_data["username"] = config["username"]

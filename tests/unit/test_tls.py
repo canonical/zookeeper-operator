@@ -184,7 +184,7 @@ def test_certificates_expiring(harness):
     harness.update_relation_data(
         harness.charm.peer_relation.id,
         f"{CHARM_KEY}/0",
-        {"csr": "csr", "private-key": key, "certificate": "cert", "private-address": "1.1.1.1"},
+        {"csr": "csr", "private-key": key, "certificate": "cert", "hostname": "1.1.1.1"},
     )
 
     with patch(

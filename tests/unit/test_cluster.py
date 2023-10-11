@@ -29,6 +29,9 @@ def harness():
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
+    harness.update_relation_data(
+        peer_rel_id, f"{CHARM_KEY}/0", {"ip": "123", "hostname": "treebeard"}
+    )
     harness.begin()
     return harness
 
@@ -88,7 +91,7 @@ def test_unit_config_succeeds_for_id(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"hostname": "treebeard"}
         )
 
     harness.charm.cluster.unit_config(unit=1)
@@ -97,7 +100,7 @@ def test_unit_config_succeeds_for_id(harness):
 def test_unit_config_succeeds_for_unit(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
 
     harness.charm.cluster.unit_config(harness.charm.unit)
@@ -106,7 +109,7 @@ def test_unit_config_succeeds_for_unit(harness):
 def test_unit_config_has_all_keys(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
 
     config = harness.charm.cluster.unit_config(0)
@@ -124,7 +127,7 @@ def test_unit_config_has_all_keys(harness):
 def test_unit_config_server_string_format(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
 
     server_string = harness.charm.cluster.unit_config(0)["server_string"]
@@ -225,13 +228,13 @@ def test_generate_units_scaleup_adds_all_servers(harness):
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"hostname": "gandalf"}
         )
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"private-address": "gimli"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"hostname": "gimli"}
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id, f"{CHARM_KEY}", {"0": "added", "1": "added"}
@@ -251,13 +254,13 @@ def test_generate_units_scaleup_adds_correct_roles_for_added_units(harness):
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"hostname": "gandalf"}
         )
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"private-address": "gimli"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"hostname": "gimli"}
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id, f"{CHARM_KEY}", {"0": "added", "1": "removed"}
@@ -277,10 +280,10 @@ def test_generate_units_failover(harness):
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"hostname": "gandalf"}
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id,
@@ -300,7 +303,7 @@ def test_startup_servers_raises_for_missing_data(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id,
@@ -315,7 +318,7 @@ def test_startup_servers_raises_for_missing_data(harness):
 def test_startup_servers_succeeds_init(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id,
@@ -333,10 +336,10 @@ def test_startup_servers_succeeds_failover_after_init(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "treebeard"}
         )
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"hostname": "gandalf"}
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id,

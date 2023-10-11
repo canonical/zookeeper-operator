@@ -44,7 +44,7 @@ def harness():
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/0")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"private-address": "000.000.000"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"hostname": "000.000.000"}
         )
 
     return harness
@@ -140,15 +140,15 @@ def test_build_upgrade_stack(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"private-address": "111.111.111"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"hostname": "111.111.111"}
         )
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"private-address": "222.222.222"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/2", {"hostname": "222.222.222"}
         )
         harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/3")
         harness.update_relation_data(
-            harness.charm.peer_relation.id, f"{CHARM_KEY}/3", {"private-address": "333.333.333"}
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/3", {"hostname": "333.333.333"}
         )
 
     stack = harness.charm.upgrade.build_upgrade_stack()

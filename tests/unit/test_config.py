@@ -32,6 +32,56 @@ def harness():
     return harness
 
 
+def test_etc_hosts_entries_empty_if_not_all_units_related(harness):
+    with harness.hooks_disabled():
+        harness.set_planned_units(3)
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.peer_relation.id,
+            f"{CHARM_KEY}/0",
+            {"ip": "aragorn", "hostname": "legolas", "fqdn": "gimli"},
+        )
+        harness.update_relation_data(
+            harness.charm.peer_relation.id,
+            f"{CHARM_KEY}/1",
+            {"ip": "aragorn", "hostname": "legolas", "fqdn": "gimli"},
+        )
+
+    assert not harness.charm.zookeeper_config.etc_hosts_entries
+
+
+def test_etc_hosts_entries_empty_if_unit_not_yet_set(harness):
+    with harness.hooks_disabled():
+        harness.set_planned_units(2)
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.peer_relation.id,
+            f"{CHARM_KEY}/0",
+            {"ip": "aragorn", "hostname": "legolas", "fqdn": "gimli"},
+        )
+        harness.update_relation_data(
+            harness.charm.peer_relation.id,
+            f"{CHARM_KEY}/1",
+            {"ip": "sam", "hostname": "frodo", "state": "started"},
+        )
+
+    assert not harness.charm.zookeeper_config.etc_hosts_entries
+
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"state": "started"}
+        )
+
+    assert "sam" not in "".join(harness.charm.zookeeper_config.etc_hosts_entries)
+
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.peer_relation.id, f"{CHARM_KEY}/1", {"fqdn": "merry"}
+        )
+
+    assert "sam" in "".join(harness.charm.zookeeper_config.etc_hosts_entries)
+
+
 def test_build_static_properties_removes_necessary_rows():
     properties = [
         "clientPort=2181",
