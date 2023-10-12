@@ -175,6 +175,22 @@ class ZooKeeperCluster:
 
         return active_servers
 
+    @property
+    def all_units_declaring_ip(self) -> bool:
+        """Flag to confirm that all peer-related units have IPs written to relation data.
+
+        Returns:
+            True if all peer units have an 'ip' unit data. Otherwise False
+        """
+        if not self.charm.peer_relation or self.peer_units:
+            return False
+
+        for unit in self.peer_units:
+            if not self.charm.peer_relation.data[unit].get("ip", None):
+                return False
+
+        return True
+
     @staticmethod
     def get_unit_id(unit: Unit) -> int:
         """Grabs the unit's ID as defined by Juju.

@@ -156,16 +156,13 @@ class ZooKeeperCharm(CharmBase):
 
         # don't run (and restart) if some units are still joining
         # instead, wait for relation-changed from it's setting of 'started'
-        if not self.cluster.all_units_related:
-            return
-
-        # don't run (and restart) if some units still need to set ip
-        for unit in self.cluster.peer_units:
-            if not self.peer_relation.data[unit].get("ip", None):
-                return
-
-        # If a password rotation is needed, or in progress
-        if not self.rotate_passwords():
+        # also don't run (and restart) if some units still need to set ip
+        # also don't run (and restart) if a password rotation is needed or in progress
+        if (
+            not self.cluster.all_units_related
+            or not self.cluster.all_units_declaring_ip
+            or not self.rotate_passwords()
+        ):
             return
 
         # attempt startup of server
@@ -343,7 +340,7 @@ class ZooKeeperCharm(CharmBase):
                     f"NEW HOSTS = {set(self.zookeeper_config.etc_hosts_entries) - set(etc_hosts_config)}, "
                 )
             )
-            self.zookeeper_config.set_etc_hosts()
+            self.zookeeper_config.set_etc_hosts()  # don't restart hwoever
 
         return True
 
