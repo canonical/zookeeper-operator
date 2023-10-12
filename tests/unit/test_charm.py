@@ -178,10 +178,14 @@ def test_relation_changed_starts_units(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"ip": "treebeard"})
+        harness.set_planned_units(1)
 
     with (
         patch("charm.ZooKeeperCharm.init_server") as patched,
         patch("charm.ZooKeeperCharm.config_changed"),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
@@ -219,23 +223,32 @@ def test_relation_changed_updates_quorum(harness):
     with (
         patch("charm.ZooKeeperCharm.update_quorum") as patched,
         patch("charm.ZooKeeperCharm.config_changed"),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
 
 
-def test_relation_changed_restarts(harness):
+def test_relation_changed_restarts_if_added(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
     with (
-        patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock") as patched,
+        patch(
+            "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"
+        ) as patched_restart,
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
-        patched.assert_called_once()
+        patched_restart.assert_not_called()
+
+        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"0": "added"})
+        patched_restart.assert_called_once()
 
 
 def test_relation_changed_defers_upgrading_single_unit(harness):
@@ -248,6 +261,8 @@ def test_relation_changed_defers_upgrading_single_unit(harness):
     with (
         patch("ops.framework.EventBase.defer") as patched,
         patch("charm.ZooKeeperCharm.config_changed"),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
@@ -512,6 +527,8 @@ def test_adding_units_updates_relation_data(harness):
         patch("cluster.ZooKeeperCluster.update_cluster", return_value={"1": "added"}),
         patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
@@ -529,6 +546,8 @@ def test_update_quorum_skips_relation_departed(harness):
     with (
         patch("charm.ZooKeeperCharm.add_init_leader") as patched_init_leader,
         patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster,
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         patched_init_leader.assert_not_called()
@@ -545,6 +564,8 @@ def test_update_quorum_updates_cluster_for_relation_departed(harness):
     with (
         patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster,
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
         patched_update_cluster.assert_called()
@@ -559,6 +580,8 @@ def test_update_quorum_updates_cluster_for_leader_elected(harness):
     with (
         patch("cluster.ZooKeeperCluster.update_cluster") as patched_update_cluster,
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.set_leader(True)
         patched_update_cluster.assert_called()
@@ -571,6 +594,8 @@ def test_update_quorum_adds_init_leader(harness):
     with (
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
         patch("charm.ZooKeeperCharm.add_init_leader") as patched_init_leader,
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.set_leader(True)
@@ -631,6 +656,8 @@ def test_config_changed_applies_relation_data(harness):
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
 
@@ -789,7 +816,11 @@ def test_restart_fails_update_relation_data_if_not_idle(harness):
 
 
 def test_init_leader_is_added(harness):
-    with patch("charm.ZooKeeperCharm.config_changed", return_value=True):
+    with (
+        patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
+    ):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})

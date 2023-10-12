@@ -284,6 +284,8 @@ def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
         patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
     ):
         harness.set_leader(True)
