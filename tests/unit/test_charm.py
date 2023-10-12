@@ -495,7 +495,6 @@ def test_config_changed_updates_properties_jaas_hosts(harness):
         patch("config.ZooKeeperConfig.build_static_properties", return_value=["gandalf=white"]),
         patch("config.ZooKeeperConfig.static_properties", return_value="gandalf=grey"),
         patch("config.ZooKeeperConfig.set_jaas_config"),
-        patch("config.ZooKeeperConfig.set_etc_hosts"),
         patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
     ):
         harness.charm.config_changed()
@@ -505,21 +504,10 @@ def test_config_changed_updates_properties_jaas_hosts(harness):
         patch("config.ZooKeeperConfig.jaas_config", return_value="gandalf=white"),
         patch("charm.safe_get_file", return_value=["gandalf=grey"]),
         patch("config.ZooKeeperConfig.set_zookeeper_properties"),
-        patch("config.ZooKeeperConfig.set_etc_hosts"),
         patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
     ):
         harness.charm.config_changed()
         set_jaas.assert_called_once()
-
-    with (
-        patch("config.ZooKeeperConfig.etc_hosts_entries", return_value=["gandalf=white"]),
-        patch("charm.safe_get_file", return_value=["gandalf=grey"]),
-        patch("config.ZooKeeperConfig.set_zookeeper_properties"),
-        patch("config.ZooKeeperConfig.set_jaas_config"),
-        patch("config.ZooKeeperConfig.set_etc_hosts") as set_etc_hosts,
-    ):
-        harness.charm.config_changed()
-        set_etc_hosts.assert_called_once()
 
 
 def test_adding_units_updates_relation_data(harness):
