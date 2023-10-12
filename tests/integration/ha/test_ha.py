@@ -259,6 +259,7 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     logger.info("Cutting leader network...")
     helpers.network_throttle(machine_name=leader_machine_name)
     await asyncio.sleep(CLIENT_TIMEOUT * 3)
+
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
         parent=parent, hosts=non_leader_hosts, username=USERNAME, password=password
@@ -298,6 +299,9 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
+
+    # clean-up device config
+    helpers.restore_unit_network(machine_name=leader_machine_name)
 
 
 async def test_full_cluster_crash(ops_test: OpsTest, request, restart_delay):
