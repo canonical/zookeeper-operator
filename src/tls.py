@@ -360,9 +360,17 @@ class ZooKeeperTLS(Object):
     @property
     def _sans(self) -> Dict[str, List[str]]:
         """Builds a SAN dict of DNS names and IPs for the unit."""
-        unit_config = self.charm.cluster.get_hostname_mapping()
+        if not self.charm.peer_relation:
+            return {}
+
+        ip = self.charm.peer_relation.data[self.charm.unit].get("ip", "")
+        hostname = self.charm.peer_relation.data[self.charm.unit].get("hostname", "")
+        fqdn = self.charm.peer_relation.data[self.charm.unit].get("fqdn", "")
+
+        if not all([ip, hostname, fqdn]):
+            return {}
 
         return {
-            "sans_ip": [unit_config["ip"]],
-            "sans_dns": [unit_config["hostname"], unit_config["fqdn"]],
+            "sans_ip": [ip],
+            "sans_dns": [hostname, fqdn],
         }
