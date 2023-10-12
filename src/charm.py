@@ -297,15 +297,7 @@ class ZooKeeperCharm(CharmBase):
         jaas_config = safe_get_file(self.zookeeper_config.jaas_filepath) or []
         jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
 
-        etc_hosts_config = safe_get_file("/etc/hosts") or []
-        if not self.zookeeper_config.etc_hosts_entries:  # in the case units not fully related
-            etc_hosts_changed = set()
-        else:
-            etc_hosts_changed = set(etc_hosts_config) ^ set(
-                self.zookeeper_config.etc_hosts_entries
-            )
-
-        if not (properties_changed or jaas_changed or etc_hosts_changed):
+        if not (properties_changed or jaas_changed):
             return False
 
         if properties_changed:
@@ -331,16 +323,6 @@ class ZooKeeperCharm(CharmBase):
                 )
             )
             self.zookeeper_config.set_jaas_config()
-
-        if etc_hosts_changed:
-            logger.info(
-                (
-                    f"Server.{self.cluster.get_unit_id(self.unit)} updating /etc/hosts - "
-                    f"OLD HOSTS = {set(etc_hosts_config) - set(self.zookeeper_config.etc_hosts_entries)}, "
-                    f"NEW HOSTS = {set(self.zookeeper_config.etc_hosts_entries) - set(etc_hosts_config)}, "
-                )
-            )
-            self.zookeeper_config.set_etc_hosts()  # don't restart hwoever
 
         return True
 

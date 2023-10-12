@@ -182,7 +182,7 @@ class ZooKeeperCluster:
         Returns:
             True if all peer units have an 'ip' unit data. Otherwise False
         """
-        if not self.charm.peer_relation or self.peer_units:
+        if not self.charm.peer_relation or not self.peer_units:
             return False
 
         for unit in self.peer_units:
