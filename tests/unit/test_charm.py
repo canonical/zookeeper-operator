@@ -230,7 +230,7 @@ def test_relation_changed_updates_quorum(harness):
         patched.assert_called_once()
 
 
-def test_relation_changed_restarts_if_added(harness):
+def test_relation_changed_restarts(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -245,9 +245,6 @@ def test_relation_changed_restarts_if_added(harness):
         patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
-        patched_restart.assert_not_called()
-
-        harness.update_relation_data(peer_rel_id, CHARM_KEY, {"0": "added"})
         patched_restart.assert_called_once()
 
 

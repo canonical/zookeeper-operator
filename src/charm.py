@@ -178,7 +178,7 @@ class ZooKeeperCharm(CharmBase):
 
         # check whether restart is needed for all `*_changed` events
         # only restart where necessary to avoid slowdowns
-        if (self.config_changed() or self.tls.upgrading) and self.cluster.added:
+        if (self.config_changed() or self.tls.upgrading) and self.cluster.started:
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
         # ensures events aren't lost during an upgrade on single units
