@@ -300,9 +300,6 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
 
-    # clean-up device config
-    helpers.restore_unit_network(machine_name=leader_machine_name)
-
 
 async def test_full_cluster_crash(ops_test: OpsTest, request, restart_delay):
     hosts = helpers.get_hosts(ops_test)
@@ -403,7 +400,9 @@ async def test_full_cluster_restart(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip  # FIXME: Issue https://github.com/canonical/zookeeper-operator/issues/85
+@pytest.mark.skip(
+    reason="Did not play nice with pytest-operator. Issue https://github.com/canonical/zookeeper-operator/issues/85"
+)
 async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     password = helpers.get_super_password(ops_test)
@@ -447,6 +446,9 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.skip(
+    reason="Causes pytest-operator to be unstable. Hostname behaviour is somewhat tested during test_deploy_active_no_dnsmasq"
+)
 async def test_network_cut_self_heal(ops_test: OpsTest, request):
     """Cuts and restores network on leader, cluster self-heals after IP change."""
     hosts = helpers.get_hosts(ops_test)
@@ -456,6 +458,9 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
+
+    # cleans up potential leftover device config from other tests
+    helpers.restore_unit_network(machine_name=leader_machine_name)
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)
@@ -519,8 +524,3 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
-
-
-@pytest.mark.abort_on_fail
-def test_dummy(ops_test: OpsTest):
-    assert True
