@@ -1055,10 +1055,6 @@ class DataUpgrade(Object, ABC):
             logger.error("Cluster upgrade failed, ensure pre-upgrade checks are ran first.")
             return
 
-        # patch necessary to allow backwards compatibility
-        # FIXME: can likely be removed later, if not yet released to stable
-        getattr(self.charm, "unit_peer_data").update(getattr(self.charm, "cluster").get_hostname_mapping())
-
         if self.substrate == "vm":
             # for VM run version checks on leader only
             if self.charm.unit.is_leader():
