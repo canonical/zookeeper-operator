@@ -281,9 +281,19 @@ class ZooKeeperCluster:
             server_id = unit + 1
             unit = self.get_unit_from_id(unit)
 
-        try:
-            host = self.charm.peer_relation.data[unit]["hostname"]
-        except KeyError:
+        host = ""
+        for key in ["hostname", "ip", "private-address"]:
+            try:
+                logger.debug(f"Checking data for {key}...")
+                host = self.charm.peer_relation.data[unit][key]
+            except KeyError:
+                logger.debug(f"Couldn't find {key} in unit data...")
+                continue
+
+            if host:
+                break
+
+        if not host:
             raise UnitNotFoundError
 
         server_string = f"server.{server_id}={host}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
@@ -346,11 +356,15 @@ class ZooKeeperCluster:
             # remove units first, faster due to no startup/sync delay
             zk_members = zk.server_members
             servers_to_remove = list(zk_members - self.active_servers)
+            logger.debug(f"{servers_to_remove=}")
+
             zk.remove_members(members=servers_to_remove)
 
             # sorting units to ensure units are added in id order
             zk_members = zk.server_members
             servers_to_add = sorted(self.active_servers - zk_members)
+            logger.debug(f"{servers_to_add=}")
+
             zk.add_members(members=servers_to_add)
 
             return self._get_updated_servers(
