@@ -446,7 +446,7 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip(
+@pytest.mark.unstable(
     reason="Causes pytest-operator to be unstable. Hostname behaviour is somewhat tested during test_deploy_active_no_dnsmasq"
 )
 async def test_network_cut_self_heal(ops_test: OpsTest, request):
