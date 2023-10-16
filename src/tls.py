@@ -363,9 +363,9 @@ class ZooKeeperTLS(Object):
         if not self.charm.peer_relation:
             return {}
 
-        ip = self.charm.peer_relation.data[self.charm.unit].get("ip", "")
-        hostname = self.charm.peer_relation.data[self.charm.unit].get("hostname", "")
-        fqdn = self.charm.peer_relation.data[self.charm.unit].get("fqdn", "")
+        ip = self.charm.unit_peer_data.get("ip", "")
+        hostname = self.charm.unit_peer_data.get("hostname", "")
+        fqdn = self.charm.unit_peer_data.get("fqdn", "")
 
         if not all([ip, hostname, fqdn]):
             return {}
