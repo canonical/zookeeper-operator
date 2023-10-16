@@ -153,6 +153,7 @@ class ZooKeeperCharm(CharmBase):
 
         # refreshing unit hostname relation data in case ip changed
         self.unit_peer_data.update(self.cluster.get_hostname_mapping())
+        self.zookeeper_config.set_etc_hosts()
 
         # don't run (and restart) if some units are still joining
         # instead, wait for relation-changed from it's setting of 'started'
