@@ -252,6 +252,7 @@ def network_release(machine_name: str) -> None:
     subprocess.check_call(limit_set_command.split())
     restore_unit_network(machine_name=machine_name)
 
+
 def restore_unit_network(machine_name: str) -> None:
     """Restores network access for a given LXD container.
 
