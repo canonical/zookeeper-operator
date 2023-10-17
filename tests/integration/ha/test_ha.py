@@ -276,7 +276,7 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
 
     logger.info("Restoring leader network...")
     helpers.network_release(machine_name=leader_machine_name)
-    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # Give time for unit to rejoin
+    await asyncio.sleep(CLIENT_TIMEOUT * 6)  # Give time for unit to rejoin
 
     logger.info("Stopping continuous_writes...")
     cw.stop_continuous_writes()

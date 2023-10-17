@@ -248,13 +248,9 @@ def network_release(machine_name: str) -> None:
     Args:
         machine_name: lxc container hostname
     """
-    limit_set_command = f"lxc config device set {machine_name} eth0 limits.egress="
-    subprocess.check_call(limit_set_command.split())
-    limit_set_command = f"lxc config device set {machine_name} eth0 limits.ingress="
-    subprocess.check_call(limit_set_command.split())
     limit_set_command = f"lxc config set {machine_name} limits.network.priority="
     subprocess.check_call(limit_set_command.split())
-
+    restore_unit_network(machine_name=machine_name)
 
 def restore_unit_network(machine_name: str) -> None:
     """Restores network access for a given LXD container.
