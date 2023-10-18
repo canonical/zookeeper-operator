@@ -73,7 +73,9 @@ class ZooKeeperCharm(CharmBase):
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "start"), self._manual_restart)
-        self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
+        self.framework.observe(
+            getattr(self.on, "update_status"), self._on_cluster_relation_changed
+        )
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
@@ -135,6 +137,9 @@ class ZooKeeperCharm(CharmBase):
 
         self.set_passwords()
 
+        # refreshing unit hostname relation data in case ip changed
+        self.unit_peer_data.update(self.cluster.get_hostname_mapping())
+
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
@@ -146,8 +151,19 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
-        # If a password rotation is needed, or in progress
-        if not self.rotate_passwords():
+        # refreshing unit hostname relation data in case ip changed
+        self.unit_peer_data.update(self.cluster.get_hostname_mapping())
+        self.zookeeper_config.set_etc_hosts()
+
+        # don't run (and restart) if some units are still joining
+        # instead, wait for relation-changed from it's setting of 'started'
+        # also don't run (and restart) if some units still need to set ip
+        # also don't run (and restart) if a password rotation is needed or in progress
+        if (
+            not self.cluster.all_units_related
+            or not self.cluster.all_units_declaring_ip
+            or not self.rotate_passwords()
+        ):
             return
 
         # attempt startup of server
@@ -179,7 +195,10 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        self.on[f"{self.restart.name}"].acquire_lock.emit()
+        # not needed during application init
+        # only needed for scenarios where the LXD goes down (e.g PC shutdown)
+        if not self.snap.active:
+            self.on[f"{self.restart.name}"].acquire_lock.emit()
 
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
@@ -238,6 +257,9 @@ class ZooKeeperCharm(CharmBase):
         # setting default properties
         self.zookeeper_config.set_zookeeper_myid()
         self.zookeeper_config.set_server_jvmflags()
+
+        # setting ip, fqdn and hostname
+        self.unit_peer_data.update(self.cluster.get_hostname_mapping())
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)

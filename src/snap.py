@@ -7,6 +7,10 @@ import logging
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
+from tenacity import retry
+from tenacity.retry import retry_if_not_result
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_fixed
 
 from literals import CHARMED_ZOOKEEPER_SNAP_REVISION
 
@@ -87,4 +91,24 @@ class ZooKeeperSnap:
             return True
         except snap.SnapError as e:
             logger.exception(str(e))
+            return False
+
+    @retry(
+        wait=wait_fixed(1),
+        stop=stop_after_attempt(5),
+        retry_error_callback=lambda state: state.outcome.result(),  # type: ignore
+        retry=retry_if_not_result(lambda result: True if result else False),
+    )
+    def active(self) -> bool:
+        """Checks if service is active.
+
+        Returns:
+            True if service is active. Otherwise False
+
+        Raises:
+            KeyError if service does not exist
+        """
+        try:
+            return bool(self.zookeeper.services[self.SNAP_SERVICE]["active"])
+        except KeyError:
             return False

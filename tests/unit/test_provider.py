@@ -284,6 +284,8 @@ def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
         patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
+        patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
     ):
         harness.set_leader(True)
@@ -311,19 +313,29 @@ def test_apply_relation_data(harness):
         harness.update_relation_data(
             harness.charm.peer_relation.id,
             "zookeeper/0",
-            {"private-address": "treebeard", "state": "started"},
+            {
+                "ip": "treebeard",
+                "state": "started",
+                "private-address": "glamdring",
+                "hostname": "frodo",
+            },
         )
         harness.add_relation_unit(harness.charm.peer_relation.id, "zookeeper/1")
         harness.update_relation_data(
             harness.charm.peer_relation.id,
             "zookeeper/1",
-            {"private-address": "shelob", "state": "ready"},
+            {"ip": "shelob", "state": "ready", "private-address": "narsil", "hostname": "sam"},
         )
         harness.add_relation_unit(harness.charm.peer_relation.id, "zookeeper/2")
         harness.update_relation_data(
             harness.charm.peer_relation.id,
             "zookeeper/2",
-            {"private-address": "balrog", "state": "started"},
+            {
+                "ip": "balrog",
+                "state": "started",
+                "private-address": "anduril",
+                "hostname": "merry",
+            },
         )
         harness.update_relation_data(
             harness.charm.peer_relation.id,
@@ -363,8 +375,18 @@ def test_apply_relation_data(harness):
         assert password not in passwords
 
         # checking multiple endpoints and uris
-        assert len(relation.data[harness.charm.app]["endpoints"].split(",")) == 2
-        assert len(relation.data[harness.charm.app]["uris"].split(",")) == 2
+        assert len(relation.data[harness.charm.app]["endpoints"].split(",")) == 3
+        assert len(relation.data[harness.charm.app]["uris"].split(",")) == 3
+
+        # checking ips are used
+        for ip in ["treebeard", "shelob", "balrog"]:
+            assert ip in relation.data[harness.charm.app]["endpoints"]
+            assert ip in relation.data[harness.charm.app]["uris"]
+
+        # checking private-address or hostnames are NOT used
+        for hostname_address in ["glamdring", "narsil", "anduril", "sam", "frodo", "merry"]:
+            assert hostname_address not in relation.data[harness.charm.app]["endpoints"]
+            assert hostname_address not in relation.data[harness.charm.app]["uris"]
 
         for uri in relation.data[harness.charm.app]["uris"].split(","):
             # checking client_port in uri

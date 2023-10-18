@@ -7,6 +7,7 @@
 
 import logging
 import re
+import socket
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 from charms.zookeeper.v0.client import (
@@ -174,6 +175,22 @@ class ZooKeeperCluster:
 
         return active_servers
 
+    @property
+    def all_units_declaring_ip(self) -> bool:
+        """Flag to confirm that all peer-related units have IPs written to relation data.
+
+        Returns:
+            True if all peer units have an 'ip' unit data. Otherwise False
+        """
+        if not self.charm.peer_relation or not self.peer_units:
+            return False
+
+        for unit in self.peer_units:
+            if not self.charm.peer_relation.data[unit].get("ip", None):
+                return False
+
+        return True
+
     @staticmethod
     def get_unit_id(unit: Unit) -> int:
         """Grabs the unit's ID as defined by Juju.
@@ -205,6 +222,23 @@ class ZooKeeperCluster:
 
         raise UnitNotFoundError
 
+    def get_hostname_mapping(self) -> dict[str, str]:
+        """Collects hostname mapping for current unit.
+
+        Returns:
+            Dict of string keys 'hostname', 'fqdn', 'ip' and their values
+        """
+        hostname = socket.gethostname()
+        fqdn = socket.getfqdn()
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        s.connect(("10.10.10.10", 1))
+        ip = s.getsockname()[0]
+        s.close()
+
+        return {"hostname": hostname, "fqdn": fqdn, "ip": ip}
+
     def unit_config(
         self, unit: Union[Unit, int], state: str = "ready", role: str = "participant"
     ) -> Dict[str, str]:
@@ -231,7 +265,7 @@ class ZooKeeperCluster:
 
         Raises:
             UnitNotFoundError: When the target unit can't be found in the unit relation data,
-                and/or cannot extract the private-address
+                and/or cannot extract the hostname written during the `install` hook
         """
         if not self.charm.peer_relation:
             return {}
@@ -247,9 +281,19 @@ class ZooKeeperCluster:
             server_id = unit + 1
             unit = self.get_unit_from_id(unit)
 
-        try:
-            host = self.charm.peer_relation.data[unit]["private-address"]
-        except KeyError:
+        host = ""
+        for key in ["hostname", "ip", "private-address"]:
+            try:
+                logger.debug(f"Checking data for {key}...")
+                host = self.charm.peer_relation.data[unit][key]
+            except KeyError:
+                logger.debug(f"Couldn't find {key} in unit data...")
+                continue
+
+            if host:
+                break
+
+        if not host:
             raise UnitNotFoundError
 
         server_string = f"server.{server_id}={host}:{self.server_port}:{self.election_port}:{role};0.0.0.0:{self.client_port}"
@@ -312,11 +356,15 @@ class ZooKeeperCluster:
             # remove units first, faster due to no startup/sync delay
             zk_members = zk.server_members
             servers_to_remove = list(zk_members - self.active_servers)
+            logger.debug(f"{servers_to_remove=}")
+
             zk.remove_members(members=servers_to_remove)
 
             # sorting units to ensure units are added in id order
             zk_members = zk.server_members
             servers_to_add = sorted(self.active_servers - zk_members)
+            logger.debug(f"{servers_to_add=}")
+
             zk.add_members(members=servers_to_add)
 
             return self._get_updated_servers(
@@ -461,6 +509,16 @@ class ZooKeeperCluster:
             True if the unit has started. Otherwise False
         """
         return self.charm.unit_peer_data.get("state", None) == "started"
+
+    @property
+    def added(self) -> bool:
+        """Flag to check the whether the running unit has been added to the quorum.
+
+        Returns:
+            True if the unit has been added. Otherwise False
+        """
+        unit_id = self.get_unit_id(self.charm.unit)
+        return self.charm.app_peer_data.get(str(unit_id), None) == "added"
 
     @property
     def quorum(self) -> str:

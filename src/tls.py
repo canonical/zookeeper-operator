@@ -8,7 +8,6 @@ import base64
 import logging
 import re
 import shutil
-import socket
 import subprocess
 from typing import TYPE_CHECKING, Dict, List, Optional
 
@@ -361,9 +360,17 @@ class ZooKeeperTLS(Object):
     @property
     def _sans(self) -> Dict[str, List[str]]:
         """Builds a SAN dict of DNS names and IPs for the unit."""
-        unit_config = self.charm.cluster.unit_config(unit=self.charm.unit)
+        if not self.charm.peer_relation:
+            return {}
+
+        ip = self.charm.unit_peer_data.get("ip", "")
+        hostname = self.charm.unit_peer_data.get("hostname", "")
+        fqdn = self.charm.unit_peer_data.get("fqdn", "")
+
+        if not all([ip, hostname, fqdn]):
+            return {}
 
         return {
-            "sans_ip": [unit_config["host"]],
-            "sans_dns": [unit_config["unit_name"], socket.getfqdn()],
+            "sans_ip": [ip],
+            "sans_dns": [hostname, fqdn],
         }

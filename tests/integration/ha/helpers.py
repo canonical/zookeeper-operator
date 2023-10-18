@@ -199,6 +199,18 @@ async def get_unit_machine_name(ops_test: OpsTest, unit_name: str) -> str:
     return raw_hostname.strip()
 
 
+def disable_lxd_dnsmasq() -> None:
+    """Disables DNS resolution in LXD."""
+    disable_dnsmasq_cmd = "lxc network set lxdbr0 dns.mode=none"
+    subprocess.check_call(disable_dnsmasq_cmd.split())
+
+
+def enable_lxd_dnsmasq() -> None:
+    """Disables DNS resolution in LXD."""
+    enable_dnsmasq = "lxc network unset lxdbr0 dns.mode"
+    subprocess.check_call(enable_dnsmasq.split())
+
+
 def cut_unit_network(machine_name: str) -> None:
     """Cuts network access for a given LXD container.
 
@@ -236,12 +248,9 @@ def network_release(machine_name: str) -> None:
     Args:
         machine_name: lxc container hostname
     """
-    limit_set_command = f"lxc config device set {machine_name} eth0 limits.egress="
-    subprocess.check_call(limit_set_command.split())
-    limit_set_command = f"lxc config device set {machine_name} eth0 limits.ingress="
-    subprocess.check_call(limit_set_command.split())
     limit_set_command = f"lxc config set {machine_name} limits.network.priority="
     subprocess.check_call(limit_set_command.split())
+    restore_unit_network(machine_name=machine_name)
 
 
 def restore_unit_network(machine_name: str) -> None:
@@ -483,3 +492,21 @@ async def remove_restart_delay(ops_test: OpsTest, unit_name: str) -> None:
     # reload the daemon for systemd to reflect changes
     reload_cmd = f"exec --unit {unit_name} -- sudo systemctl daemon-reload"
     await ops_test.juju(*reload_cmd.split(), check=True)
+
+
+def ping_servers(ops_test: OpsTest) -> bool:
+    """Pings srvr to all ZooKeeper units, ensuring they're in quorum.
+
+    Args:
+        ops_test: OpsTest
+
+    Returns:
+        True if all units are in quorum. Otherwise False
+    """
+    for unit in ops_test.model.applications[APP_NAME].units:
+        host = unit.public_address
+        mode = srvr(host)["Mode"]
+        if mode not in ["leader", "follower"]:
+            return False
+
+    return True
