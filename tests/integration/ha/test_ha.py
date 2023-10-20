@@ -433,7 +433,7 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     new_units = [unit.name for unit in ops_test.model.applications[APP_NAME].units]
     added_unit_name = list(set(new_units) - set(old_units))[0]
 
-    logger.info("Verifying storage re-use...")
+    logger.info("Verifying storage reuse...")
     assert helpers.get_storage_id(ops_test, unit_name=added_unit_name) == unit_storage_id
 
     # long sleep to ensure CI can provision resources and fully set-up
