@@ -445,6 +445,7 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     assert cw.count_znodes(parent=parent, hosts=new_host, username=USERNAME, password=password)
 
 
+@pytest.mark.skip
 @pytest.mark.abort_on_fail
 @pytest.mark.unstable(
     reason="Causes pytest-operator to be unstable. Hostname behaviour is somewhat tested during test_deploy_active_no_dnsmasq"
