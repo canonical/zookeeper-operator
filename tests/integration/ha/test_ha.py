@@ -446,6 +446,9 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.unstable(
+    reason="Causes pytest-operator to be unstable. Hostname behaviour is somewhat tested during test_deploy_active_no_dnsmasq"
+)
 async def test_network_cut_self_heal(ops_test: OpsTest, request):
     """Cuts and restores network on leader, cluster self-heals after IP change."""
     hosts = helpers.get_hosts(ops_test)
