@@ -49,7 +49,7 @@ async def test_deploy_active_no_dnsmasq(ops_test: OpsTest):  # , no_lxd_dnsmasq)
         charm,
         application_name=APP_NAME,
         num_units=3,
-        storage={"data": {"pool": "lxd-btrfs", "size": 10240}},
+        # storage={"data": {"pool": "lxd-btrfs", "size": 10240}},
     )
     await helpers.wait_idle(ops_test)
 
