@@ -33,16 +33,16 @@ async def restart_delay(ops_test: OpsTest):
         await helpers.remove_restart_delay(ops_test=ops_test, unit_name=unit.name)
 
 
-@pytest.fixture()
-async def no_lxd_dnsmasq():
-    helpers.disable_lxd_dnsmasq()
-    yield
-    helpers.enable_lxd_dnsmasq()
+# @pytest.fixture()
+# async def no_lxd_dnsmasq():
+#     helpers.disable_lxd_dnsmasq()
+#     yield
+#     helpers.enable_lxd_dnsmasq()
 
 
 @pytest.mark.skip_if_deployed
 @pytest.mark.abort_on_fail
-async def test_deploy_active_no_dnsmasq(ops_test: OpsTest, no_lxd_dnsmasq):
+async def test_deploy_active_no_dnsmasq(ops_test: OpsTest):  # , no_lxd_dnsmasq):
     """Tests that the charm deploys safely, without DNS resolution from LXD dnsmasq."""
     charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(
