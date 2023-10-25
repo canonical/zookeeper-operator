@@ -156,6 +156,7 @@ def test_build_upgrade_stack(harness):
     assert stack[0] == 0
     assert len(stack) == 4
 
+
 @pytest.mark.parametrize("upgrade_state", ("idle", "ready"))
 @pytest.mark.parametrize("upgrade_stack", ([], [0]))
 def test_run_password_rotation_while_upgrading(harness, mocker, upgrade_state, upgrade_stack):
