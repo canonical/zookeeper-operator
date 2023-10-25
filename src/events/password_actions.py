@@ -57,6 +57,16 @@ class PasswordActionEvents(Object):
             event.fail(msg)
             return
 
+        if not self.charm.upgrade_events.idle or self.charm.upgrade_events.upgrade_stack:
+            msg = (
+                    "Cannot set password while upgrading "
+                    + f"(upgrade_state: {self.charm.upgrade_events.cluster_state}, "
+                    + f"upgrade_stack: {self.charm.upgrade_events.upgrade_stack})"
+            )
+            logger.error(msg)
+            event.fail(msg)
+            return
+
         username = event.params.get("username", "super")
         if username not in CHARM_USERS:
             msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."

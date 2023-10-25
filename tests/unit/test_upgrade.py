@@ -156,6 +156,26 @@ def test_build_upgrade_stack(harness):
     assert stack[0] == 0
     assert len(stack) == 4
 
+@pytest.mark.parametrize("upgrade_state", ("idle", "ready"))
+@pytest.mark.parametrize("upgrade_stack", ([], [0]))
+def test_run_password_rotation_while_upgrading(harness, mocker, upgrade_state, upgrade_stack):
+    harness.charm.upgrade.peer_relation.data[harness.charm.unit].update({"state": upgrade_state})
+    harness.charm.upgrade.upgrade_stack = upgrade_stack
+    harness.set_leader(True)
+
+    mock_event = mocker.MagicMock()
+    mock_event.params = {"username": "super"}
+
+    harness.charm._set_password_action(mock_event)
+
+    if (not upgrade_stack) and (upgrade_state == "idle"):
+        mock_event.set_results.assert_called()
+    else:
+        mock_event.fail.assert_called_with(
+            f"Cannot set password while upgrading (upgrade_state: {upgrade_state}, "
+            + f"upgrade_stack: {upgrade_stack})"
+        )
+
 
 def test_zookeeper_dependency_model():
     assert sorted(ZooKeeperDependencyModel.__fields__.keys()) == sorted(DEPENDENCIES.keys())
