@@ -433,7 +433,7 @@ async def is_down(ops_test: OpsTest, unit: str) -> bool:
     try:
         for attempt in Retrying(stop=stop_after_attempt(10), wait=wait_fixed(5)):
             with attempt:
-                search_db_process = f"run --unit {unit} pgrep -x java"
+                search_db_process = f"exec --unit {unit} pgrep -x java"
                 _, processes, _ = await ops_test.juju(*search_db_process.split())
                 # splitting processes by "\n" results in one or more empty lines, hence we
                 # need to process these lines accordingly.
@@ -452,7 +452,7 @@ async def all_db_processes_down(ops_test: OpsTest) -> bool:
         for attempt in Retrying(stop=stop_after_attempt(10), wait=wait_fixed(5)):
             with attempt:
                 for unit in ops_test.model.applications[APP_NAME].units:
-                    search_db_process = f"run --unit {unit.name} pgrep -x java"
+                    search_db_process = f"exec --unit {unit.name} pgrep -x java"
                     _, processes, _ = await ops_test.juju(*search_db_process.split())
                     # splitting processes by "\n" results in one or more empty lines, hence we
                     # need to process these lines accordingly.
