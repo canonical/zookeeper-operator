@@ -4,7 +4,7 @@
 
 """Collection of global literals for the ZooKeeper charm."""
 
-CHARMED_ZOOKEEPER_SNAP_REVISION = 22
+CHARMED_ZOOKEEPER_SNAP_REVISION = 23
 
 PEER = "cluster"
 REL_NAME = "zookeeper"
