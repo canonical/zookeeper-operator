@@ -308,7 +308,7 @@ class ZooKeeperProvider(Object):
         """Removes user from ZK app data on `client_relation_broken`.
 
         Args:
-            event: used for passing `RelationBrokenEvent` to subequent methods
+            event: used for passing `RelationBrokenEvent` to subsequent methods
         """
         # Don't remove anything if ZooKeeper is going down
         if self.charm.app.planned_units == 0:
