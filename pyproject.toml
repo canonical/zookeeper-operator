@@ -25,7 +25,7 @@ profile = "black"
 name = "zookeeper-operator"
 version = "1.0"
 description = "zookeeper-operator"
-authors = [""]
+authors = []
 
 [tool.poetry.dependencies]
 python = ">=3.8"
