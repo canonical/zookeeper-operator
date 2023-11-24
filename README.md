@@ -4,7 +4,6 @@
 [![Release](https://github.com/canonical/zookeeper-operator/actions/workflows/release.yaml/badge.svg)](https://github.com/canonical/zookeeper-operator/actions/workflows/release.yaml)
 [![Tests](https://github.com/canonical/zookeeper-operator/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/canonical/zookeeper-operator/actions/workflows/ci.yaml?query=branch%3Amain)
 
-
 ## Overview
 
 The Charmed ZooKeeper Operator delivers automated operations management from day 0 to day 2 on the [Apache ZooKeeper](https://zookeeper.apache.org/) server which enables highly reliable distributed coordination, deployed on top of a [Kubernetes cluster](https://kubernetes.io/). It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
