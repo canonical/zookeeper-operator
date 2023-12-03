@@ -4,8 +4,10 @@
 """Manager for handling ZooKeeper in-place upgrades."""
 
 import logging
+import time
 from functools import cached_property
 from typing import TYPE_CHECKING
+from tenacity import retry, stop_after_attempt, wait_random
 
 from charms.data_platform_libs.v0.upgrade import (
     ClusterNotReadyError,
@@ -59,6 +61,7 @@ class ZooKeeperUpgrade(DataUpgrade):
             password=self.charm.cluster.passwords[0],
         )
 
+    @retry(stop=stop_after_attempt(5), wait=wait_random(min=1, max=5))
     def post_upgrade_check(self) -> None:
         """Runs necessary checks validating the unit is in a healthy state after upgrade."""
         self.pre_upgrade_check()
@@ -70,29 +73,34 @@ class ZooKeeperUpgrade(DataUpgrade):
             if not self.client.members_broadcasting or not len(self.client.server_members) == len(
                 self.charm.cluster.peer_units
             ):
+                logger.info("Check failed: broadcasting error")
                 raise ClusterNotReadyError(
                     message=default_message,
                     cause="Not all application units are connected and broadcasting in the quorum",
                 )
 
             if self.client.members_syncing:
+                logger.info("Check failed: quorum members syncing")
                 raise ClusterNotReadyError(
                     message=default_message, cause="Some quorum members are syncing data"
                 )
 
             if not self.charm.cluster.stable:
+                logger.info("Check failed: cluster initializing")
                 raise ClusterNotReadyError(
                     message=default_message, cause="Charm has not finished initialising"
                 )
 
         except QuorumLeaderNotFoundError:
+            logger.info("Check failed: Quorum leader not found")
             raise ClusterNotReadyError(message=default_message, cause="Quorum leader not found")
         except ConnectionClosedError:
+            logger.info("Check failed: Unable to connect to the cluster")
             raise ClusterNotReadyError(
                 message=default_message, cause="Unable to connect to the cluster"
             )
         except Exception as e:
-            logger.debug(str(e))
+            logger.info(f"Check failed: Unknown error: {e}")
             raise ClusterNotReadyError(message=default_message, cause="Unknown error")
 
     @override
@@ -133,6 +141,8 @@ class ZooKeeperUpgrade(DataUpgrade):
 
         logger.info(f"{self.charm.unit.name} upgrading service...")
         self.charm.snap.restart_snap_service()
+
+        time.sleep(5.0)
 
         try:
             logger.debug("Running post-upgrade check...")
