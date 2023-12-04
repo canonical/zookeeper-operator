@@ -7,7 +7,6 @@ import logging
 import time
 from functools import cached_property
 from typing import TYPE_CHECKING
-from tenacity import retry, stop_after_attempt, wait_random
 
 from charms.data_platform_libs.v0.upgrade import (
     ClusterNotReadyError,
@@ -21,6 +20,7 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.client import ConnectionClosedError
 from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_random
 from typing_extensions import override
 
 if TYPE_CHECKING:
