@@ -61,7 +61,7 @@ class ZooKeeperUpgrade(DataUpgrade):
             password=self.charm.cluster.passwords[0],
         )
 
-    @retry(stop=stop_after_attempt(5), wait=wait_random(min=1, max=5))
+    @retry(stop=stop_after_attempt(5), wait=wait_random(min=1, max=5), reraise=True)
     def post_upgrade_check(self) -> None:
         """Runs necessary checks validating the unit is in a healthy state after upgrade."""
         self.pre_upgrade_check()
