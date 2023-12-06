@@ -28,7 +28,7 @@ description = "zookeeper-operator"
 authors = []
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.8,<4.0"
 ops = "^2.4.1"
 kazoo = ">=2.8.0"
 tenacity = ">=8.0.1"
@@ -71,6 +71,9 @@ pytest = ">=7.2"
 juju = "^3.2.0"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
+pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
+# To be enabled if we are using groups on integration tests
+# pytest-operator-groups = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_groups"}
 
 [tool.ruff]
 line-length = 99
