@@ -43,7 +43,7 @@ async def test_deploy_active(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.password_rotation
+@pytest.mark.log_level_change
 async def test_log_level_change(ops_test: OpsTest):
 
     for unit in ops_test.model.applications[APP_NAME].units:
