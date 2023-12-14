@@ -325,6 +325,8 @@ class ZooKeeperCharm(CharmBase):
             )
             self.zookeeper_config.set_jaas_config()
 
+        self.zookeeper_config.set_server_jvmflags()
+
         return True
 
     def set_passwords(self) -> None:

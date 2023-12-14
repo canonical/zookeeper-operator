@@ -65,7 +65,7 @@ class ZooKeeperConfig:
         self.keystore_filepath = f"{self.charm.snap.conf_path}/keystore.p12"
         self.truststore_filepath = f"{self.charm.snap.conf_path}/truststore.jks"
         self.jmx_prometheus_javaagent_filepath = (
-            f"{self.charm.snap.binaries_path}/jmx_prometheus_javaagent.jar"
+            f"{self.charm.snap.binaries_path}/lib/jmx_prometheus_javaagent.jar"
         )
         self.jmx_prometheus_config_filepath = f"{self.charm.snap.conf_path}/jmx_prometheus.yaml"
 
@@ -171,6 +171,7 @@ class ZooKeeperConfig:
         """
         properties = (
             [
+                f"# log_level={self.log_level}",
                 f"initLimit={self.charm.config['init-limit']}",
                 f"syncLimit={self.charm.config['sync-limit']}",
                 f"tickTime={self.charm.config['tick-time']}",
