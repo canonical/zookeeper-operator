@@ -45,14 +45,17 @@ async def test_deploy_active(ops_test: OpsTest):
 @pytest.mark.abort_on_fail
 @pytest.mark.password_rotation
 async def test_log_level_change(ops_test: OpsTest):
-    assert (
-        count_lines_with(
-            ops_test.model,
-            "DEBUG",
-            "/var/snap/charmed-zookeeper/common/var/log/zookeeper/zookeeper.log",
+
+    for unit in ops_test.model.applications[APP_NAME].units:
+        assert (
+            count_lines_with(
+                ops_test.model,
+                unit.name,
+                "/var/snap/charmed-zookeeper/common/var/log/zookeeper/zookeeper.log",
+                "DEBUG",
+            )
+            == 0
         )
-        == 0
-    )
 
     await ops_test.model.applications[APP_NAME].set_config({"log_level": "DEBUG"})
 
@@ -60,14 +63,16 @@ async def test_log_level_change(ops_test: OpsTest):
         apps=[APP_NAME], status="active", timeout=1000, idle_period=30
     )
 
-    assert (
-        count_lines_with(
-            ops_test.model,
-            "DEBUG",
-            "/var/snap/charmed-zookeeper/common/var/log/zookeeper/zookeeper.log",
+    for unit in ops_test.model.applications[APP_NAME].units:
+        assert (
+            count_lines_with(
+                ops_test.model,
+                unit.name,
+                "/var/snap/charmed-zookeeper/common/var/log/zookeeper/zookeeper.log",
+                "DEBUG",
+            )
+            > 0
         )
-        > 0
-    )
 
     await ops_test.model.applications[APP_NAME].set_config({"log_level": "INFO"})
 

@@ -273,9 +273,9 @@ async def get_application_hosts(ops_test: OpsTest, app_name: str, units: List[st
     return hosts
 
 
-def count_lines_with(model_full_name: str, file: str, pattern: str) -> int:
+def count_lines_with(model_full_name: str, unit: str, file: str, pattern: str) -> int:
     result = check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh kafka/0 sudo -i 'grep \"{pattern}\" {file} | wc -l'",
+        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'grep \"{pattern}\" {file} | wc -l'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
