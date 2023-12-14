@@ -10,10 +10,21 @@ from typing import TYPE_CHECKING, List
 from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from utils import safe_get_file, safe_write_to_file, update_env
 
+from enum import Enum
+
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
+
+class LogLevel(str, Enum):
+    """Enum for the `log_level` field."""
+
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    DEBUG = "DEBUG"
+
 
 DEFAULT_PROPERTIES = """
 syncEnabled=true
@@ -43,14 +54,12 @@ ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
 """
 
-
 class ZooKeeperConfig:
     """Manager for handling ZooKeeper auth configuration."""
 
     def __init__(self, charm):
         self.charm: "ZooKeeperCharm" = charm
         self.properties_filepath = f"{self.charm.snap.conf_path}/zoo.cfg"
-        self.log4j_properties_filepath = f"{self.charm.snap.conf_path}/log4j.properties"
         self.dynamic_filepath = f"{self.charm.snap.conf_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.charm.snap.conf_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.charm.snap.conf_path}/keystore.p12"
@@ -61,9 +70,24 @@ class ZooKeeperConfig:
         self.jmx_prometheus_config_filepath = f"{self.charm.snap.conf_path}/jmx_prometheus.yaml"
 
     @property
+    def log_level(self) -> str:
+        """Return the Java-compliant logging level set by the user.
+
+        Returns:
+            string with these possible values: DEBUG, INFO, WARN, ERROR
+        """
+        log_level = LogLevel(self.charm.config.get('log_level', 'INFO'))
+
+        # Remapping to WARN that is generally used in Java applications based on log4j and logback.
+        if log_level == LogLevel.WARNING:
+            return "WARN"
+        return log_level.value
+
+    @property
     def server_jvmflags(self) -> List[str]:
         """Builds necessary server JVM flag env-vars for the ZooKeeper Snap."""
         return [
+            f"-Dcharmed.zookeeper.log.level={self.log_level}",
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
             f"-Djava.security.auth.login.config={self.jaas_filepath}",
