@@ -5,17 +5,17 @@
 """Manager for handling ZooKeeper auth configuration."""
 
 import logging
+from enum import Enum
 from typing import TYPE_CHECKING, List
 
 from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from utils import safe_get_file, safe_write_to_file, update_env
 
-from enum import Enum
-
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
+
 
 class LogLevel(str, Enum):
     """Enum for the `log_level` field."""
@@ -54,6 +54,7 @@ ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
 """
 
+
 class ZooKeeperConfig:
     """Manager for handling ZooKeeper auth configuration."""
 
@@ -76,7 +77,7 @@ class ZooKeeperConfig:
         Returns:
             string with these possible values: DEBUG, INFO, WARN, ERROR
         """
-        log_level = LogLevel(self.charm.config.get('log_level', 'INFO'))
+        log_level = LogLevel(self.charm.config.get("log_level", "INFO"))
 
         # Remapping to WARN that is generally used in Java applications based on log4j and logback.
         if log_level == LogLevel.WARNING:
