@@ -78,7 +78,7 @@ def map_env(env: list[str]) -> dict[str, str]:
     map_env = {}
     for var in env:
         key = "".join(var.split("=", maxsplit=1)[0])
-        value = "".join(var.split("=", maxsplit=1)[1:]).strip("\"")
+        value = "".join(var.split("=", maxsplit=1)[1:]).strip('"')
         if key:
             # only check for keys, as we can have an empty value for a variable
             map_env[key] = value
