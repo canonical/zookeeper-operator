@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 from src.utils import map_env
 
@@ -69,3 +69,30 @@ def test_update_env():
         assert "KAFKA_OPTS" in safe_write.call_args.kwargs["content"]
         assert safe_write.call_args.kwargs["path"] == "/etc/environment"
         assert safe_write.call_args.kwargs["mode"] == "w"
+
+
+def test_environment_file_same_content():
+    with (
+        patch(
+            "builtins.open",
+            new_callable=mock_open,
+            read_data="SERVER_JVMFLAG='gimli'",
+        ),
+        patch("utils.safe_write_to_file") as safe_write,
+    ):
+        assert get_env()["SERVER_JVMFLAG"] == "'gimli'"
+        update_env(env={"SERVER_JVMFLAG": "'gimli'"})
+        safe_write.assert_not_called()
+
+
+def test_environment_file_different_content():
+    with (
+        patch(
+            "builtins.open",
+            new_callable=mock_open,
+            read_data="SERVER_JVMFLAG='gimli'",
+        ),
+        patch("utils.safe_write_to_file") as safe_write,
+    ):
+        update_env(env={"SERVER_JVMFLAG": "'dwarves'"})
+        safe_write.assert_called_once()
