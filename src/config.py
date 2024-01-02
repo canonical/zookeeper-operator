@@ -9,7 +9,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, List
 
 from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
-from utils import safe_get_file, safe_write_to_file, update_env, map_env
+from utils import map_env, safe_get_file, safe_write_to_file, update_env
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm

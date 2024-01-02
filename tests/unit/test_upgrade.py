@@ -15,6 +15,7 @@ from ops.testing import Harness
 
 from charm import ZooKeeperCharm
 from cluster import ZooKeeperCluster
+from config import ZooKeeperConfig
 from literals import CHARM_KEY, DEPENDENCIES
 from snap import ZooKeeperSnap
 from upgrade import ZooKeeperDependencyModel, ZooKeeperUpgrade
@@ -189,6 +190,7 @@ def test_upgrade_granted_sets_failed_if_failed_upgrade_check(harness, mocker):
     mocker.patch.object(ZooKeeperSnap, "install", return_value=True)
     mocker.patch.object(ZooKeeperUpgrade, "set_unit_completed")
     mocker.patch.object(ZooKeeperUpgrade, "set_unit_failed")
+    mocker.patch.object(ZooKeeperConfig, "set_server_jvmflags")
 
     mock_event = mocker.MagicMock()
 
@@ -207,6 +209,7 @@ def test_upgrade_granted_succeeds(harness, mocker):
     mocker.patch.object(ZooKeeperUpgrade, "pre_upgrade_check")
     mocker.patch.object(ZooKeeperUpgrade, "set_unit_completed")
     mocker.patch.object(ZooKeeperUpgrade, "set_unit_failed")
+    mocker.patch.object(ZooKeeperConfig, "set_server_jvmflags")
 
     mock_event = mocker.MagicMock()
 
@@ -225,6 +228,7 @@ def test_upgrade_granted_recurses_upgrade_changed_on_leader(harness, mocker):
     mocker.patch.object(ZooKeeperSnap, "install")
     mocker.patch.object(ZooKeeperUpgrade, "pre_upgrade_check")
     mocker.patch.object(ZooKeeperUpgrade, "on_upgrade_changed")
+    mocker.patch.object(ZooKeeperConfig, "set_server_jvmflags")
 
     mock_event = mocker.MagicMock()
 
