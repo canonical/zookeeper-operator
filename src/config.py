@@ -9,7 +9,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, List
 
 from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
-from utils import safe_get_file, safe_write_to_file, update_env
+from utils import safe_get_file, safe_write_to_file, update_env, map_env
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
@@ -292,7 +292,8 @@ class ZooKeeperConfig:
 
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
-        update_env(env={"SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)})
+        flags = " ".join(self.server_jvmflags + self.jmx_jvmflags)
+        update_env(env=map_env([f"SERVER_JVMFLAGS='{flags}'"]))
 
     def set_zookeeper_properties(self) -> None:
         """Writes built zoo.cfg file."""
