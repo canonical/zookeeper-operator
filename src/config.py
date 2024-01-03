@@ -5,15 +5,26 @@
 """Manager for handling ZooKeeper auth configuration."""
 
 import logging
+from enum import Enum
 from typing import TYPE_CHECKING, List
 
 from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
-from utils import safe_get_file, safe_write_to_file, update_env
+from utils import map_env, safe_get_file, safe_write_to_file, update_env
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
+
+
+class LogLevel(str, Enum):
+    """Enum for the `log_level` field."""
+
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    DEBUG = "DEBUG"
+
 
 DEFAULT_PROPERTIES = """
 syncEnabled=true
@@ -50,20 +61,34 @@ class ZooKeeperConfig:
     def __init__(self, charm):
         self.charm: "ZooKeeperCharm" = charm
         self.properties_filepath = f"{self.charm.snap.conf_path}/zoo.cfg"
-        self.log4j_properties_filepath = f"{self.charm.snap.conf_path}/log4j.properties"
         self.dynamic_filepath = f"{self.charm.snap.conf_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.charm.snap.conf_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.charm.snap.conf_path}/keystore.p12"
         self.truststore_filepath = f"{self.charm.snap.conf_path}/truststore.jks"
         self.jmx_prometheus_javaagent_filepath = (
-            f"{self.charm.snap.binaries_path}/jmx_prometheus_javaagent.jar"
+            f"{self.charm.snap.binaries_path}/lib/jmx_prometheus_javaagent.jar"
         )
         self.jmx_prometheus_config_filepath = f"{self.charm.snap.conf_path}/jmx_prometheus.yaml"
+
+    @property
+    def log_level(self) -> str:
+        """Return the Java-compliant logging level set by the user.
+
+        Returns:
+            string with these possible values: DEBUG, INFO, WARN, ERROR
+        """
+        log_level = LogLevel(self.charm.config.get("log_level", "INFO"))
+
+        # Remapping to WARN that is generally used in Java applications based on log4j and logback.
+        if log_level == LogLevel.WARNING:
+            return "WARN"
+        return log_level.value
 
     @property
     def server_jvmflags(self) -> List[str]:
         """Builds necessary server JVM flag env-vars for the ZooKeeper Snap."""
         return [
+            f"-Dcharmed.zookeeper.log.level={self.log_level}",
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
             f"-Djava.security.auth.login.config={self.jaas_filepath}",
@@ -147,6 +172,7 @@ class ZooKeeperConfig:
         """
         properties = (
             [
+                f"# log_level={self.log_level}",
                 f"initLimit={self.charm.config['init-limit']}",
                 f"syncLimit={self.charm.config['sync-limit']}",
                 f"tickTime={self.charm.config['tick-time']}",
@@ -266,7 +292,8 @@ class ZooKeeperConfig:
 
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
-        update_env(env={"SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)})
+        flags = " ".join(self.server_jvmflags + self.jmx_jvmflags)
+        update_env(env=map_env([f"SERVER_JVMFLAGS='{flags}'"]))
 
     def set_zookeeper_properties(self) -> None:
         """Writes built zoo.cfg file."""

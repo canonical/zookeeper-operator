@@ -493,6 +493,7 @@ def test_config_changed_updates_properties_jaas_hosts(harness):
         patch("config.ZooKeeperConfig.static_properties", return_value="gandalf=grey"),
         patch("config.ZooKeeperConfig.set_jaas_config"),
         patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
+        patch("config.ZooKeeperConfig.set_server_jvmflags"),
     ):
         harness.charm.config_changed()
         set_props.assert_called_once()
@@ -502,6 +503,7 @@ def test_config_changed_updates_properties_jaas_hosts(harness):
         patch("charm.safe_get_file", return_value=["gandalf=grey"]),
         patch("config.ZooKeeperConfig.set_zookeeper_properties"),
         patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
+        patch("config.ZooKeeperConfig.set_server_jvmflags"),
     ):
         harness.charm.config_changed()
         set_jaas.assert_called_once()

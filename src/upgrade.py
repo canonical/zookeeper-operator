@@ -139,6 +139,8 @@ class ZooKeeperUpgrade(DataUpgrade):
             self.set_unit_failed()
             return
 
+        self.charm.zookeeper_config.set_server_jvmflags()
+
         logger.info(f"{self.charm.unit.name} upgrading service...")
         self.charm.snap.restart_snap_service()
 
