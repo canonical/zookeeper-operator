@@ -151,6 +151,10 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
+        if not self.upgrade.idle:
+            event.defer()
+            return
+
         # refreshing unit hostname relation data in case ip changed
         self.unit_peer_data.update(self.cluster.get_hostname_mapping())
         self.zookeeper_config.set_etc_hosts()
