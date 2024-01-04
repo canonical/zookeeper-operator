@@ -151,7 +151,7 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
-        if not self.upgrade.idle:
+        if not self.upgrade.idle or self.upgrade.upgrade_stack:
             event.defer()
             return
 

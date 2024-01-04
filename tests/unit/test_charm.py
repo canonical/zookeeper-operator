@@ -26,6 +26,7 @@ METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 def harness():
     harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     harness.add_relation("restart", CHARM_KEY)
+    harness.add_relation("upgrade", CHARM_KEY)
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
     harness.begin()
     return harness
