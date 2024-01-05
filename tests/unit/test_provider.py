@@ -29,7 +29,8 @@ CustomRelation = namedtuple("Relation", ["id"])
 def harness():
     harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     harness.add_relation(REL_NAME, "application")
-    peer_rel_id = harness.add_relation("restart", CHARM_KEY)
+    _ = harness.add_relation("upgrade", CHARM_KEY)
+    _ = harness.add_relation("restart", CHARM_KEY)
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
@@ -147,7 +148,7 @@ def test_relation_config_new_relation_skips_relation_broken(harness):
 
 
 def test_relations_config_multiple_relations(harness):
-    harness.add_relation(REL_NAME, "new_application")
+    new_rel_app_id = harness.add_relation(REL_NAME, "new_application")
     harness.update_relation_data(
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
@@ -166,8 +167,8 @@ def test_relations_config_multiple_relations(harness):
             "acl": "cdrwa",
             "acls-added": "false",
         },
-        "3": {
-            "username": "relation-3",
+        str(new_rel_app_id): {
+            "username": f"relation-{new_rel_app_id}",
             "password": "mellon",
             "chroot": "/new_app",
             "acl": "cdrwa",
@@ -177,7 +178,7 @@ def test_relations_config_multiple_relations(harness):
 
 
 def test_build_acls(harness):
-    harness.add_relation(REL_NAME, "new_application")
+    rel_id_new_app = harness.add_relation(REL_NAME, "new_application")
     harness.update_relation_data(
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
@@ -197,11 +198,11 @@ def test_build_acls(harness):
 
     assert new_app_acl.acl_list == ["READ", "WRITE"]
     assert new_app_acl.id.scheme == "sasl"
-    assert new_app_acl.id.id == "relation-3"
+    assert new_app_acl.id.id == f"relation-{rel_id_new_app}"
 
 
 def test_relations_config_values_for_key(harness):
-    harness.add_relation(REL_NAME, "new_application")
+    rel_id_new_app = harness.add_relation(REL_NAME, "new_application")
     harness.update_relation_data(
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
@@ -213,7 +214,7 @@ def test_relations_config_values_for_key(harness):
 
     config_values = harness.charm.provider.relations_config_values_for_key(key="username")
 
-    assert config_values == {"relation-3", "relation-0"}
+    assert config_values == {f"relation-{rel_id_new_app}", "relation-0"}
 
 
 def test_is_child_of(harness):
@@ -287,6 +288,7 @@ def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
         patch("cluster.ZooKeeperCluster.all_units_related", return_value=True),
         patch("cluster.ZooKeeperCluster.all_units_declaring_ip", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
     ):
         harness.set_leader(True)
         harness.update_relation_data(
@@ -301,7 +303,7 @@ def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
 def test_apply_relation_data(harness):
     with harness.hooks_disabled():
         harness.set_leader(True)
-        harness.add_relation(REL_NAME, "new_application")
+        rel_id_new_app = harness.add_relation(REL_NAME, "new_application")
         harness.update_relation_data(
             harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
@@ -340,18 +342,19 @@ def test_apply_relation_data(harness):
         harness.update_relation_data(
             harness.charm.peer_relation.id,
             "zookeeper",
-            {"relation-0": "mellon", "relation-3": "friend"},
+            {"relation-0": "mellon", f"relation-{rel_id_new_app}": "friend"},
         )
 
     with (
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
         patch("charm.ZooKeeperCharm.config_changed", return_value=True),
+        patch("upgrade.ZooKeeperUpgrade.idle", return_value=True),
     ):
         harness.charm.provider.apply_relation_data()
 
     assert harness.charm.app_peer_data.get("relation-0", None)
-    assert harness.charm.app_peer_data.get("relation-3", None)
+    assert harness.charm.app_peer_data.get(f"relation-{rel_id_new_app}", None)
 
     app_data = harness.charm.app_peer_data
     passwords = []
