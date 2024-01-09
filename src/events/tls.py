@@ -8,14 +8,13 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
-from charms.data_platform_libs.v0.upgrade import ActionEvent
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
     TLSCertificatesRequiresV1,
     generate_csr,
     generate_private_key,
 )
-from ops.charm import RelationCreatedEvent, RelationJoinedEvent
+from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import EventBase, Object
 
 if TYPE_CHECKING:
