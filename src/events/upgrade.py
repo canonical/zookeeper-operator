@@ -1,27 +1,26 @@
+#!/usr/bin/env python3
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Manager for handling ZooKeeper in-place upgrades."""
-
+"""Event handler for handling ZooKeeper in-place upgrades."""
 import logging
 import time
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 from charms.data_platform_libs.v0.upgrade import (
+    BaseModel,
     ClusterNotReadyError,
     DataUpgrade,
     DependencyModel,
     UpgradeGrantedEvent,
 )
-from charms.zookeeper.v0.client import (
-    QuorumLeaderNotFoundError,
-    ZooKeeperManager,
-)
+from charms.zookeeper.v0.client import QuorumLeaderNotFoundError, ZooKeeperManager
 from kazoo.client import ConnectionClosedError
-from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_random
 from typing_extensions import override
+
+from literals import CLIENT_PORT
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
@@ -35,7 +34,7 @@ class ZooKeeperDependencyModel(BaseModel):
     service: DependencyModel
 
 
-class ZooKeeperUpgrade(DataUpgrade):
+class ZKUpgradeEvents(DataUpgrade):
     """Implementation of :class:`DataUpgrade` overrides for in-place upgrades."""
 
     def __init__(self, charm: "ZooKeeperCharm", **kwargs):
@@ -55,10 +54,10 @@ class ZooKeeperUpgrade(DataUpgrade):
     def client(self) -> ZooKeeperManager:
         """Cached client manager application for performing ZK commands."""
         return ZooKeeperManager(
-            hosts=self.charm.cluster.active_hosts,
-            client_port=self.charm.cluster.client_port,
+            hosts=[server.host for server in self.charm.state.started_servers],
+            client_port=CLIENT_PORT,
             username="super",
-            password=self.charm.cluster.passwords[0],
+            password=self.charm.state.cluster.internal_user_credentials.get("super", ""),
         )
 
     @retry(stop=stop_after_attempt(5), wait=wait_random(min=1, max=5), reraise=True)
@@ -71,7 +70,7 @@ class ZooKeeperUpgrade(DataUpgrade):
         default_message = "Pre-upgrade check failed and cannot safely upgrade"
         try:
             if not self.client.members_broadcasting or not len(self.client.server_members) == len(
-                self.charm.cluster.peer_units
+                self.charm.state.servers
             ):
                 logger.info("Check failed: broadcasting error")
                 raise ClusterNotReadyError(
@@ -85,7 +84,7 @@ class ZooKeeperUpgrade(DataUpgrade):
                     message=default_message, cause="Some quorum members are syncing data"
                 )
 
-            if not self.charm.cluster.stable:
+            if not self.charm.state.stable:
                 logger.info("Check failed: cluster initializing")
                 raise ClusterNotReadyError(
                     message=default_message, cause="Charm has not finished initialising"
@@ -106,14 +105,12 @@ class ZooKeeperUpgrade(DataUpgrade):
     @override
     def build_upgrade_stack(self) -> list[int]:
         upgrade_stack = []
-        for unit in self.charm.cluster.peer_units:
-            config = self.charm.cluster.unit_config(unit=unit)
-
+        for server in self.charm.state.servers:
             # upgrade quorum leader last
-            if config["host"] == self.client.leader:
-                upgrade_stack.insert(0, int(config["unit_id"]))
+            if server.host == self.client.leader:
+                upgrade_stack.insert(0, server.unit_id)
             else:
-                upgrade_stack.append(int(config["unit_id"]))
+                upgrade_stack.append(server.unit_id)
 
         return upgrade_stack
 
@@ -132,17 +129,18 @@ class ZooKeeperUpgrade(DataUpgrade):
 
     @override
     def _on_upgrade_granted(self, event: UpgradeGrantedEvent) -> None:
-        self.charm.snap.stop_snap_service()
+        self.charm.workload.stop()
 
-        if not self.charm.snap.install():
-            logger.error("Unable to install ZooKeeper Snap")
+        if not self.charm.workload.install():
+            logger.error("Unable to install ZooKeeper...")
             self.set_unit_failed()
             return
 
-        self.charm.zookeeper_config.set_server_jvmflags()
+        # needed for allowing log-level upgrades
+        self.charm.config_manager.set_server_jvmflags()
 
-        logger.info(f"{self.charm.unit.name} upgrading service...")
-        self.charm.snap.restart_snap_service()
+        logger.info(f"{self.charm.unit.name} upgrading workload...")
+        self.charm.workload.restart()
 
         time.sleep(5.0)
 

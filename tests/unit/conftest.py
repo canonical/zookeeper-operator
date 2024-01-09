@@ -12,6 +12,9 @@ def patched_wait(mocker):
 
 
 @pytest.fixture(autouse=True)
-def patched_etc_hosts():
-    with patch("config.ZooKeeperConfig.set_etc_hosts"):
+def patched_etc_hosts_environment():
+    with (
+        patch("managers.config.ConfigManager.set_etc_hosts"),
+        patch("managers.config.ConfigManager.set_server_jvmflags"),
+    ):
         yield

@@ -13,7 +13,7 @@ from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 from pytest_operator.plugin import OpsTest
 
-from snap import ZooKeeperSnap
+from core.workload import ZKPaths
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
@@ -173,7 +173,7 @@ async def correct_version_running(ops_test: OpsTest, expected_version: str) -> b
 
 def check_jaas_config(model_full_name: str, unit: str):
     config = check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'cat {ZooKeeperSnap.conf_path}/zookeeper-jaas.cfg'",
+        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'cat {ZKPaths().jaas}'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
@@ -213,7 +213,7 @@ def _get_show_unit_json(model_full_name: str, unit: str) -> Dict:
 
 def check_properties(model_full_name: str, unit: str):
     properties = check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'cat {ZooKeeperSnap.conf_path}/zoo.cfg'",
+        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'cat {ZKPaths().properties}'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
