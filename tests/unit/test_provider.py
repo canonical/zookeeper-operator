@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-from unittest.mock import PropertyMock, patch
 import logging
-from collections import namedtuple
 from pathlib import Path
+from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
@@ -19,16 +18,18 @@ CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 
+
 @pytest.fixture
 def harness():
     harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     upgrade_rel_id = harness.add_relation("upgrade", CHARM_KEY)
     harness.add_relation("restart", CHARM_KEY)
-    harness.update_relation_data(upgrade_rel_id, f"{CHARM_KEY}/0", {"state":"idle"})
+    harness.update_relation_data(upgrade_rel_id, f"{CHARM_KEY}/0", {"state": "idle"})
     harness.add_relation(PEER, CHARM_KEY)
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
     harness.begin()
     return harness
+
 
 def test_client_relation_updated_defers_if_not_stable_leader(harness):
     with (
@@ -42,6 +43,7 @@ def test_client_relation_updated_defers_if_not_stable_leader(harness):
         patched_acls.assert_not_called()
         patched_defer.assert_called()
 
+
 def test_client_relation_updated_succeeds(harness):
     with harness.hooks_disabled():
         harness.set_leader(True)
@@ -50,15 +52,14 @@ def test_client_relation_updated_succeeds(harness):
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("ops.framework.EventBase.defer") as patched_defer,
         patch("managers.quorum.QuorumManager.update_acls") as patched_acls,
-        patch(
-            "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"
-        ),
+        patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
     ):
         app_id = harness.add_relation(REL_NAME, "application")
         harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
 
         patched_acls.assert_called()
         patched_defer.assert_not_called()
+
 
 def test_client_relation_updated_creates_passwords_with_chroot(harness):
     with harness.hooks_disabled():
@@ -67,9 +68,7 @@ def test_client_relation_updated_creates_passwords_with_chroot(harness):
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("managers.quorum.QuorumManager.update_acls"),
-        patch(
-            "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"
-        ),
+        patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
     ):
         app_id = harness.add_relation(REL_NAME, "application")
         assert not harness.charm.state.cluster.client_passwords
@@ -80,6 +79,7 @@ def test_client_relation_updated_creates_passwords_with_chroot(harness):
         harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
         assert harness.charm.state.cluster.client_passwords
 
+
 def test_client_relation_broken_removes_passwords(harness):
     with harness.hooks_disabled():
         harness.set_leader(True)
@@ -89,13 +89,10 @@ def test_client_relation_broken_removes_passwords(harness):
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("managers.quorum.QuorumManager.update_acls"),
-        patch(
-            "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"
-        ),
+        patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
     ):
         harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
         assert harness.charm.state.cluster.client_passwords
 
         harness.remove_relation(app_id)
         assert not harness.charm.state.cluster.client_passwords
-

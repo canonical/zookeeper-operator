@@ -18,9 +18,9 @@ from ops.charm import (
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
-from src.events.password_actions import PasswordActionEvents
 
 from core.cluster import ClusterState
+from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
 from events.tls import TLSEvents
 from events.upgrade import ZKUpgradeEvents, ZooKeeperDependencyModel
@@ -141,20 +141,13 @@ class ZooKeeperCharm(CharmBase):
         if not self.state.peer_relation:
             return
 
-        if not self.upgrade_events.idle or self.upgrade_events.upgrade_stack:
-            logger.info("hello")
-            event.defer()
-            return
-
         # refreshing unit hostname relation data in case ip changed
         self.state.unit_server.update(self.quorum_manager.get_hostname_mapping())
         self.config_manager.set_etc_hosts()
-        self.config_manager.set_server_jvmflags()
 
         # don't run (and restart) if some units are still joining
         # instead, wait for relation-changed from it's setting of 'started'
         # also don't run (and restart) if some units still need to set ip
-        # also don't run (and restart) if a password rotation is needed or in progress
         if not self.state.all_units_related or not self.state.all_units_declaring_ip:
             return
 
@@ -173,8 +166,10 @@ class ZooKeeperCharm(CharmBase):
         # only restart where necessary to avoid slowdowns
         # config_changed call here implicitly updates jaas + zoo.cfg
         if (
-            self.config_manager.config_changed() or self.state.cluster.switching_encryption
-        ) and self.state.unit_server.started:
+            (self.config_manager.config_changed() or self.state.cluster.switching_encryption)
+            and self.state.unit_server.started
+            and self.upgrade_events.idle
+        ):
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
         # ensures events aren't lost during an upgrade on single units

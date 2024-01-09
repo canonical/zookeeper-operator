@@ -17,7 +17,6 @@ from charm import ZooKeeperCharm
 from core.cluster import ClusterState
 from events.upgrade import ZKUpgradeEvents, ZooKeeperDependencyModel
 from literals import CHARM_KEY, DEPENDENCIES
-from managers.config import ConfigManager
 from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)

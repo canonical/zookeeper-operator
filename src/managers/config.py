@@ -67,7 +67,7 @@ class ConfigManager:
         """
         # FIXME: use pydantic config models for this validation instead
         permitted_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
-        config_log_level = self.config.get("log_level", "INFO")
+        config_log_level = self.config["log-level"]
 
         if config_log_level not in permitted_levels:
             logger.error(
@@ -221,6 +221,11 @@ class ConfigManager:
         return self.workload.read(self.workload.paths.jaas)
 
     @property
+    def current_env(self) -> list[str]:
+        """The current /etc/environment variables."""
+        return self.workload.read(path="/etc/environment")
+
+    @property
     def current_dynamic_config_file(self) -> str:
         """Gets current dynamicConfigFile property from live unit.
 
@@ -277,10 +282,8 @@ class ConfigManager:
         Args:
             env: dict of key env-var, value
         """
-        raw_env = self.workload.read(path="/etc/environment")
         map_env = {}
-
-        for var in raw_env:
+        for var in self.current_env:
             key = "".join(var.split("=", maxsplit=1)[0])
             value = "".join(var.split("=", maxsplit=1)[1:])
             if key:
@@ -355,7 +358,9 @@ class ConfigManager:
         jaas_config = self.current_jaas
         jaas_changed = set(jaas_config) ^ set(self.jaas_config.splitlines())
 
-        if not (properties_changed or jaas_changed):
+        log_level_changed = self.log_level not in "".join(self.current_env)
+
+        if not (properties_changed or jaas_changed or log_level_changed):
             return False
 
         if properties_changed:
@@ -379,5 +384,11 @@ class ConfigManager:
                 )
             )
             self.set_jaas_config()
+
+        if log_level_changed:
+            logger.info(
+                "Server.{self.state.unit_server.unit_id} updating logging level - {self.log_level}"
+            )
+            self.set_server_jvmflags()
 
         return True
