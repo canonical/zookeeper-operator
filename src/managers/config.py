@@ -387,7 +387,7 @@ class ConfigManager:
 
         if log_level_changed:
             logger.info(
-                "Server.{self.state.unit_server.unit_id} updating logging level - {self.log_level}"
+                f"Server.{self.state.unit_server.unit_id} updating logging level - {self.log_level}"
             )
             self.set_server_jvmflags()
 
