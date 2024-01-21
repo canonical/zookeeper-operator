@@ -4,11 +4,34 @@
 from unittest.mock import patch
 
 import pytest
+from tests.unit.test_charm import PropertyMock
+
+
+@pytest.fixture(autouse=True)
+def patched_idle(mocker):
+    mocker.patch(
+        "events.upgrade.ZKUpgradeEvents.idle", new_callable=PropertyMock, return_value=True
+    )
 
 
 @pytest.fixture(autouse=True)
 def patched_wait(mocker):
     mocker.patch("tenacity.nap.time")
+
+
+@pytest.fixture(autouse=True)
+def patched_set_rolling_update_partition(mocker):
+    mocker.patch("events.upgrade.ZKUpgradeEvents._set_rolling_update_partition")
+
+
+@pytest.fixture(autouse=True)
+def patched_pebble_restart(mocker):
+    mocker.patch("ops.model.Container.restart")
+
+
+@pytest.fixture(autouse=True)
+def patched_healthy(mocker):
+    mocker.patch("workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True)
 
 
 @pytest.fixture(autouse=True)

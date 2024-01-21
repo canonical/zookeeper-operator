@@ -117,7 +117,7 @@ class ClusterState(Object):
         Returns:
             List of unit addresses
         """
-        return [server.ip for server in self.servers]
+        return [server.host if self.substrate == "k8s" else server.ip for server in self.servers]
 
     @property
     def started_servers(self) -> Set[ZKServer]:
@@ -196,10 +196,7 @@ class ClusterState(Object):
             return self.init_leader
 
         # in the case of failover, but server is still in the quorum
-        if (
-            self.unit_server.unit_id not in self.cluster.added_unit_ids
-            and self.unit_server.unit_id in self.cluster.quorum_unit_ids
-        ):
+        if self.all_servers_added:
             return self.unit_server
 
         for server in self.servers:

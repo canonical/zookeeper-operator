@@ -4,12 +4,17 @@
 
 """Manager for for handling configuration building + writing."""
 import logging
+from typing import TYPE_CHECKING
 
 from ops.model import ConfigData
+from ops.pebble import Layer
+
+if TYPE_CHECKING:
+    from ops.pebble import LayerDict
 
 from core.cluster import SUBSTRATES, ClusterState
 from core.workload import WorkloadBase
-from literals import DATA_DIR, DATALOG_DIR, JMX_PORT, METRICS_PROVIDER_PORT
+from literals import CLIENT_PORT, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +85,38 @@ class ConfigManager:
             return "WARN"
 
         return config_log_level
+
+    @property
+    def layer(self) -> Layer:
+        """Returns a Pebble configuration layer for ZooKeeper on K8s."""
+        if self.substrate != "k8s":
+            raise NotImplementedError
+
+        layer_config: "LayerDict" = {
+            "summary": "zookeeper layer",
+            "description": "Pebble config layer for zookeeper",
+            "services": {
+                CONTAINER: {
+                    "override": "replace",
+                    "summary": "zookeeper",
+                    "command": f"/bin/zkServer.sh --config {self.workload.paths.conf_path} start-foreground",
+                    "startup": "enabled",
+                    "environment": {
+                        "SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)
+                    },
+                },
+            },
+            "checks": {
+                CONTAINER: {
+                    "override": "replace",
+                    "level": "alive",
+                    "exec": {
+                        "command": f"echo ruok | nc {self.state.unit_server.host} {CLIENT_PORT}"
+                    },
+                }
+            },
+        }
+        return Layer(layer_config)
 
     @property
     def server_jvmflags(self) -> list[str]:
@@ -166,8 +203,8 @@ class ConfigManager:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={self.workload.paths.data_path}/{DATA_DIR}",
-                f"dataLogDir={self.workload.paths.data_path}/{DATALOG_DIR}",
+                f"dataDir={self.workload.paths.data_dir}",
+                f"dataLogDir={self.workload.paths.datalog_dir}",
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
@@ -324,7 +361,7 @@ class ConfigManager:
         """Writes ZooKeeper myid file to data dir."""
         self.workload.write(
             content=str(self.state.unit_server.server_id),
-            path=f"{self.workload.paths.data_path}/{DATA_DIR}/myid",
+            path=self.workload.paths.myid,
         )
 
     @staticmethod

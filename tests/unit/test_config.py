@@ -10,7 +10,7 @@ import yaml
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
-from literals import CHARM_KEY, PEER, REL_NAME
+from literals import CHARM_KEY, CONTAINER, PEER, REL_NAME, SUBSTRATE
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,10 @@ METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 @pytest.fixture
 def harness():
     harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
+
+    if SUBSTRATE == "k8s":
+        harness.set_can_connect(CONTAINER, True)
+
     harness.add_relation("restart", CHARM_KEY)
     harness.add_relation(PEER, CHARM_KEY)
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})

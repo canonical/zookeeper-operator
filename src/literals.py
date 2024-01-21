@@ -7,9 +7,11 @@
 CHARMED_ZOOKEEPER_SNAP_REVISION = 28
 
 SUBSTRATE = "vm"
+CHARM_KEY = "zookeeper"
+
 PEER = "cluster"
 REL_NAME = "zookeeper"
-CHARM_KEY = "zookeeper"
+CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
 CLIENT_PORT = 2181
@@ -27,9 +29,6 @@ DEPENDENCIES = {
         "version": "3.8.2",
     },
 }
-
-DATA_DIR = "data"
-DATALOG_DIR = "data-log"
 
 PATHS = {
     "CONF": "/var/snap/charmed-zookeeper/current/etc/zookeeper",

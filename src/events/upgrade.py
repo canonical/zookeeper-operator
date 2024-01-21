@@ -48,7 +48,7 @@ class ZKUpgradeEvents(DataUpgrade):
         Returns:
             True if cluster state is idle. Otherwise False
         """
-        return self.cluster_state == "idle"
+        return not bool(self.upgrade_stack)
 
     @cached_property
     def client(self) -> ZooKeeperManager:

@@ -8,15 +8,17 @@ from unittest.mock import PropertyMock
 
 import pytest
 import yaml
-from charms.data_platform_libs.v0.upgrade import ClusterNotReadyError, DependencyModel
+from charms.data_platform_libs.v0.upgrade import ClusterNotReadyError, DependencyModel, EventBase
 from charms.zookeeper.v0.client import ZooKeeperManager
 from kazoo.client import KazooClient
 from ops.testing import Harness
+from tenacity import RetryError
 
 from charm import ZooKeeperCharm
 from core.cluster import ClusterState
+from core.models import ZKServer
 from events.upgrade import ZKUpgradeEvents, ZooKeeperDependencyModel
-from literals import CHARM_KEY, DEPENDENCIES
+from literals import CHARM_KEY, DEPENDENCIES, SUBSTRATE
 from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
@@ -112,9 +114,7 @@ def test_pre_upgrade_check_raises_leader_not_found(harness, mocker):
         ZooKeeperManager, "members_syncing", new_callable=PropertyMock, return_value=False
     )
     mocker.patch.object(ClusterState, "stable", new_callable=PropertyMock, return_value=True)
-
-    # removes get_leader patch
-    mocker.stopall()
+    mocker.patch.object(ZooKeeperManager, "get_leader", side_effect=RetryError)
 
     with pytest.raises(ClusterNotReadyError):
         harness.charm.upgrade_events.pre_upgrade_check()
@@ -135,6 +135,7 @@ def test_pre_upgrade_check_succeeds(harness, mocker):
     harness.charm.upgrade_events.pre_upgrade_check()
 
 
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Upgrade stack not built on K8s charms")
 def test_build_upgrade_stack(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
@@ -163,6 +164,7 @@ def test_zookeeper_dependency_model():
         assert DependencyModel(**value)
 
 
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Upgrade granted not used on K8s charms")
 def test_upgrade_granted_sets_failed_if_failed_snap(harness, mocker):
     mocker.patch.object(ZKWorkload, "stop")
     mocker.patch.object(ZKWorkload, "restart")
@@ -182,6 +184,7 @@ def test_upgrade_granted_sets_failed_if_failed_snap(harness, mocker):
     ZKUpgradeEvents.set_unit_failed.assert_called_once()
 
 
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Upgrade granted not used on K8s charms")
 def test_upgrade_granted_sets_failed_if_failed_upgrade_check(harness, mocker):
     mocker.patch.object(ZKWorkload, "stop")
     mocker.patch.object(ZKWorkload, "restart")
@@ -199,6 +202,7 @@ def test_upgrade_granted_sets_failed_if_failed_upgrade_check(harness, mocker):
     ZKUpgradeEvents.set_unit_failed.assert_called_once()
 
 
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Upgrade granted not used on K8s charms")
 def test_upgrade_granted_succeeds(harness, mocker):
     mocker.patch.object(ZKWorkload, "stop")
     mocker.patch.object(ZKWorkload, "restart")
@@ -218,6 +222,7 @@ def test_upgrade_granted_succeeds(harness, mocker):
     ZKUpgradeEvents.set_unit_failed.assert_not_called()
 
 
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Upgrade granted not used on K8s charms")
 def test_upgrade_granted_recurses_upgrade_changed_on_leader(harness, mocker):
     mocker.patch.object(ZKWorkload, "stop")
     mocker.patch.object(ZKWorkload, "restart")
@@ -237,3 +242,69 @@ def test_upgrade_granted_recurses_upgrade_changed_on_leader(harness, mocker):
     harness.charm.upgrade_events._on_upgrade_granted(mock_event)
 
     ZKUpgradeEvents.on_upgrade_changed.assert_called_once()
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="No rolling partition on VM charms")
+def test_pre_upgrade_check_sets_partition_if_idle(harness, mocker):
+    mocker.patch.object(ZKUpgradeEvents, "idle", new_callable=PropertyMock, return_value=True)
+
+    try:
+        harness.charm.upgrade_events.pre_upgrade_check()
+    except ClusterNotReadyError:
+        pass
+
+    ZKUpgradeEvents._set_rolling_update_partition.assert_called_once()
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="No rolling partition on VM charms")
+def test_pre_upgrade_check_skips_partition_if_not_idle(harness, mocker):
+    mocker.patch.object(ZKUpgradeEvents, "idle", new_callable=PropertyMock, return_value=False)
+
+    try:
+        harness.charm.upgrade_events.pre_upgrade_check()
+    except ClusterNotReadyError:
+        pass
+
+    ZKUpgradeEvents._set_rolling_update_partition.assert_not_called()
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="No pebble on VM charms")
+def test_zookeeper_pebble_ready_upgrade_does_not_defer_for_dead_service(harness, mocker):
+    mocker.patch.object(ZKWorkload, "alive", new_callable=PropertyMock, return_value=False)
+    mocker.patch.object(EventBase, "defer")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade_events._on_zookeeper_pebble_ready_upgrade(mock_event)
+
+    mock_event.defer.assert_not_called()
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="No pebble on VM charms")
+def test_zookeeper_pebble_ready_upgrade_reinits_and_sets_failed(harness, mocker):
+    mocker.patch.object(ZKServer, "started", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKUpgradeEvents, "idle", new_callable=PropertyMock, return_value=False)
+    mocker.patch.object(ZKWorkload, "alive", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKWorkload, "healthy", new_callable=PropertyMock, return_value=False)
+    mocker.patch.object(ZKUpgradeEvents, "set_unit_failed")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade_events._on_zookeeper_pebble_ready_upgrade(mock_event)
+
+    ZKUpgradeEvents.set_unit_failed.assert_called_once()
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="No pebble on VM charms")
+def test_zookeeper_pebble_ready_upgrade_sets_completed(harness, mocker):
+    mocker.patch.object(ZKServer, "started", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKUpgradeEvents, "idle", new_callable=PropertyMock, return_value=False)
+    mocker.patch.object(ZKWorkload, "alive", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKWorkload, "healthy", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKUpgradeEvents, "set_unit_completed")
+
+    mock_event = mocker.MagicMock()
+
+    harness.charm.upgrade_events._on_zookeeper_pebble_ready_upgrade(mock_event)
+
+    ZKUpgradeEvents.set_unit_completed.assert_called_once()

@@ -18,6 +18,21 @@ class ZKPaths:
         self.logs_path = PATHS["LOGS"]
 
     @property
+    def data_dir(self) -> str:
+        """The directory where ZooKeeper will store the in-memory database snapshots."""
+        return f"{self.data_path}/data"
+
+    @property
+    def datalog_dir(self) -> str:
+        """The directory where ZooKeeper will store the transaction log of updates to the database."""
+        return f"{self.data_path}/data-log"
+
+    @property
+    def myid(self) -> str:
+        """The myid filepath."""
+        return f"{self.data_dir}/myid"
+
+    @property
     def properties(self) -> str:
         """The main zoo.cfg properties filepath.
 
@@ -48,7 +63,7 @@ class ZKPaths:
 
         Used for scraping and exposing mBeans of a JMX target.
         """
-        return f"{self.binaries_path}/lib/jmx_prometheus_javaagent.jar"
+        return f"{self.binaries_path}/jmx_prometheus_javaagent.jar"
 
     @property
     def jmx_prometheus_config(self) -> str:
@@ -128,11 +143,13 @@ class WorkloadBase(ABC):
         """Runs a command on the workload substrate."""
         ...
 
+    @property
     @abstractmethod
     def alive(self) -> bool:
         """Checks that the workload is alive."""
         ...
 
+    @property
     @abstractmethod
     def healthy(self) -> bool:
         """Checks that the workload is healthy."""
