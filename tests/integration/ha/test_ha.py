@@ -5,6 +5,7 @@
 import asyncio
 import logging
 from pathlib import Path
+from subprocess import CalledProcessError
 
 import continuous_writes as cw
 import helpers
@@ -460,7 +461,10 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
     # cleans up potential leftover device config from other tests
-    helpers.restore_unit_network(machine_name=leader_machine_name)
+    try:
+        helpers.restore_unit_network(machine_name=leader_machine_name)
+    except CalledProcessError:  # in case it was already cleaned up
+        pass
 
     logger.info("Starting continuous_writes...")
     cw.start_continuous_writes(parent=parent, hosts=hosts, username=USERNAME, password=password)

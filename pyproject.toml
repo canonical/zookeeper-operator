@@ -28,7 +28,7 @@ description = "zookeeper-operator"
 authors = []
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
+python = "^3.10"
 ops = "^2.4.1"
 kazoo = ">=2.8.0"
 tenacity = ">=8.0.1"
@@ -37,20 +37,21 @@ cryptography = "^39.0.0"
 cosl = ">=0.0.5"
 pydantic = "^1.10.7"
 pyyaml = "^6.0.1"
+poetry-plugin-export = ">=1.6"
 
 [tool.poetry.group.fmt]
 optional = true
 
 [tool.poetry.group.fmt.dependencies]
 black = "^22.3.0"
-ruff = ">=0.0.157"
+ruff = ">=0.1"
 
 [tool.poetry.group.lint]
 optional = true
 
 [tool.poetry.group.lint.dependencies]
 black = "^22.3.0"
-ruff = ">=0.0.157"
+ruff = ">=0.1"
 codespell = ">=2.2.2"
 pyright = "^1.1.318"
 

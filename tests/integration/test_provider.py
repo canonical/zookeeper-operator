@@ -67,7 +67,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
 async def test_deploy_multiple_charms_relate_active(ops_test: OpsTest):
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
 
-    await ops_test.model.deploy(app_charm, application_name=DUMMY_NAME_2, num_units=1),
+    await ops_test.model.deploy(app_charm, application_name=DUMMY_NAME_2, num_units=1)
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_2])
     await ops_test.model.add_relation(APP_NAME, DUMMY_NAME_2)
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_2])
