@@ -363,9 +363,15 @@ class ZooKeeperCharm(CharmBase):
             return
 
         for client in self.state.clients:
-            if not client.password:
+            if (
+                not client.password  # password not set to peer data, i.e ACLs created
+                or client.password
+                not in "".join(
+                    self.config_manager.current_jaas
+                )  # if password in jaas file, unit has probably restarted
+            ):
                 logger.debug(f"Skipping update of {client.component.name}, ACLs not yet set...")
-                continue  # skip as ACLs have not yet been added
+                continue
 
             client.update(
                 {
