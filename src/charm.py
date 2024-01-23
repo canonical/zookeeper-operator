@@ -116,7 +116,7 @@ class ZooKeeperCharm(CharmBase):
         """Handler for the `on_install` event."""
         install = self.workload.install()
         if not install:
-            self._set_status(Status.SNAP_NOT_INSTALLED)
+            self._set_status(Status.SERVICE_NOT_INSTALLED)
             event.defer()
             return
 
@@ -183,7 +183,7 @@ class ZooKeeperCharm(CharmBase):
         # during normal operation after cluster set-up
         # alerts in the status if any unit has silently stopped running
         if not self.workload.alive:
-            self._set_status(Status.SNAP_NOT_RUNNING)
+            self._set_status(Status.SERVICE_NOT_RUNNING)
             return
 
         # service can stop serving requests if the quorum is lost
@@ -220,7 +220,7 @@ class ZooKeeperCharm(CharmBase):
         time.sleep(5)
 
         if not self.workload.alive:
-            self._set_status(Status.SNAP_NOT_RUNNING)
+            self._set_status(Status.SERVICE_NOT_RUNNING)
             return
 
         if not self.workload.healthy:
@@ -281,7 +281,7 @@ class ZooKeeperCharm(CharmBase):
         self.workload.start()
 
         if not self.workload.alive:
-            self._set_status(Status.SNAP_NOT_RUNNING)
+            self._set_status(Status.SERVICE_NOT_RUNNING)
             return
 
         self._set_status(Status.ACTIVE)
