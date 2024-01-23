@@ -17,7 +17,7 @@ from ops.charm import (
 )
 from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
+from ops.model import ActiveStatus, StatusBase
 
 from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
@@ -31,6 +31,8 @@ from literals import (
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     SUBSTRATE,
+    DebugLevel,
+    Status,
 )
 from managers.config import ConfigManager
 from managers.quorum import QuorumManager
@@ -112,15 +114,15 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
-        self.unit.status = MaintenanceStatus("installing ZooKeeper...")
-
         install = self.workload.install()
         if not install:
-            self.unit.status = BlockedStatus("unable to install ZooKeeper")
+            self._set_status(Status.SNAP_NOT_INSTALLED)
+            event.defer()
+            return
 
         # don't complete install until passwords set
         if not self.state.peer_relation:
-            self.unit.status = WaitingStatus("waiting for peer relation")
+            self._set_status(Status.NO_PEER_RELATION)
             event.defer()
             return
 
@@ -139,6 +141,7 @@ class ZooKeeperCharm(CharmBase):
         """Generic handler for all 'something changed, update' events across all relations."""
         # not all methods called
         if not self.state.peer_relation:
+            self._set_status(Status.NO_PEER_RELATION)
             return
 
         # refreshing unit hostname relation data in case ip changed
@@ -148,7 +151,8 @@ class ZooKeeperCharm(CharmBase):
         # don't run (and restart) if some units are still joining
         # instead, wait for relation-changed from it's setting of 'started'
         # also don't run (and restart) if some units still need to set ip
-        if not self.state.all_units_related or not self.state.all_units_declaring_ip:
+        self._set_status(self.state.all_installed)
+        if not isinstance(self.unit.status, ActiveStatus):
             return
 
         # attempt startup of server
@@ -175,6 +179,17 @@ class ZooKeeperCharm(CharmBase):
         # ensures events aren't lost during an upgrade on single units
         if self.state.cluster.switching_encryption and len(self.state.servers) == 1:
             event.defer()
+
+        # during normal operation after cluster set-up
+        # alerts in the status if any unit has silently stopped running
+        if not self.workload.alive:
+            self._set_status(Status.SNAP_NOT_RUNNING)
+            return
+
+        # service can stop serving requests if the quorum is lost
+        if not self.workload.healthy:
+            self._set_status(Status.SERVICE_UNHEALTHY)
+            return
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
@@ -203,7 +218,15 @@ class ZooKeeperCharm(CharmBase):
         # without, other units might restart before this unit rejoins, losing quorum
         time.sleep(5)
 
-        self.unit.status = ActiveStatus()
+        if not self.workload.alive:
+            self._set_status(Status.SNAP_NOT_RUNNING)
+            return
+
+        if not self.workload.healthy:
+            self._set_status(Status.SERVICE_UNHEALTHY)
+            return
+
+        self._set_status(Status.ACTIVE)
 
         self.state.unit_server.update(
             {
@@ -228,7 +251,7 @@ class ZooKeeperCharm(CharmBase):
         """
         # don't run if leader has not yet created passwords
         if not self.state.cluster.internal_user_credentials:
-            self.unit.status = MaintenanceStatus("waiting for passwords to be created")
+            self._set_status(Status.NO_PASSWORDS)
             return
 
         # start units in order
@@ -236,10 +259,9 @@ class ZooKeeperCharm(CharmBase):
             self.state.next_server
             and self.state.next_server.component.name != self.state.unit_server.component.name
         ):
-            self.unit.status = MaintenanceStatus("waiting for unit turn to start")
+            self._set_status(Status.NOT_UNIT_TURN)
             return
 
-        self.unit.status = MaintenanceStatus("starting ZooKeeper server")
         logger.info(f"{self.unit.name} initializing...")
 
         # setting default properties
@@ -252,13 +274,16 @@ class ZooKeeperCharm(CharmBase):
         # servers properties needs to be written to dynamic config
         self.config_manager.set_zookeeper_dynamic_properties(servers=self.state.startup_servers)
 
-        logger.debug("setting properties and jaas")
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
 
-        logger.debug("starting ZooKeeper service")
         self.workload.start()
-        self.unit.status = ActiveStatus()
+
+        if not self.workload.alive:
+            self._set_status(Status.SNAP_NOT_RUNNING)
+            return
+
+        self._set_status(Status.ACTIVE)
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"{self.unit.name} started")
@@ -302,7 +327,9 @@ class ZooKeeperCharm(CharmBase):
 
         # default startup without ssl relation
         logger.debug("updating quorum - checking cluster stability")
-        if not self.state.stable:
+
+        self._set_status(self.state.stable)
+        if not isinstance(self.unit.status, ActiveStatus):
             return
 
         # declare upgrade complete only when all peer units have started
@@ -327,11 +354,16 @@ class ZooKeeperCharm(CharmBase):
 
     def update_client_data(self) -> None:
         """Writes necessary relation data to all related applications."""
-        if not self.state.ready or not self.unit.is_leader():
+        if not self.unit.is_leader():
+            return
+
+        self._set_status(self.state.ready)
+        if not isinstance(self.unit.status, ActiveStatus):
             return
 
         for client in self.state.clients:
             if not client.password:
+                logger.debug(f"Skipping update of {client.component.name}, ACLs not yet set...")
                 continue  # skip as ACLs have not yet been added
 
             client.update(
@@ -344,6 +376,14 @@ class ZooKeeperCharm(CharmBase):
                     "chroot": client.chroot,
                 }
             )
+
+    def _set_status(self, key: Status) -> None:
+        """Sets charm status."""
+        status: StatusBase = key.value.status
+        log_level: DebugLevel = key.value.log_level
+
+        getattr(logger, log_level.lower())(status.message)
+        self.unit.status = status
 
 
 if __name__ == "__main__":
