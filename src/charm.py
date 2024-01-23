@@ -207,7 +207,8 @@ class ZooKeeperCharm(CharmBase):
 
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
-        if not self.state.stable or not self.upgrade_events.idle:
+        self._set_status(self.state.stable)
+        if not isinstance(self.unit.status, ActiveStatus) or not self.upgrade_events.idle:
             event.defer()
             return
 
