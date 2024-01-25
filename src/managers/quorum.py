@@ -157,7 +157,7 @@ class QuorumManager:
         )
 
         leader_chroots = zk.leader_znodes(path="/")
-        logger.info(f"{leader_chroots=}")
+        logger.debug(f"{leader_chroots=}")
 
         requested_acls = set()
         requested_chroots = set()
