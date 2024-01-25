@@ -17,6 +17,7 @@ from charms.zookeeper.v0.client import (
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import make_acl
+from ops.charm import RelationEvent
 
 from core.cluster import ClusterState
 from literals import CLIENT_PORT
@@ -138,7 +139,7 @@ class QuorumManager:
 
         return False
 
-    def update_acls(self) -> None:
+    def update_acls(self, event: RelationEvent | None) -> None:
         """Compares leader auth config to incoming relation config, applies add/remove actions.
 
         Args:
@@ -156,7 +157,7 @@ class QuorumManager:
         )
 
         leader_chroots = zk.leader_znodes(path="/")
-        logger.debug(f"{leader_chroots=}")
+        logger.info(f"{leader_chroots=}")
 
         requested_acls = set()
         requested_chroots = set()
@@ -176,7 +177,10 @@ class QuorumManager:
 
             # FIXME: data-platform-libs should handle this when it's implemented
             if client.chroot:
-                requested_chroots.add(client.chroot)
+                if event and client.relation and client.relation.id == event.relation.id:
+                    continue  # skip broken chroots, so they're removed
+                else:
+                    requested_chroots.add(client.chroot)
 
             # Looks for newly related applications not in config yet
             if client.chroot not in leader_chroots:
