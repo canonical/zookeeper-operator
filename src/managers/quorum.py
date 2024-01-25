@@ -139,7 +139,7 @@ class QuorumManager:
 
         return False
 
-    def update_acls(self, event: RelationEvent | None) -> None:
+    def update_acls(self, event: RelationEvent | None = None) -> None:
         """Compares leader auth config to incoming relation config, applies add/remove actions.
 
         Args:
@@ -185,14 +185,14 @@ class QuorumManager:
             # Looks for newly related applications not in config yet
             if client.chroot not in leader_chroots:
                 logger.debug(f"CREATE CHROOT - {client.chroot}")
-                zk.create_znode_leader(client.chroot, [generated_acl])
+                zk.create_znode_leader(path=client.chroot, acls=[generated_acl])
 
             # Looks for existing related applications
             logger.debug(f"UPDATE CHROOT - {client.chroot}")
-            zk.set_acls_znode_leader(client.chroot, [generated_acl])
+            zk.set_acls_znode_leader(path=client.chroot, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config
-        for chroot in leader_chroots - requested_chroots:
+        for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):
                 logger.debug(f"DROP CHROOT - {chroot}")
-                zk.delete_znode_leader(chroot)
+                zk.delete_znode_leader(path=chroot)
