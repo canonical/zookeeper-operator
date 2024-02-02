@@ -195,6 +195,9 @@ class QuorumManager:
         requested_chroots = set()
 
         for client in self.state.clients:
+            if not client.chroot:
+                continue
+
             generated_acl = make_acl(
                 scheme="sasl",
                 credential=client.username,
@@ -204,7 +207,7 @@ class QuorumManager:
                 delete="d" in client.chroot_acl,
                 admin="a" in client.chroot_acl,
             )
-            logger.debug(f"{generated_acl=}")
+            logger.info(f"{generated_acl=}")
 
             requested_acls.add(generated_acl)
 
@@ -217,15 +220,15 @@ class QuorumManager:
 
             # Looks for newly related applications not in config yet
             if client.chroot not in leader_chroots:
-                logger.debug(f"CREATE CHROOT - {client.chroot}")
-                zk.create_znode_leader(path=client.chroot, acls=[generated_acl])
+                logger.info(f"CREATE CHROOT - {client.chroot}")
+                self.client.create_znode_leader(path=client.chroot, acls=[generated_acl])
 
             # Looks for existing related applications
-            logger.debug(f"UPDATE CHROOT - {client.chroot}")
-            zk.set_acls_znode_leader(path=client.chroot, acls=[generated_acl])
+            logger.info(f"UPDATE CHROOT - {client.chroot}")
+            self.client.set_acls_znode_leader(path=client.chroot, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):
-                logger.debug(f"DROP CHROOT - {chroot}")
-                zk.delete_znode_leader(path=chroot)
+                logger.info(f"DROP CHROOT - {chroot}")
+                self.client.delete_znode_leader(path=chroot)
