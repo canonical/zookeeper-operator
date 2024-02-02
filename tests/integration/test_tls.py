@@ -69,9 +69,9 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
         ops_test.model.deploy(
             TLS_NAME,
             application_name=TLS_NAME,
-            channel="stable",
+            channel="edge",
             num_units=1,
-            config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
+            config={"ca-common-name": "zookeeper"},
         ),
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", timeout=1000)
