@@ -81,7 +81,7 @@ def test_certificates_joined_defers_if_disabled(harness):
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
     ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
-        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}_1")
+        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}/1")
 
     patched.assert_called_once()
     assert not harness.charm.state.unit_server.private_key
@@ -93,7 +93,7 @@ def test_certificates_joined_creates_private_key_if_enabled(harness):
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
     ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
-        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}_1")
+        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}/1")
 
     assert harness.charm.state.unit_server.private_key
     assert "BEGIN RSA PRIVATE KEY" in harness.charm.state.unit_server.private_key.splitlines()[0]
@@ -108,7 +108,7 @@ def test_certificates_joined_creates_new_key_trust_store_password(harness):
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
     ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
-        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}_1")
+        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}/1")
 
     assert harness.charm.state.unit_server.keystore_password
     assert harness.charm.state.unit_server.truststore_password
