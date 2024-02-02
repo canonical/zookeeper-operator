@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 
-TLS_NAME="self-signed-certificates"
+TLS_NAME = "self-signed-certificates"
+
 
 @pytest.mark.abort_on_fail
 async def test_deploy_ssl_quorum(ops_test: OpsTest):
@@ -73,9 +74,7 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
         ),
     )
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, TLS_NAME], status="active", timeout=1000
-    )
+    await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", timeout=1000)
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications[TLS_NAME].status == "active"
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
