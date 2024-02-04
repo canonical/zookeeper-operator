@@ -170,10 +170,9 @@ def test_certificates_broken(harness):
     with harness.hooks_disabled():
         certs_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/0",
-            {"csr": "not-missing", "certificate": "cert", "ca": "exists"},
+        harness.charm.unit.add_secret(
+            {"csr": "not-missing", "certificate": "cert", "ca-cert": "exists"},
+            label="zookeeper.unit",
         )
         harness.set_leader(True)
 
