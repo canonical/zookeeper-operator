@@ -9,17 +9,13 @@ import time
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import (
-    CharmBase,
-    InstallEvent,
-    LeaderElectedEvent,
-    RelationDepartedEvent,
-)
+from ops.charm import InstallEvent, LeaderElectedEvent, RelationDepartedEvent, SecretChangedEvent
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 
 from core.cluster import ClusterState
+from core.models import CharmWithRelationData
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
 from events.tls import TLSEvents
@@ -30,6 +26,7 @@ from literals import (
     DEPENDENCIES,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
+    PEER,
     SUBSTRATE,
 )
 from managers.config import ConfigManager
@@ -40,11 +37,22 @@ from workload import ZKWorkload
 logger = logging.getLogger(__name__)
 
 
-class ZooKeeperCharm(CharmBase):
+class ZooKeeperCharm(CharmWithRelationData):
     """Charmed Operator for ZooKeeper."""
 
     def __init__(self, *args):
-        super().__init__(*args)
+        super().__init__(
+            peer_app_secrets=["sync-password", "super-password"],
+            peer_unit_secrets=[
+                "ca-cert",
+                "csr",
+                "certificate",
+                "truststore-password",
+                "keystore-password",
+                "private-key",
+            ],
+            *args,
+        )
         self.name = CHARM_KEY
         self.state = ClusterState(self, substrate=SUBSTRATE)
         self.workload = ZKWorkload()
@@ -97,6 +105,8 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "config_changed"), self._on_cluster_relation_changed
         )
+
+        self.framework.observe(getattr(self.on, "secret_changed"), self._on_secret_changed)
 
         self.framework.observe(
             getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_changed
@@ -175,6 +185,29 @@ class ZooKeeperCharm(CharmBase):
         # ensures events aren't lost during an upgrade on single units
         if self.state.cluster.switching_encryption and len(self.state.servers) == 1:
             event.defer()
+
+    def _on_secret_changed(self, event: SecretChangedEvent):
+        """Reconfigure services on a secret changed event."""
+        if not event.secret.label:
+            return
+
+        if not self.state.cluster.relation:
+            return
+
+        if event.secret.label == self.state.cluster.data_interface._generate_secret_label(
+            PEER,
+            self.state.cluster.relation.id,
+            None,  # type:ignore noqa  -- Changes with the soon upcoming new version of DP-libs STILL within this POC
+        ):
+            # check whether restart is needed for all `*_changed` events
+            # only restart where necessary to avoid slowdowns
+            # config_changed call here implicitly updates jaas + zoo.cfg
+            if (
+                (self.config_manager.config_changed() or self.state.cluster.switching_encryption)
+                and self.state.unit_server.started
+                and self.upgrade_events.idle
+            ):
+                self.on[f"{self.restart.name}"].acquire_lock.emit()
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.

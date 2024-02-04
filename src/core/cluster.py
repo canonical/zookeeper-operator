@@ -4,19 +4,20 @@
 
 """Collection of global cluster state for the ZooKeeper quorum."""
 import logging
-from typing import Set
+from typing import Dict, Set
 
+from charms.data_platform_libs.v0.data_interfaces import DataPeerOtherUnit
 from ops.framework import Framework, Object
-from ops.model import Relation
+from ops.model import Relation, Unit
 
-from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
+from core.models import SUBSTRATES, CharmWithRelationData, ZKClient, ZKCluster, ZKServer
 from literals import CLIENT_PORT, PEER, REL_NAME, SECURE_CLIENT_PORT
 
 logger = logging.getLogger(__name__)
 
 
-class ClusterState(Object):
-    """Collection of global cluster state for the ZooKeeper quorum."""
+class ClusterStateBase(Object):
+    """Collection of global cluster state for Framework/Object."""
 
     def __init__(self, charm: Framework | Object, substrate: SUBSTRATES):
         super().__init__(parent=charm, key="charm_state")
@@ -34,20 +35,48 @@ class ClusterState(Object):
         """The relations of all client applications."""
         return set(self.model.relations[REL_NAME])
 
+
+class ClusterState(ClusterStateBase):
+    """Collection of global cluster state for the charm."""
+
+    def __init__(self, charm: CharmWithRelationData, substrate: SUBSTRATES):
+        super().__init__(charm, substrate)
+        self.charm = charm
+        self._servers_data = {}
+
     # --- CORE COMPONENTS---
 
     @property
     def unit_server(self) -> ZKServer:
         """The server state of the current running Unit."""
         return ZKServer(
-            relation=self.peer_relation, component=self.model.unit, substrate=self.substrate
+            relation=self.peer_relation,
+            data_interface=self.charm.peer_unit_interface,
+            component=self.model.unit,
+            substrate=self.substrate,
         )
+
+    @property
+    def peer_units_data_interfaces(self) -> Dict[Unit, DataPeerOtherUnit]:
+        """The cluster peer relation."""
+        if not self.peer_relation or not self.peer_relation.units:
+            return {}
+
+        for unit in self.peer_relation.units:
+            if unit not in self._servers_data:
+                self._servers_data[unit] = DataPeerOtherUnit(
+                    charm=self.charm, unit=unit, relation_name=PEER
+                )
+        return self._servers_data
 
     @property
     def cluster(self) -> ZKCluster:
         """The cluster state of the current running App."""
         return ZKCluster(
-            relation=self.peer_relation, component=self.model.app, substrate=self.substrate
+            relation=self.peer_relation,
+            data_interface=self.charm.peer_app_interface,
+            component=self.model.app,
+            substrate=self.substrate,
         )
 
     @property
@@ -61,9 +90,14 @@ class ClusterState(Object):
             return set()
 
         servers = set()
-        for unit in self.peer_relation.units:
+        for unit, data_interface in self.peer_units_data_interfaces.items():
             servers.add(
-                ZKServer(relation=self.peer_relation, component=unit, substrate=self.substrate)
+                ZKServer(
+                    relation=self.peer_relation,
+                    data_interface=data_interface,
+                    component=unit,
+                    substrate=self.substrate,
+                )
             )
         servers.add(self.unit_server)
 
@@ -80,6 +114,7 @@ class ClusterState(Object):
             clients.add(
                 ZKClient(
                     relation=relation,
+                    data_interface=self.charm.client_provider_interface,
                     component=relation.app,
                     substrate=self.substrate,
                     local_app=self.cluster.app,

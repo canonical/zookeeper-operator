@@ -4,12 +4,20 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
-from typing import Literal, MutableMapping
+from typing import List, Literal, MutableMapping
 
+from charms.data_platform_libs.v0.data_interfaces import (
+    DatabaseProvides,
+    DataPeer,
+    DataPeerUnit,
+    DataRelation,
+)
+from ops import Framework
+from ops.charm import CharmBase
 from ops.model import Application, Relation, Unit
 from typing_extensions import override
 
-from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SERVER_PORT
+from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, PEER, REL_NAME, SERVER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -20,26 +28,46 @@ class StateBase:
     """Base state object."""
 
     def __init__(
-        self, relation: Relation | None, component: Unit | Application, substrate: SUBSTRATES
+        self,
+        relation: Relation | None,
+        data_interface: DataRelation,
+        component: Unit | Application,
+        substrate: SUBSTRATES,
     ):
         self.relation = relation
+        self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
 
     @property
     def relation_data(self) -> MutableMapping[str, str]:
         """The raw relation data."""
-        if not self.relation:
+        if not self.relation or not self.data_interface:
             return {}
 
-        return self.relation.data[self.component]
+        my_data = {}
+        if my_data_dict := self.data_interface.fetch_my_relation_data([self.relation.id]):
+            my_data = my_data_dict.get(self.relation.id, {})
+
+        try:
+            other_data = self.data_interface.fetch_relation_data([self.relation.id])[
+                self.relation.id
+            ]
+        except NotImplementedError:
+            other_data = {}
+        return my_data | other_data
 
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
-        if not self.relation:
+        if not self.relation or not self.data_interface:
             return
 
-        self.relation_data.update(items)
+        delete_fields = [key for key in items if not items[key]]
+        update_fields = {k: items[k] for k in items if k not in delete_fields}
+        if update_fields:
+            self.data_interface.update_relation_data(self.relation.id, update_fields)
+        if delete_fields:
+            self.data_interface.delete_relation_data(self.relation.id, delete_fields)
 
 
 class ZKClient(StateBase):
@@ -48,6 +76,7 @@ class ZKClient(StateBase):
     def __init__(
         self,
         relation: Relation | None,
+        data_interface: DataRelation,
         component: Application,
         substrate: SUBSTRATES,
         local_app: Application | None = None,
@@ -56,7 +85,7 @@ class ZKClient(StateBase):
         tls: str = "",
         uris: str = "",
     ):
-        super().__init__(relation, component, substrate)
+        super().__init__(relation, data_interface, component, substrate)
         self.app = component
         self._password = password
         self._endpoints = endpoints
@@ -70,7 +99,7 @@ class ZKClient(StateBase):
         if not self.relation or not self._local_app:
             return
 
-        self.relation.data[self._local_app].update(items)
+        self.data_interface.update_relation_data(self.relation.id, items)
 
     @property
     def username(self) -> str:
@@ -127,8 +156,14 @@ class ZKClient(StateBase):
 class ZKCluster(StateBase):
     """State collection metadata for the charm application."""
 
-    def __init__(self, relation: Relation | None, component: Application, substrate: SUBSTRATES):
-        super().__init__(relation, component, substrate)
+    def __init__(
+        self,
+        relation: Relation | None,
+        data_interface: DataRelation,
+        component: Application,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
         self.app = component
 
     @property
@@ -206,8 +241,14 @@ class ZKCluster(StateBase):
 class ZKServer(StateBase):
     """State collection metadata for a charm unit."""
 
-    def __init__(self, relation: Relation | None, component: Unit, substrate: SUBSTRATES):
-        super().__init__(relation, component, substrate)
+    def __init__(
+        self,
+        relation: Relation | None,
+        data_interface: DataRelation,
+        component: Unit,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
         self.unit = component
 
     @property
@@ -322,7 +363,7 @@ class ZKServer(StateBase):
     @property
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
-        return self.relation_data.get("ca", "")
+        return self.relation_data.get("ca-cert", "")
 
     @property
     def sans(self) -> dict[str, list[str]]:
@@ -334,3 +375,23 @@ class ZKServer(StateBase):
             "sans_ip": [self.ip],
             "sans_dns": [self.hostname, self.fqdn],
         }
+
+
+class CharmWithRelationData(CharmBase):
+    """Charm base class setting basic Relation Data Interfaces."""
+
+    def __init__(
+        self,
+        framework: Framework,
+        peer_app_secrets: List[str] = [],
+        peer_unit_secrets: List[str] = [],
+        *args,
+    ):
+        super().__init__(framework)
+        self.peer_app_interface = DataPeer(
+            self, relation_name=PEER, additional_secret_fields=peer_app_secrets
+        )
+        self.peer_unit_interface = DataPeerUnit(
+            self, relation_name=PEER, additional_secret_fields=peer_unit_secrets
+        )
+        self.client_provider_interface = DatabaseProvides(self, relation_name=REL_NAME)
