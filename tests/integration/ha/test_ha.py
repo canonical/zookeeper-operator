@@ -63,7 +63,7 @@ async def test_kill_db_process(ops_test: OpsTest, request, restart_delay):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
@@ -125,7 +125,7 @@ async def test_restart_db_process(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
@@ -182,7 +182,7 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
@@ -246,7 +246,7 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request):
     leader_name = helpers.get_leader_name(ops_test, hosts)
     initial_leader_host = helpers.get_unit_host(ops_test, leader_name)
     leader_machine_name = await helpers.get_unit_machine_name(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != initial_leader_host])
 
@@ -306,7 +306,7 @@ async def test_full_cluster_crash(ops_test: OpsTest, request, restart_delay):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
@@ -357,7 +357,7 @@ async def test_full_cluster_restart(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 
@@ -406,7 +406,7 @@ async def test_full_cluster_restart(ops_test: OpsTest, request):
 )
 async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
 
     logger.info("Starting continuous_writes...")
@@ -456,7 +456,7 @@ async def test_network_cut_self_heal(ops_test: OpsTest, request):
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
     leader_machine_name = await helpers.get_unit_machine_name(ops_test, leader_name)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
 

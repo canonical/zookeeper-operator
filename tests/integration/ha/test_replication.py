@@ -34,7 +34,7 @@ async def test_replication(ops_test: OpsTest):
     host_0 = ops_test.model.applications[helpers.APP_NAME].units[0].public_address
     host_1 = ops_test.model.applications[helpers.APP_NAME].units[1].public_address
     host_2 = ops_test.model.applications[helpers.APP_NAME].units[2].public_address
-    password = helpers.get_password(ops_test=ops_test)
+    password = await helpers.get_password(ops_test=ops_test)
 
     helpers.write_key(host=host_0, password=password)
     await asyncio.sleep(1)
@@ -58,8 +58,8 @@ async def test_two_clusters_not_replicated(ops_test: OpsTest, request):
 
     hosts_1 = helpers.get_hosts(ops_test)
     hosts_2 = helpers.get_hosts(ops_test, app_name=zk_2)
-    password_1 = helpers.get_super_password(ops_test)
-    password_2 = helpers.get_super_password(ops_test, app_name=zk_2)
+    password_1 = await helpers.get_password(ops_test)
+    password_2 = await helpers.get_password(ops_test, app_name=zk_2)
 
     logger.info("Starting continuous_writes on original cluster...")
     cw.start_continuous_writes(
@@ -88,7 +88,7 @@ async def test_two_clusters_not_replicated(ops_test: OpsTest, request):
 @pytest.mark.abort_on_fail
 async def test_scale_up_replication(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
-    password = helpers.get_super_password(ops_test)
+    password = await helpers.get_password(ops_test)
     parent = request.node.name
 
     logger.info("Starting continuous_writes...")

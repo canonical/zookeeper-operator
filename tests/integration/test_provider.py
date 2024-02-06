@@ -54,7 +54,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
         model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=APP_NAME
     )
     # Get the super password
-    super_password = get_password(model_full_name=ops_test.model_full_name)
+    super_password = await get_password(ops_test=ops_test)
     units = [u.name for u in ops_test.model.applications[APP_NAME].units]
     # Get hosts where Zookeeper is deployed
     hosts = await get_application_hosts(ops_test=ops_test, app_name=APP_NAME, units=units)
