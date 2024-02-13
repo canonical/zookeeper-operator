@@ -210,6 +210,7 @@ def test_upgrade_granted_succeeds(harness, mocker):
     mocker.patch.object(ZKUpgradeEvents, "pre_upgrade_check")
     mocker.patch.object(ZKUpgradeEvents, "set_unit_completed")
     mocker.patch.object(ZKUpgradeEvents, "set_unit_failed")
+    mocker.patch.object(ZKUpgradeEvents, "apply_backwards_compatibility_fixes")
 
     mock_event = mocker.MagicMock()
 
@@ -217,6 +218,7 @@ def test_upgrade_granted_succeeds(harness, mocker):
 
     ZKWorkload.stop.assert_called_once()
     ZKWorkload.install.assert_called_once()
+    ZKUpgradeEvents.apply_backwards_compatibility_fixes.assert_called_once()
     ZKWorkload.restart.assert_called_once()
     ZKUpgradeEvents.set_unit_completed.assert_called_once()
     ZKUpgradeEvents.set_unit_failed.assert_not_called()
