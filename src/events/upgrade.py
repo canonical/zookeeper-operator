@@ -106,8 +106,7 @@ class ZKUpgradeEvents(DataUpgrade):
             self.set_unit_failed()
             return
 
-        # needed for allowing log-level upgrades
-        self.charm.config_manager.set_server_jvmflags()
+        self.apply_backwards_compatibility_fixes()
 
         logger.info(f"{self.charm.unit.name} upgrading workload...")
         self.charm.workload.restart()
@@ -129,3 +128,17 @@ class ZKUpgradeEvents(DataUpgrade):
         except ClusterNotReadyError as e:
             logger.error(e.cause)
             self.set_unit_failed()
+
+    def apply_backwards_compatibility_fixes(self) -> None:
+        """A range of functions needed for backwards compatibility."""
+        # Rev.113 - needed for allowing log-level upgrades
+        self.charm.config_manager.set_server_jvmflags()
+
+        # Rev.115 - needed for new unique truststore password relation-data
+        # Defaults to keystore password for keeping existing store from older revisions
+        self.charm.state.unit_server.update(
+            {
+                "truststore-password": self.charm.state.unit_server.truststore_password
+                or self.charm.state.unit_server.keystore_password,
+            }
+        )
