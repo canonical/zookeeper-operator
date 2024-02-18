@@ -58,6 +58,7 @@ class ZooKeeperCharm(CharmBase):
         self.provider_events = ProviderEvents(self)
         self.upgrade_events = ZKUpgradeEvents(
             self,
+            substrate=SUBSTRATE,
             dependency_model=ZooKeeperDependencyModel(
                 **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
             ),
