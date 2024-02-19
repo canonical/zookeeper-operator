@@ -4,19 +4,15 @@
 
 import asyncio
 import logging
-from pathlib import Path
 from subprocess import CalledProcessError
 
 import continuous_writes as cw
 import helpers
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
 
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 USERNAME = "super"
 
 CLIENT_TIMEOUT = 10
@@ -25,12 +21,12 @@ RESTART_DELAY = 60
 
 @pytest.fixture()
 async def restart_delay(ops_test: OpsTest):
-    for unit in ops_test.model.applications[APP_NAME].units:
+    for unit in ops_test.model.applications[helpers.APP_NAME].units:
         await helpers.patch_restart_delay(
             ops_test=ops_test, unit_name=unit.name, delay=RESTART_DELAY
         )
     yield
-    for unit in ops_test.model.applications[APP_NAME].units:
+    for unit in ops_test.model.applications[helpers.APP_NAME].units:
         await helpers.remove_restart_delay(ops_test=ops_test, unit_name=unit.name)
 
 
@@ -48,7 +44,7 @@ async def test_deploy_active_no_dnsmasq(ops_test: OpsTest, no_lxd_dnsmasq):
     charm = await ops_test.build_charm(".")
     await ops_test.model.deploy(
         charm,
-        application_name=APP_NAME,
+        application_name=helpers.APP_NAME,
         num_units=3,
         storage={"data": {"pool": "lxd-btrfs", "size": 10240}},
     )
@@ -321,7 +317,7 @@ async def test_full_cluster_crash(ops_test: OpsTest, request, restart_delay):
     await asyncio.gather(
         *[
             helpers.send_control_signal(ops_test, unit.name, signal="SIGKILL")
-            for unit in ops_test.model.applications[APP_NAME].units
+            for unit in ops_test.model.applications[helpers.APP_NAME].units
         ]
     )
 
@@ -372,7 +368,7 @@ async def test_full_cluster_restart(ops_test: OpsTest, request):
     await asyncio.gather(
         *[
             helpers.send_control_signal(ops_test, unit.name, signal="SIGTERM")
-            for unit in ops_test.model.applications[APP_NAME].units
+            for unit in ops_test.model.applications[helpers.APP_NAME].units
         ]
     )
     await asyncio.sleep(CLIENT_TIMEOUT)
@@ -421,17 +417,17 @@ async def test_scale_down_storage_re_use(ops_test: OpsTest, request):
     await helpers.wait_idle(ops_test)
 
     logger.info("Scaling down unit...")
-    unit_to_remove = ops_test.model.applications[APP_NAME].units[0]
+    unit_to_remove = ops_test.model.applications[helpers.APP_NAME].units[0]
     unit_storage_id = helpers.get_storage_id(ops_test, unit_name=unit_to_remove.name)
-    await ops_test.model.applications[APP_NAME].destroy_units(unit_to_remove.name)
+    await ops_test.model.applications[helpers.APP_NAME].destroy_units(unit_to_remove.name)
     await helpers.wait_idle(ops_test, units=2)
 
-    old_units = [unit.name for unit in ops_test.model.applications[APP_NAME].units]
+    old_units = [unit.name for unit in ops_test.model.applications[helpers.APP_NAME].units]
 
     logger.info("Scaling down and up and reusing storage...")
     await helpers.reuse_storage(ops_test, unit_storage_id=unit_storage_id)
 
-    new_units = [unit.name for unit in ops_test.model.applications[APP_NAME].units]
+    new_units = [unit.name for unit in ops_test.model.applications[helpers.APP_NAME].units]
     added_unit_name = list(set(new_units) - set(old_units))[0]
 
     logger.info("Verifying storage reuse...")
