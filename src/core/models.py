@@ -4,20 +4,13 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
-from typing import List, Literal, MutableMapping
+from typing import Literal, MutableMapping
 
-from charms.data_platform_libs.v0.data_interfaces import (
-    DatabaseProvides,
-    DataPeer,
-    DataPeerUnit,
-    DataRelation,
-)
-from ops import Framework
-from ops.charm import CharmBase
+from charms.data_platform_libs.v0.data_interfaces import DataRelation
 from ops.model import Application, Relation, Unit
 from typing_extensions import override
 
-from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, PEER, REL_NAME, SERVER_PORT
+from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SERVER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -375,23 +368,3 @@ class ZKServer(StateBase):
             "sans_ip": [self.ip],
             "sans_dns": [self.hostname, self.fqdn],
         }
-
-
-class CharmWithRelationData(CharmBase):
-    """Charm base class setting basic Relation Data Interfaces."""
-
-    def __init__(
-        self,
-        framework: Framework,
-        peer_app_secrets: List[str] = [],
-        peer_unit_secrets: List[str] = [],
-        *args,
-    ):
-        super().__init__(framework)
-        self.peer_app_interface = DataPeer(
-            self, relation_name=PEER, additional_secret_fields=peer_app_secrets
-        )
-        self.peer_unit_interface = DataPeerUnit(
-            self, relation_name=PEER, additional_secret_fields=peer_unit_secrets
-        )
-        self.client_provider_interface = DatabaseProvides(self, relation_name=REL_NAME)

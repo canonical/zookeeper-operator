@@ -9,7 +9,7 @@ import time
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import InstallEvent, LeaderElectedEvent, RelationDepartedEvent, SecretChangedEvent
+from ops.charm import InstallEvent, LeaderElectedEvent, RelationDepartedEvent, SecretChangedEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
@@ -37,22 +37,11 @@ from workload import ZKWorkload
 logger = logging.getLogger(__name__)
 
 
-class ZooKeeperCharm(CharmWithRelationData):
+class ZooKeeperCharm(CharmBase):
     """Charmed Operator for ZooKeeper."""
 
     def __init__(self, *args):
-        super().__init__(
-            peer_app_secrets=["sync-password", "super-password"],
-            peer_unit_secrets=[
-                "ca-cert",
-                "csr",
-                "certificate",
-                "truststore-password",
-                "keystore-password",
-                "private-key",
-            ],
-            *args,
-        )
+        super().__init__(*args)
         self.name = CHARM_KEY
         self.state = ClusterState(self, substrate=SUBSTRATE)
         self.workload = ZKWorkload()

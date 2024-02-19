@@ -6,22 +6,39 @@
 import logging
 from typing import Dict, Set
 
-from charms.data_platform_libs.v0.data_interfaces import DataPeerOtherUnit
 from ops.framework import Framework, Object
 from ops.model import Relation, Unit
 
+from charms.data_platform_libs.v0.data_interfaces import (
+    DatabaseProvidesData,
+    DataPeerData,
+    DataPeerUnitData,
+    DataRelation,
+    DataPeerOtherUnitData
+)
+
 from core.models import SUBSTRATES, CharmWithRelationData, ZKClient, ZKCluster, ZKServer
-from literals import CLIENT_PORT, PEER, REL_NAME, SECURE_CLIENT_PORT
+from literals import CLIENT_PORT, PEER, REL_NAME, SECURE_CLIENT_PORT, SECRETS_APP, SECRETS_UNIT
 
 logger = logging.getLogger(__name__)
 
 
-class ClusterStateBase(Object):
+class ClusterState(Object):
     """Collection of global cluster state for Framework/Object."""
 
     def __init__(self, charm: Framework | Object, substrate: SUBSTRATES):
         super().__init__(parent=charm, key="charm_state")
         self.substrate: SUBSTRATES = substrate
+
+        self.peer_app_interface = DataPeerData(
+            self.model, relation_name=PEER, additional_secret_fields=SECRETS_APP
+        )
+        self.peer_unit_interface = DataPeerUnitData(
+            self.model, relation_name=PEER, additional_secret_fields=SECRETS_UNIT
+        )
+        self.client_provider_interface = DatabaseProvidesData(self.model, relation_name=REL_NAME)
+
+        self._servers_data = {}
 
     # --- RAW RELATION ---
 
@@ -35,15 +52,6 @@ class ClusterStateBase(Object):
         """The relations of all client applications."""
         return set(self.model.relations[REL_NAME])
 
-
-class ClusterState(ClusterStateBase):
-    """Collection of global cluster state for the charm."""
-
-    def __init__(self, charm: CharmWithRelationData, substrate: SUBSTRATES):
-        super().__init__(charm, substrate)
-        self.charm = charm
-        self._servers_data = {}
-
     # --- CORE COMPONENTS---
 
     @property
@@ -51,21 +59,21 @@ class ClusterState(ClusterStateBase):
         """The server state of the current running Unit."""
         return ZKServer(
             relation=self.peer_relation,
-            data_interface=self.charm.peer_unit_interface,
+            data_interface=self.peer_unit_interface,
             component=self.model.unit,
             substrate=self.substrate,
         )
 
     @property
-    def peer_units_data_interfaces(self) -> Dict[Unit, DataPeerOtherUnit]:
+    def peer_units_data_interfaces(self) -> Dict[Unit, DataPeerOtherUnitData]:
         """The cluster peer relation."""
         if not self.peer_relation or not self.peer_relation.units:
             return {}
 
         for unit in self.peer_relation.units:
             if unit not in self._servers_data:
-                self._servers_data[unit] = DataPeerOtherUnit(
-                    charm=self.charm, unit=unit, relation_name=PEER
+                self._servers_data[unit] = DataPeerOtherUnitData(
+                    charm=self.model, unit=unit, relation_name=PEER
                 )
         return self._servers_data
 
@@ -74,7 +82,7 @@ class ClusterState(ClusterStateBase):
         """The cluster state of the current running App."""
         return ZKCluster(
             relation=self.peer_relation,
-            data_interface=self.charm.peer_app_interface,
+            data_interface=self.peer_app_interface,
             component=self.model.app,
             substrate=self.substrate,
         )
@@ -114,7 +122,7 @@ class ClusterState(ClusterStateBase):
             clients.add(
                 ZKClient(
                     relation=relation,
-                    data_interface=self.charm.client_provider_interface,
+                    data_interface=self.client_provider_interface,
                     component=relation.app,
                     substrate=self.substrate,
                     local_app=self.cluster.app,

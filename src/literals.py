@@ -36,3 +36,6 @@ PATHS = {
     "LOGS": "/var/snap/charmed-zookeeper/common/var/log/zookeeper",
     "BIN": "/snap/charmed-zookeeper/current/opt/zookeeper",
 }
+
+SECRETS_APP = ["sync-password", "super-password"]
+SECRETS_UNIT = ["ca-cert", "csr", "certificate", "truststore-password", "keystore-password", "private-key"]
