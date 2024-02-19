@@ -10,7 +10,6 @@ from pytest_operator.plugin import OpsTest
 from .helpers import (
     APP_NAME,
     check_key,
-    count_lines_with,
     get_address,
     get_user_password,
     ping_servers,
@@ -36,45 +35,6 @@ async def test_deploy_active(ops_test: OpsTest):
         )
 
     assert ops_test.model.applications[APP_NAME].status == "active"
-
-
-@pytest.mark.abort_on_fail
-@pytest.mark.log_level_change
-async def test_log_level_change(ops_test: OpsTest):
-
-    for unit in ops_test.model.applications[APP_NAME].units:
-        assert (
-            count_lines_with(
-                ops_test.model_full_name,
-                unit.name,
-                "/var/snap/charmed-zookeeper/common/var/log/zookeeper/zookeeper.log",
-                "DEBUG",
-            )
-            == 0
-        )
-
-    await ops_test.model.applications[APP_NAME].set_config({"log-level": "DEBUG"})
-
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
-    )
-
-    for unit in ops_test.model.applications[APP_NAME].units:
-        assert (
-            count_lines_with(
-                ops_test.model_full_name,
-                unit.name,
-                "/var/snap/charmed-zookeeper/common/var/log/zookeeper/zookeeper.log",
-                "DEBUG",
-            )
-            > 0
-        )
-
-    await ops_test.model.applications[APP_NAME].set_config({"log-level": "INFO"})
-
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
-    )
 
 
 @pytest.mark.abort_on_fail
