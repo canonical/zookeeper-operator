@@ -825,7 +825,7 @@ def test_update_relation_data(harness):
                 "hostname": "merry",
             },
         )
-        harness.charm.peer_app_interface.update_relation_data(
+        harness.charm.state.peer_app_interface.update_relation_data(
             harness.charm.state.peer_relation.id,
             {f"relation-{app_1_id}": "mellon", f"relation-{app_2_id}": "friend"},
         )
@@ -851,7 +851,7 @@ def test_update_relation_data(harness):
                 myclient = client
         client = ZKClient(
             relation=relation,
-            data_interface=harness.charm.client_provider_interface,
+            data_interface=harness.charm.state.client_provider_interface,
             substrate=SUBSTRATE,
             component=relation.app,
             local_app=harness.charm.app,

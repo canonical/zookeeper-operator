@@ -38,4 +38,11 @@ PATHS = {
 }
 
 SECRETS_APP = ["sync-password", "super-password"]
-SECRETS_UNIT = ["ca-cert", "csr", "certificate", "truststore-password", "keystore-password", "private-key"]
+SECRETS_UNIT = [
+    "ca-cert",
+    "csr",
+    "certificate",
+    "truststore-password",
+    "keystore-password",
+    "private-key",
+]

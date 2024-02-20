@@ -9,13 +9,18 @@ import time
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import InstallEvent, LeaderElectedEvent, RelationDepartedEvent, SecretChangedEvent, CharmBase
+from ops.charm import (
+    CharmBase,
+    InstallEvent,
+    LeaderElectedEvent,
+    RelationDepartedEvent,
+    SecretChangedEvent,
+)
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 
 from core.cluster import ClusterState
-from core.models import CharmWithRelationData
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
 from events.tls import TLSEvents

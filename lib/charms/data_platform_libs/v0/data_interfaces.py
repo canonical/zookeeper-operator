@@ -2079,7 +2079,7 @@ class DatabaseRequiresEvents(CharmEvents):
 class DatabaseProvidesData(DataProvides):
     """Provider-side data of the database relations."""
 
-    def __init__(self, charm: CharmBase, relation_name: str) -> None:
+    def __init__(self, charm: Union[CharmBase, Model], relation_name: str) -> None:
         super().__init__(charm, relation_name)
 
     def set_database(self, relation_id: int, database_name: str) -> None:

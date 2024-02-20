@@ -6,19 +6,17 @@
 import logging
 from typing import Dict, Set
 
-from ops.framework import Framework, Object
-from ops.model import Relation, Unit
-
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseProvidesData,
     DataPeerData,
+    DataPeerOtherUnitData,
     DataPeerUnitData,
-    DataRelation,
-    DataPeerOtherUnitData
 )
+from ops.framework import Framework, Object
+from ops.model import Relation, Unit
 
-from core.models import SUBSTRATES, CharmWithRelationData, ZKClient, ZKCluster, ZKServer
-from literals import CLIENT_PORT, PEER, REL_NAME, SECURE_CLIENT_PORT, SECRETS_APP, SECRETS_UNIT
+from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
+from literals import CLIENT_PORT, PEER, REL_NAME, SECRETS_APP, SECRETS_UNIT, SECURE_CLIENT_PORT
 
 logger = logging.getLogger(__name__)
 
