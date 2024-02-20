@@ -4,18 +4,13 @@
 
 import asyncio
 import logging
-from pathlib import Path
 
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
-from .helpers import check_properties, ping_servers
+from .helpers import APP_NAME, check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 
 TLS_NAME = "self-signed-certificates"
 
