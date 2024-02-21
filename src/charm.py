@@ -123,7 +123,7 @@ class ZooKeeperCharm(CharmBase):
             self.unit.status = BlockedStatus("unable to install ZooKeeper")
 
         # don't complete install until passwords set
-        if not self.state.peer_relation:
+        if not self.state.has_peer_relation():
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
