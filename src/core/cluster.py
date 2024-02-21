@@ -41,9 +41,11 @@ class ClusterState(Object):
     # --- RAW RELATION ---
 
     @property
-    def peer_relation(self) -> Relation | None:
+    def peer_relation(self) -> Relation:
         """The cluster peer relation."""
-        return self.model.get_relation(PEER)
+        if not (peer_relation := self.model.get_relation(PEER)):
+            raise AttributeError(f"No peer relation {PEER} found.")
+        return peer_relation
 
     @property
     def client_relations(self) -> Set[Relation]:
@@ -374,3 +376,10 @@ class ClusterState(Object):
             return False
 
         return True
+
+    def has_peer_relation(self) -> bool:
+        """The cluster has a peer relation."""
+        try:
+            return bool(self.peer_relation)
+        except AttributeError:
+            return False

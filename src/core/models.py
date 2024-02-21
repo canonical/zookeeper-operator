@@ -4,6 +4,7 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
+from collections.abc import MutableMapping
 from typing import Literal
 
 from charms.data_platform_libs.v0.data_interfaces import DataRelation
@@ -31,14 +32,38 @@ class StateBase:
         self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
-        if self.relation and self.data_interface:
-            self.relation_data = self.data_interface.as_dict(self.relation.id)
+
+    def update(self, items: dict[str, str]) -> None:
+        """Changes the state."""
+        raise NotImplementedError
+
+    def data(self) -> MutableMapping:
+        """Data representing the state."""
+        raise NotImplementedError
+
+
+class RelationState(StateBase):
+    """Base state object."""
+
+    def __init__(
+        self,
+        relation: Relation,
+        data_interface: DataRelation,
+        component: Unit | Application,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
+        # Redundant definition as lint can't resolve that super's relation may be None
+        self.relation = relation
+        self.relation_data = self.data_interface.as_dict(self.relation.id)
+
+    @property
+    def data(self) -> MutableMapping:
+        """Data representing the state."""
+        return self.relation_data
 
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
-        if not hasattr(self, "relation_data"):
-            return
-
         delete_fields = [key for key in items if not items[key]]
         update_content = {k: items[k] for k in items if k not in delete_fields}
 
@@ -48,12 +73,12 @@ class StateBase:
             del self.relation_data[field]
 
 
-class ZKClient(StateBase):
+class ZKClient(RelationState):
     """State collection metadata for a single related client application."""
 
     def __init__(
         self,
-        relation: Relation | None,
+        relation: Relation,
         data_interface: DataRelation,
         component: Application,
         substrate: SUBSTRATES,
@@ -133,12 +158,12 @@ class ZKClient(StateBase):
         return chroot  # pyright: ignore reportGeneralTypeIssues
 
 
-class ZKCluster(StateBase):
+class ZKCluster(RelationState):
     """State collection metadata for the charm application."""
 
     def __init__(
         self,
-        relation: Relation | None,
+        relation: Relation,
         data_interface: DataRelation,
         component: Application,
         substrate: SUBSTRATES,
@@ -218,12 +243,12 @@ class ZKCluster(StateBase):
         return self.relation_data.get("tls", "") == "enabled"
 
 
-class ZKServer(StateBase):
+class ZKServer(RelationState):
     """State collection metadata for a charm unit."""
 
     def __init__(
         self,
-        relation: Relation | None,
+        relation: Relation,
         data_interface: DataRelation,
         component: Unit,
         substrate: SUBSTRATES,
