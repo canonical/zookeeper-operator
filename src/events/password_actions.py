@@ -57,11 +57,10 @@ class PasswordActionEvents(Object):
             event.fail(msg)
             return
 
-        if not self.charm.upgrade_events.idle or self.charm.upgrade_events.upgrade_stack:
+        if not self.charm.upgrade_events.idle:
             msg = (
-                    "Cannot set password while upgrading "
-                    + f"(upgrade_state: {self.charm.upgrade_events.cluster_state}, "
-                    + f"upgrade_stack: {self.charm.upgrade_events.upgrade_stack})"
+                "Cannot set password while upgrading "
+                + f"(upgrade_stack: {self.charm.upgrade_events.upgrade_stack})"
             )
             logger.error(msg)
             event.fail(msg)
@@ -87,4 +86,5 @@ class PasswordActionEvents(Object):
 
         # implicitly calls config_changed on leader, other units will get it because of relation-data change with new passwords
         self.charm._on_cluster_relation_changed(event)
+
         event.set_results({f"{username}-password": new_password})
