@@ -277,7 +277,7 @@ class ZooKeeperCharm(CharmBase):
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
 
-        # during pod-reschedules (e.g upgrades or otherwise) we lose all files
+        # during reschedules (e.g upgrades or otherwise) we lose all files
         # need to manually add-back key/truststores
         if (
             self.state.cluster.tls
