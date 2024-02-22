@@ -33,12 +33,9 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             config={"ca-common-name": "zookeeper"},
         ),
     )
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
-    )
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
 
-    async with ops_test.fast_forward(fast_interval="60s"):
+    async with ops_test.fast_forward(fast_interval="90s"):
         await ops_test.model.wait_for_idle(
             apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
         )
