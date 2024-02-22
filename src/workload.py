@@ -9,9 +9,11 @@ import secrets
 import shutil
 import string
 import subprocess
+from subprocess import CalledProcessError
 
 from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
+from ops.pebble import ExecError
 from tenacity import retry
 from tenacity.retry import retry_if_not_result
 from tenacity.stop import stop_after_attempt
@@ -96,7 +98,14 @@ class ZKWorkload(WorkloadBase):
         except KeyError:
             return False
 
+    @property
     @override
+    @retry(
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(5),
+        retry=retry_if_not_result(lambda result: True if result else False),
+        retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
+    )
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
         # netcat isn't a default utility, so can't guarantee it's on the charm containers
@@ -111,12 +120,15 @@ class ZKWorkload(WorkloadBase):
         # for example when the endpoint is unreachable
         timeout = ["timeout", "10s", "bash", "-c"]
 
-        ruok_response = self.exec(command=timeout + ruok)
-        if not ruok_response or "imok" not in ruok_response:
-            return False
+        try:
+            ruok_response = self.exec(command=timeout + ruok)
+            if not ruok_response or "imok" not in ruok_response:
+                return False
 
-        srvr_response = self.exec(command=timeout + srvr)
-        if not srvr_response or "not currently serving requests" in srvr_response:
+            srvr_response = self.exec(command=timeout + srvr)
+            if not srvr_response or "not currently serving requests" in srvr_response:
+                return False
+        except (ExecError, CalledProcessError):
             return False
 
         return True
