@@ -58,6 +58,7 @@ class ZooKeeperCharm(CharmBase):
         self.provider_events = ProviderEvents(self)
         self.upgrade_events = ZKUpgradeEvents(
             self,
+            substrate=SUBSTRATE,
             dependency_model=ZooKeeperDependencyModel(
                 **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
             ),
@@ -193,9 +194,11 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # service can stop serving requests if the quorum is lost
-        if not self.workload.healthy:
+        if self.state.unit_server.started and not self.workload.healthy:
             self._set_status(Status.SERVICE_UNHEALTHY)
             return
+
+        self._set_status(Status.ACTIVE)
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
@@ -224,16 +227,6 @@ class ZooKeeperCharm(CharmBase):
         # gives time for server to rejoin quorum, as command exits too fast
         # without, other units might restart before this unit rejoins, losing quorum
         time.sleep(5)
-
-        if not self.workload.alive:
-            self._set_status(Status.SERVICE_NOT_RUNNING)
-            return
-
-        if not self.workload.healthy:
-            self._set_status(Status.SERVICE_UNHEALTHY)
-            return
-
-        self._set_status(Status.ACTIVE)
 
         self.state.unit_server.update(
             {
@@ -284,13 +277,20 @@ class ZooKeeperCharm(CharmBase):
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
 
+        # during reschedules (e.g upgrades or otherwise) we lose all files
+        # need to manually add-back key/truststores
+        if (
+            self.state.cluster.tls
+            and self.state.unit_server.certificate
+            and self.state.unit_server.ca
+        ):  # TLS is probably completed
+            self.tls_manager.set_private_key()
+            self.tls_manager.set_ca()
+            self.tls_manager.set_certificate()
+            self.tls_manager.set_truststore()
+            self.tls_manager.set_p12_keystore()
+
         self.workload.start()
-
-        if not self.workload.alive:
-            self._set_status(Status.SERVICE_NOT_RUNNING)
-            return
-
-        self._set_status(Status.ACTIVE)
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"{self.unit.name} started")

@@ -102,14 +102,13 @@ async def test_scale_up_gets_new_jaas_users(ops_test: OpsTest):
         assert len(jaas_config) == 4
 
 
-@pytest.mark.abort_on_fail
 async def test_remove_applications(ops_test: OpsTest):
     await ops_test.model.applications[DUMMY_NAME_1].remove()
-    await ops_test.model.wait_for_idle(apps=[APP_NAME])
-    assert ops_test.model.applications[APP_NAME].status == "active"
     await ops_test.model.applications[DUMMY_NAME_2].remove()
-    await ops_test.model.wait_for_idle(apps=[APP_NAME])
-    assert ops_test.model.applications[APP_NAME].status == "active"
+
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=60
+    )
 
     assert ping_servers(ops_test)
     for unit in ops_test.model.applications[APP_NAME].units:
