@@ -385,9 +385,8 @@ class RollingOpsManager(Object):
             # emit relation changed event in the edge case where aquire does not
             relation = self.model.get_relation(self.name)
 
-            # persist callback override for eventual run
+            # persist callback override for eventual run, that also forces a relation change
             relation.data[self.charm.unit].update({"callback_override": event.callback_override})
-            self.charm.on[self.name].relation_changed.emit(relation, app=self.charm.app)
 
         except LockNoRelationError:
             logger.debug("No {} peer relation yet. Delaying rolling op.".format(self.name))
