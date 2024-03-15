@@ -10,7 +10,7 @@ from typing import Literal
 
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase, WaitingStatus
 
-CHARMED_ZOOKEEPER_SNAP_REVISION = 28
+CHARMED_ZOOKEEPER_SNAP_REVISION = 30
 
 SUBSTRATE = "vm"
 CHARM_KEY = "zookeeper"
@@ -32,7 +32,7 @@ DEPENDENCIES = {
         "dependencies": {},
         "name": "zookeeper",
         "upgrade_supported": "^3.5",
-        "version": "3.8.2",
+        "version": "3.8.4",
     },
 }
 
