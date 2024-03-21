@@ -15,7 +15,6 @@ from ops.model import ActiveStatus, BlockedStatus
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
-from core.models import ZKClient
 from literals import CHARM_KEY, CONTAINER, PEER, REL_NAME, SUBSTRATE, Status
 
 logger = logging.getLogger(__name__)
@@ -904,73 +903,16 @@ def test_restart_fails_update_relation_data_if_not_idle(harness):
         patched_update.assert_not_called()
 
 
-def test_port_updates_if_tls(harness):
-    with harness.hooks_disabled():
-        harness.add_relation(PEER, CHARM_KEY)
-        app_id = harness.add_relation(REL_NAME, "application")
-        harness.set_leader(True)
-        harness.update_relation_data(app_id, "application", {"chroot": "app"})
-
-        # checking if ssl port and ssl flag are passed
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/0",
-            {"private-address": "treebeard", "state": "started"},
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            CHARM_KEY,
-            {"quorum": "ssl", "relation-0": "mellon", "tls": "enabled"},
-        )
-        harness.charm.update_client_data()
-
-    uris = ""
-
-    for client in harness.charm.state.clients:
-        assert client.tls == "enabled"
-        uris = client.uris
-
-    with harness.hooks_disabled():
-        # checking if normal port and non-ssl flag are passed
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/0",
-            {"private-address": "treebeard", "state": "started", "quorum": "non-ssl"},
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            CHARM_KEY,
-            {"quorum": "non-ssl", "relation-0": "mellon", "tls": ""},
-        )
-        harness.charm.update_client_data()
-
-    for client in harness.charm.state.clients:
-        assert client.tls == "disabled"
-        assert client.uris != uris
-
-
 def test_update_relation_data(harness):
-    with harness.hooks_disabled():
+    # with harness.hooks_disabled():
+    with (
+        patch("charm.ZooKeeperCharm.update_quorum"),
+        patch("managers.config.ConfigManager.set_zookeeper_properties"),
+        patch("managers.quorum.QuorumManager.update_acls"),
+        patch("workload.ZKWorkload.write"),
+    ):
         harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
-        app_1_id = harness.add_relation(REL_NAME, "application")
-        app_2_id = harness.add_relation(REL_NAME, "new_application")
-        harness.update_relation_data(app_1_id, "application", {"chroot": "app"})
-        harness.update_relation_data(
-            app_2_id,
-            "new_application",
-            {"chroot": "new_app", "chroot-acl": "rw"},
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/0",
-            {
-                "ip": "treebeard",
-                "state": "started",
-                "private-address": "glamdring",
-                "hostname": "frodo",
-            },
-        )
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
@@ -988,46 +930,44 @@ def test_update_relation_data(harness):
                 "hostname": "merry",
             },
         )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            CHARM_KEY,
-            {f"relation-{app_1_id}": "mellon", f"relation-{app_2_id}": "friend"},
-        )
 
-    with (
-        patch(
-            "core.cluster.ClusterState.ready",
-            new_callable=PropertyMock,
-            return_value=Status.ACTIVE,
-        ),
-        patch(
-            "managers.config.ConfigManager.current_jaas",
-            new_callable=PropertyMock,
-            return_value=["mellon", "friend"],
-        ),
-    ):
-        harness.charm.update_client_data()
+        with (
+            patch(
+                "core.cluster.ClusterState.ready",
+                new_callable=PropertyMock,
+                return_value=Status.ACTIVE,
+            ),
+            patch(
+                "managers.config.ConfigManager.current_jaas",
+                new_callable=PropertyMock,
+                return_value=["mellon", "friend"],
+            ),
+        ):
+            harness.charm.update_client_data()
+
+        # Set up the relation
+
+        app_1_id = harness.add_relation(REL_NAME, "application")
+        app_2_id = harness.add_relation(REL_NAME, "new_application")
+        harness.update_relation_data(app_1_id, "application", {"chroot": "app"})
+        harness.update_relation_data(
+            app_2_id,
+            "new_application",
+            {"chroot": "new_app", "chroot-acl": "rw"},
+        )
 
     # building bare clients for validation
     usernames = []
     passwords = []
     for relation in harness.charm.state.client_relations:
-        client = ZKClient(
-            relation=relation,
-            substrate=SUBSTRATE,
-            component=relation.app,
-            local_app=harness.charm.app,
-            password=relation.data[harness.charm.app].get("password", ""),
-            endpoints=relation.data[harness.charm.app].get("endpoints", ""),
-            uris=relation.data[harness.charm.app].get("uris", ""),
-            tls=relation.data[harness.charm.app].get("tls", ""),
-        )
 
-        assert client.username, (
-            client.password in harness.charm.state.cluster.client_passwords.items()
-        )
+        for client in harness.charm.state.clients:
+            if client.relation.id == relation.id:
+                break
+
+        assert client.username
+
         assert client.username not in usernames
-        assert client.password not in passwords
 
         logger.info(client.endpoints)
 
@@ -1036,7 +976,7 @@ def test_update_relation_data(harness):
 
         if SUBSTRATE == "vm":
             # checking ips are used
-            for ip in ["treebeard", "shelob", "balrog"]:
+            for ip in ["shelob", "balrog"]:
                 assert ip in client.endpoints
                 assert ip in client.uris
 

@@ -104,27 +104,31 @@ def test_server_jvmflags_has_opts(harness):
 
 
 def test_jaas_users_are_added(harness):
-    with harness.hooks_disabled():
+    with (
+        patch("charm.ZooKeeperCharm.update_quorum"),
+        patch("managers.config.ConfigManager.set_zookeeper_properties"),
+        patch("managers.quorum.QuorumManager.update_acls"),
+        patch("workload.ZKWorkload.write"),
+    ):
+        harness.set_leader(True)
         app_id = harness.add_relation(REL_NAME, "application")
         harness.update_relation_data(app_id, "application", {"chroot": "app"})
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"relation-2": "password"}
-        )
 
     assert len(harness.charm.config_manager.jaas_users) == 1
 
 
 def test_multiple_jaas_users_are_added(harness):
-    with harness.hooks_disabled():
+    with (
+        patch("charm.ZooKeeperCharm.update_quorum"),
+        patch("managers.config.ConfigManager.set_zookeeper_properties"),
+        patch("managers.quorum.QuorumManager.update_acls"),
+        patch("workload.ZKWorkload.write"),
+    ):
+        harness.set_leader(True)
         app_1_id = harness.add_relation(REL_NAME, "application")
         app_2_id = harness.add_relation(REL_NAME, "application2")
         harness.update_relation_data(app_1_id, "application", {"chroot": "app"})
         harness.update_relation_data(app_2_id, "application2", {"chroot": "app2"})
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            CHARM_KEY,
-            {"relation-2": "password", "relation-3": "password"},
-        )
 
     assert len(harness.charm.config_manager.jaas_users) == 2
 
