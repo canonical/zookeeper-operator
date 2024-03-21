@@ -51,18 +51,21 @@ class ZKClient(StateBase):
         component: Application,
         substrate: SUBSTRATES,
         local_app: Application | None = None,
-        password: str = "",
-        endpoints: str = "",
-        tls: str = "",
-        uris: str = "",
     ):
         super().__init__(relation, component, substrate)
         self.app = component
-        self._password = password
-        self._endpoints = endpoints
-        self._tls = tls
-        self._uris = uris
         self._local_app = local_app
+
+    @property
+    def relation_data(self) -> MutableMapping[str, str]:
+        """The raw relation data -- both sides of the relation."""
+        if not self.relation:
+            return {}
+
+        data = self.relation.data[self.component]
+        if self._local_app:
+            data = {**data, **self.relation.data[self._local_app]}
+        return data
 
     @override
     def update(self, items: dict[str, str]) -> None:
@@ -75,22 +78,23 @@ class ZKClient(StateBase):
     @property
     def username(self) -> str:
         """The generated username for the client application."""
-        return f"relation-{getattr(self.relation, 'id', '')}"
+        return self.relation_data.get("username") or f"relation-{getattr(self.relation, 'id', '')}"
 
     @property
     def password(self) -> str:
         """The generated password for the client application."""
-        return self._password
+        return self.relation_data.get("password", "")
 
     @property
     def endpoints(self) -> str:
         """The ZooKeeper connection endpoints for the client application to connect with."""
-        return self._endpoints
+        return self.relation_data.get("endpoints", "")
 
     @property
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
-        return self._uris + self.chroot if self._uris else ""
+        uris = self.relation_data.get("uris")
+        return uris + self.chroot if uris else ""
 
     @property
     def tls(self) -> str:
@@ -99,7 +103,7 @@ class ZKClient(StateBase):
         Returns:
             String of either 'enabled' or 'disabled'
         """
-        return self._tls
+        return self.relation_data.get("tls", "disabled")
 
     @property
     def chroot_acl(self) -> str:
@@ -170,15 +174,6 @@ class ZKCluster(StateBase):
             return {}
 
         return credentials
-
-    @property
-    def client_passwords(self) -> dict[str, str]:
-        """The passwords for related client applications.
-
-        Returns:
-            Dict of key username, value password
-        """
-        return {key: value for key, value in self.relation_data.items() if "relation-" in key}
 
     @property
     def rotate_passwords(self) -> bool:

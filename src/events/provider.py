@@ -30,6 +30,9 @@ class ProviderEvents(Object):
         super().__init__(charm, "provider")
         self.charm: "ZooKeeperCharm" = charm
 
+        # self.framework.observe(
+        #     self.charm.on[REL_NAME].relation_joined, self._on_client_relation_updated
+        # )
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
         )
@@ -80,8 +83,19 @@ class ProviderEvents(Object):
             ):
                 continue  # don't re-add passwords for broken events
 
-            self.charm.state.cluster.update(
-                {client.username: client.password or self.charm.workload.generate_password()}
+            client.update(
+                {
+                    "username": client.username,
+                    "password": client.password or self.charm.workload.generate_password(),
+                    "uris": ",".join(
+                        [
+                            f"{endpoint}:{self.charm.state.client_port}"
+                            for endpoint in self.charm.state.endpoints
+                        ]
+                    ),
+                    "endpoints": ",".join(self.charm.state.endpoints),
+                    "tls": "enabled" if self.charm.state.cluster.tls else "disabled",
+                }
             )
 
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
@@ -95,7 +109,10 @@ class ProviderEvents(Object):
             return
 
         # clearing up broken application passwords
-        self.charm.state.cluster.update({f"relation-{event.relation.id}": ""})
+        # self.charm.state.cluster.update({f"relation-{event.relation.id}": ""})
+        for client in self.charm.state.clients:
+            if client.relation and client.relation.id == event.relation.id:
+                client.update({"password": ""})
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)

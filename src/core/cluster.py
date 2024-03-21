@@ -83,12 +83,6 @@ class ClusterState(Object):
                     component=relation.app,
                     substrate=self.substrate,
                     local_app=self.cluster.app,
-                    password=self.cluster.client_passwords.get(f"relation-{relation.id}", ""),
-                    uris=",".join(
-                        [f"{endpoint}:{self.client_port}" for endpoint in self.endpoints]
-                    ),
-                    endpoints=",".join(self.endpoints),
-                    tls="enabled" if self.cluster.tls else "disabled",
                 )
             )
 

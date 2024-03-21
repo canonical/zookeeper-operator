@@ -67,6 +67,9 @@ class TLSEvents(Object):
         # assume it's already running, and trigger `upgrade` from non-ssl -> ssl
         # ideally trigger this before any other `certificates_*` step
         self.charm.state.cluster.update({"tls": "enabled", "switching-encryption": "started"})
+        # If TLS changes, the client relations are also impacted
+        for client in self.charm.state.clients:
+            client.update({"tls": "enabled"})
 
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
@@ -152,6 +155,9 @@ class TLSEvents(Object):
         # if this event fired, trigger `upgrade` from ssl -> non-ssl
         # ideally trigger this before any other `certificates_*` step
         self.charm.state.cluster.update({"tls": "", "switching-encryption": "started"})
+        # If TLS changes, the client relations are also impacted
+        for client in self.charm.state.clients:
+            client.update({"tls": "disabled"})
 
     def _set_tls_private_key(self, event: ActionEvent) -> None:
         """Handler for `set-tls-privat-key` event when user manually specifies private-keys for a unit."""
