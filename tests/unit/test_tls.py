@@ -78,6 +78,8 @@ def test_certificates_created_sets_upgrading_enabled(harness):
 
     assert harness.charm.state.cluster.tls
     assert harness.charm.state.cluster.switching_encryption
+    for client in harness.charm.state.clients:
+        assert client.tls == "enabled"
 
 
 def test_certificates_joined_defers_if_disabled(harness):
@@ -180,6 +182,8 @@ def test_certificates_broken(harness):
     assert harness.charm.state.unit_server.certificate
     assert harness.charm.state.unit_server.ca
     assert harness.charm.state.unit_server.csr
+    for client in harness.charm.state.clients:
+        assert client.tls == "disabled"
 
     # implicitly tests these method calls
     with patch.multiple(
