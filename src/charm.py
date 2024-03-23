@@ -14,10 +14,11 @@ from ops.charm import (
     InstallEvent,
     LeaderElectedEvent,
     RelationDepartedEvent,
+    SecretChangedEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus, StatusBase
+from ops.model import ActiveStatus, StatusBase, WaitingStatus
 
 from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
@@ -30,6 +31,7 @@ from literals import (
     DEPENDENCIES,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
+    PEER,
     SUBSTRATE,
     DebugLevel,
     Status,
@@ -101,6 +103,8 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "config_changed"), self._on_cluster_relation_changed
         )
 
+        self.framework.observe(getattr(self.on, "secret_changed"), self._on_secret_changed)
+
         self.framework.observe(
             getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_changed
         )
@@ -123,8 +127,8 @@ class ZooKeeperCharm(CharmBase):
 
         self.unit.set_workload_version(self.workload.get_version())
         # don't complete install until passwords set
-        if not self.state.peer_relation:
-            self._set_status(Status.NO_PEER_RELATION)
+        if not self.state.has_peer_relation():
+            self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
 
@@ -202,6 +206,21 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self._set_status(Status.ACTIVE)
+
+    def _on_secret_changed(self, event: SecretChangedEvent):
+        """Reconfigure services on a secret changed event."""
+        if not event.secret.label:
+            return
+
+        if not self.state.cluster.relation:
+            return
+
+        if event.secret.label == self.state.cluster.data_interface._generate_secret_label(
+            PEER,
+            self.state.cluster.relation.id,
+            "extra",  # type:ignore noqa  -- Changes with the https://github.com/canonical/data-platform-libs/issues/124
+        ):
+            self._on_cluster_relation_changed(event)
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.

@@ -111,7 +111,13 @@ class TLSEvents(Object):
             logger.error("Can't use certificate, found unknown CSR")
             return
 
-        self.charm.state.unit_server.update({"certificate": event.certificate, "ca": event.ca})
+        # if certificate already exists, this event must be new, flag manual restart
+        if self.charm.state.unit_server.certificate:
+            self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
+
+        self.charm.state.unit_server.update(
+            {"certificate": event.certificate, "ca-cert": event.ca}
+        )
 
         self.charm.tls_manager.set_private_key()
         self.charm.tls_manager.set_ca()
@@ -141,7 +147,7 @@ class TLSEvents(Object):
 
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
-        self.charm.state.unit_server.update({"csr": "", "certificate": "", "ca": ""})
+        self.charm.state.unit_server.update({"csr": "", "certificate": "", "ca-cert": ""})
 
         # remove all existing keystores from the unit so we don't preserve certs
         self.charm.tls_manager.remove_stores()
