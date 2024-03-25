@@ -381,6 +381,9 @@ class ZKServer(RelationState):
     @property
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
+        # Backwards compatibility
+        if cert := self.relation_data.get("ca"):  # pyright: ignore reportGeneralTypeIssues
+            return cert
         return self.relation_data.get("ca-cert", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
