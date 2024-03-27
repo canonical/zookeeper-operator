@@ -5,7 +5,7 @@
 import logging
 import re
 from pathlib import Path
-from unittest.mock import PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 import yaml
@@ -1057,3 +1057,8 @@ def test_update_relation_data(harness):
 
         usernames.append(client.username)
         passwords.append(client.password)
+
+
+def test_workload_version(harness, monkeypatch):
+    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
+    assert harness.charm.version == "1.2.3"

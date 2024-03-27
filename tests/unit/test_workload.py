@@ -4,7 +4,7 @@
 
 import logging
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -51,8 +51,3 @@ def test_healthy_does_not_raise(harness, patched_healthy):
         ),
     ):
         assert not harness.charm.workload.healthy
-
-
-def test_workload_version(harness, monkeypatch):
-    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
-    assert harness.charm.version == "1.2.3"
