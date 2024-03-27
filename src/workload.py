@@ -164,3 +164,9 @@ class ZKWorkload(WorkloadBase):
             String of 32 randomized letter+digit characters
         """
         return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
+
+    @override
+    def get_version(self) -> str:
+        if not self.zookeeper.present:
+            return ""
+        return self.zookeeper._snap_client.get_snap_information(self.SNAP_NAME).get("version", "")
