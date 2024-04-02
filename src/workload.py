@@ -11,7 +11,6 @@ import string
 import subprocess
 from subprocess import CalledProcessError
 
-from charms.operator_libs_linux.v0 import apt
 from charms.operator_libs_linux.v1 import snap
 from ops.pebble import ExecError
 from tenacity import retry
@@ -142,8 +141,6 @@ class ZKWorkload(WorkloadBase):
             True if successfully installed. False otherwise.
         """
         try:
-            apt.update()
-            apt.add_package(["snapd"])
             cache = snap.SnapCache()
             zookeeper = cache[self.SNAP_NAME]
 
@@ -153,7 +150,7 @@ class ZKWorkload(WorkloadBase):
             self.zookeeper.hold()
 
             return True
-        except (snap.SnapError, apt.PackageNotFoundError) as e:
+        except (snap.SnapError) as e:
             logger.error(str(e))
             return False
 
