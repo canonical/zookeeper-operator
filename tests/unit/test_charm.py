@@ -290,6 +290,7 @@ def test_relation_changed_checks_alive_and_healthy(harness):
         patch(
             "workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True
         ) as patched_healthy,
+        patch("workload.ZKWorkload.get_version", return_value=""),  # uses .healthy
     ):
         harness.charm.on.config_changed.emit()
         patched_alive.assert_called()
@@ -1060,7 +1061,6 @@ def test_update_relation_data(harness):
 
 
 def test_workload_version_is_setted(harness, monkeypatch):
-    imok = "imok"
     output_install = (
         "Zookeeper version: 3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
     )
@@ -1070,9 +1070,10 @@ def test_workload_version_is_setted(harness, monkeypatch):
     monkeypatch.setattr(
         harness.charm.workload,
         "exec",
-        Mock(side_effect=[imok, output_install, imok, output_changed]),
+        Mock(side_effect=[output_install, output_changed]),
     )
     monkeypatch.setattr(harness.charm.workload, "install", Mock(return_value=True))
+    monkeypatch.setattr(harness.charm.workload, "healthy", Mock(return_value=True))
 
     harness.charm.on.install.emit()
     assert harness.get_workload_version() == "3.8.1"
