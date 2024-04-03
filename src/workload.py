@@ -172,7 +172,9 @@ class ZKWorkload(WorkloadBase):
         if not self.healthy:
             return ""
 
-        stat = [f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"]
+        stat = [
+            f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
+        ]
 
         # timeout needed as it can sometimes hang forever if there's a problem
         # for example when the endpoint is unreachable
