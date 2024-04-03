@@ -121,7 +121,7 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        self.unit.set_workload_version(self.version)
+        self.unit.set_workload_version(self.workload.get_version())
         # don't complete install until passwords set
         if not self.state.peer_relation:
             self._set_status(Status.NO_PEER_RELATION)
@@ -152,10 +152,11 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
+        self.unit.set_workload_version(self.workload.get_version())
+
         # refreshing unit hostname relation data in case ip changed
         self.state.unit_server.update(self.quorum_manager.get_hostname_mapping())
         self.config_manager.set_etc_hosts()
-        self.unit.set_workload_version(self.version)
 
         # don't run (and restart) if some units are still joining
         # instead, wait for relation-changed from it's setting of 'started'
@@ -399,11 +400,6 @@ class ZooKeeperCharm(CharmBase):
 
         getattr(logger, log_level.lower())(status.message)
         self.unit.status = status
-
-    @property
-    def version(self) -> str:
-        """Report the current workload (Zookeeper) version."""
-        return self.workload.get_version()
 
 
 if __name__ == "__main__":
