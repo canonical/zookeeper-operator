@@ -1,14 +1,19 @@
-# Copyright 2023 Canonical Ltd.
+# Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
-
 name: zookeeper
-display-name: Zookeeper 
+display-name: Charmed Zookeeper
 description: |
   ZooKeeper is a centralized service for maintaining configuration information, naming,
   providing distributed synchronization, and providing group services.
-summary: The Charmed ZooKeeper Operator
+summary: Charmed ZooKeeper VM Operator
+source: https://github.com/canonical/zookeeper-operator
+issues: https://github.com/canonical/zookeeper-operator/issues
+website:
+  - https://charmhub.io/zookeeper
+  - https://github.com/canonical/zookeeper-operator
+  - https://matrix.to/#/#charmhub-data-platform:ubuntu.com
 maintainers:
-  - Marc Oppenheimer <marc.oppenheimer@canonical.com>
+  - Canonical Data Platform <data-platform@lists.launchpad.net>
 series:
   - jammy
 
