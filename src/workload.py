@@ -5,6 +5,7 @@
 """Implementation of WorkloadBase for running on VMs."""
 import logging
 import os
+import re
 import secrets
 import shutil
 import string
@@ -164,3 +165,28 @@ class ZKWorkload(WorkloadBase):
             String of 32 randomized letter+digit characters
         """
         return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
+
+    @override
+    def get_version(self) -> str:
+
+        if not self.healthy:
+            return ""
+
+        stat = [
+            "bash",
+            "-c",
+            f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-; )",
+        ]
+
+        try:
+            stat_response = self.exec(command=stat)
+            if not stat_response:
+                return ""
+
+            matcher = re.search(r"(?P<version>\d\.\d\.\d)", stat_response)
+            version = matcher.group("version") if matcher else ""
+
+        except (ExecError, CalledProcessError):
+            return ""
+
+        return version

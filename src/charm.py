@@ -121,6 +121,7 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
+        self.unit.set_workload_version(self.workload.get_version())
         # don't complete install until passwords set
         if not self.state.peer_relation:
             self._set_status(Status.NO_PEER_RELATION)
@@ -150,6 +151,8 @@ class ZooKeeperCharm(CharmBase):
         if not self.upgrade_events.idle:
             event.defer()
             return
+
+        self.unit.set_workload_version(self.workload.get_version())
 
         # refreshing unit hostname relation data in case ip changed
         self.state.unit_server.update(self.quorum_manager.get_hostname_mapping())
