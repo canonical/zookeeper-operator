@@ -8,7 +8,7 @@ import pytest
 import requests
 from pytest_operator.plugin import OpsTest
 
-from literals import JMX_PORT, METRICS_PROVIDER_PORT, DEPENDENCIES
+from literals import DEPENDENCIES, JMX_PORT, METRICS_PROVIDER_PORT
 
 from .helpers import APP_NAME, count_lines_with, get_address
 
@@ -35,6 +35,7 @@ async def test_deploy_active(ops_test: OpsTest):
 async def test_consistency_between_workload_and_metadata(ops_test: OpsTest):
     application = ops_test.model.applications[APP_NAME]
     assert application.data.get("workload-version", "") == DEPENDENCIES["service"]["version"]
+
 
 async def test_exporter_endpoints(ops_test: OpsTest):
     unit_address = await get_address(ops_test=ops_test)
