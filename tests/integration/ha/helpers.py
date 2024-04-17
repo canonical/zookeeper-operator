@@ -20,6 +20,7 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 SERVICE_DEFAULT_PATH = "/etc/systemd/system/snap.charmed-zookeeper.daemon.service"
+PEER = "cluster"
 
 
 class ProcessError(Exception):
@@ -240,7 +241,7 @@ def network_throttle(machine_name: str) -> None:
     subprocess.check_call(limit_set_command.split())
     limit_set_command = f"lxc config device set {machine_name} eth0 limits.ingress=1kbit"
     subprocess.check_call(limit_set_command.split())
-    limit_set_command = f"lxc config set {machine_name} limits.network.priority=10"
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.priority=10"
     subprocess.check_call(limit_set_command.split())
 
 
@@ -250,7 +251,7 @@ def network_release(machine_name: str) -> None:
     Args:
         machine_name: lxc container hostname
     """
-    limit_set_command = f"lxc config set {machine_name} limits.network.priority="
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.priority="
     subprocess.check_call(limit_set_command.split())
     restore_unit_network(machine_name=machine_name)
 
@@ -341,7 +342,7 @@ async def get_password(
 ) -> str:
     if not app_name:
         app_name = APP_NAME
-    secret_data = await get_secret_by_label(ops_test, f"{app_name}.app", app_name)
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{app_name}.app", app_name)
     return secret_data.get(f"{user}-password")
 
 
