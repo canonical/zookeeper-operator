@@ -10,7 +10,7 @@ from typing import Literal
 
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase, WaitingStatus
 
-CHARMED_ZOOKEEPER_SNAP_REVISION = 31
+CHARMED_ZOOKEEPER_SNAP_REVISION = 32
 
 SUBSTRATE = "vm"
 CHARM_KEY = "zookeeper"
@@ -26,6 +26,8 @@ SERVER_PORT = 2888
 ELECTION_PORT = 3888
 JMX_PORT = 9998
 METRICS_PROVIDER_PORT = 7000
+USER = "snap_daemon"
+GROUP = "root"
 
 DEPENDENCIES = {
     "service": {

@@ -14,6 +14,7 @@ from ops.charm import (
     InstallEvent,
     LeaderElectedEvent,
     RelationDepartedEvent,
+    StorageAttachedEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
@@ -28,6 +29,7 @@ from literals import (
     CHARM_KEY,
     CHARM_USERS,
     DEPENDENCIES,
+    GROUP,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     SUBSTRATE,
@@ -111,10 +113,16 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_changed
         )
 
+        self.framework.observe(
+            getattr(self.on, "data_storage_attached"), self._on_storage_attached
+        )
+
     # --- CORE EVENT HANDLERS ---
 
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
+        # resource_path = self.model.resources.fetch("zksnap")
+        # snap.install_local(resource_path, dangerous=True)
         install = self.workload.install()
         if not install:
             self._set_status(Status.SERVICE_NOT_INSTALLED)
@@ -202,6 +210,22 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self._set_status(Status.ACTIVE)
+
+    def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
+        """Handler for `storage_attached` events."""
+        # new dirs won't be used until topic partitions are assigned to it
+        # either automatically for new topics, or manually for existing
+        # set status only for running services, not on startup
+        # if self.workload.active():
+        #     self._set_status(Status.ACTIVE)
+        # self.workload.exec(["mkdir", "-p", f"{self.workload.paths.data_path}"])
+        self.workload.exec(
+            ["chmod", "770", "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"]
+        )
+        self.workload.exec(
+            ["chown", f"{584788}:{GROUP}", "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"]
+        )
+        # self._on_config_changed(event)
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
