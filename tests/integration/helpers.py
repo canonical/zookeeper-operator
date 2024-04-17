@@ -17,6 +17,7 @@ from core.workload import ZKPaths
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
+PEER = "cluster"
 
 
 def application_active(ops_test: OpsTest, expected_units: int) -> bool:
@@ -33,7 +34,7 @@ def application_active(ops_test: OpsTest, expected_units: int) -> bool:
 
 
 async def get_password(ops_test) -> str:
-    secret_data = await get_secret_by_label(ops_test, f"{APP_NAME}.app")
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{APP_NAME}.app")
     return secret_data.get("super-password")
 
 
