@@ -213,19 +213,8 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
-        # new dirs won't be used until topic partitions are assigned to it
-        # either automatically for new topics, or manually for existing
-        # set status only for running services, not on startup
-        # if self.workload.active():
-        #     self._set_status(Status.ACTIVE)
-        # self.workload.exec(["mkdir", "-p", f"{self.workload.paths.data_path}"])
-        self.workload.exec(
-            ["chmod", "770", "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"]
-        )
-        self.workload.exec(
-            ["chown", f"{584788}:{GROUP}", "/var/snap/charmed-zookeeper/common/var/lib/zookeeper"]
-        )
-        # self._on_config_changed(event)
+        self.workload.exec(["chmod", "770", f"{self.workload.paths.data_path}"])
+        self.workload.exec(["chown", f"{584788}:{GROUP}", f"{self.workload.paths.data_path}"])
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
