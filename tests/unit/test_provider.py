@@ -7,10 +7,12 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
-from ops import RelationBrokenEvent
+from ops import Relation, RelationBrokenEvent
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
+from core.cluster import ClusterState
+from core.models import ZKClient
 from literals import CHARM_KEY, PEER, REL_NAME
 
 logger = logging.getLogger(__name__)
@@ -123,3 +125,50 @@ def test_client_relation_broken_removes_passwords(harness):
 
         harness.remove_relation(app_id)
         assert not harness.charm.state.cluster.client_passwords
+
+
+def test_relation_data_unreliable(harness):
+    """Certain patterns should be strictly avoided as long as 'relation_data' is directly exposed."""
+
+    class BadClusterState(ClusterState):
+        def __init__(self, charm, substrate):
+            super().__init__(charm, substrate)
+
+        @property
+        def client_relation(self) -> Relation | None:
+            return self.model.get_relation(REL_NAME)
+
+        @property
+        def client(self) -> ZKClient:
+            return ZKClient(
+                relation=self.client_relation,
+                data_interface=self.client_provider_interface,
+                component=self.client_relation.app if self.client_relation else self.model.app,
+                substrate=self.substrate,
+            )
+
+    def add_client_endpoint(client: ZKClient):
+        if "endpoint" not in client.relation_data:
+            client.relation_data["endpoint"] = "127.0.0.1"
+
+    with harness.hooks_disabled():
+        harness.set_leader(True)
+        bad_cluster_state = BadClusterState(harness.charm, "vm")
+
+        # Silent failure -- there is no relation yet, thus no databag to write to
+        bad_cluster_state.client.relation_data["endpoint"] = "127.0.0.1"
+        # As long as there is no relation, it's always an empty dict returned
+        assert bad_cluster_state.client.relation_data == {}
+
+        # So if a function as such gets executed before the relation is joined, it has no impact
+        add_client_endpoint(bad_cluster_state.client)
+        assert bad_cluster_state.client.relation_data == {}
+
+        harness.add_relation(REL_NAME, "application")
+
+        # Now we are dealing with relation data
+        assert bad_cluster_state.client.relation_data == {}
+
+        # Inconsistent behavior: now assignments work
+        bad_cluster_state.client.relation_data["endpoint"] = "127.0.0.1"
+        assert bad_cluster_state.client.relation_data["endpoint"] == "127.0.0.1"
