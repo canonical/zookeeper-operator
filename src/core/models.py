@@ -7,7 +7,7 @@ import logging
 from collections.abc import MutableMapping
 from typing import Literal
 
-from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData
+from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
 from ops.model import Application, Relation, Unit
 from typing_extensions import override
 
@@ -18,44 +18,28 @@ logger = logging.getLogger(__name__)
 SUBSTRATES = Literal["vm", "k8s"]
 
 
-class StateBase:
-    """Base state object."""
+class RelationState:
+    """Relation state object."""
 
     def __init__(
         self,
         relation: Relation | None,
         data_interface: Data,
-        component: Unit | Application,
+        component: Unit | Application | None,
         substrate: SUBSTRATES,
     ):
         self.relation = relation
         self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
+        self.relation_data = self.data_interface.as_dict(self.relation.id) if self.relation else {}
 
-    def update(self, items: dict[str, str]) -> None:
-        """Changes the state."""
-        raise NotImplementedError
-
-    def data(self) -> MutableMapping:
-        """Data representing the state."""
-        raise NotImplementedError
-
-
-class RelationState(StateBase):
-    """Base state object."""
-
-    def __init__(
-        self,
-        relation: Relation,
-        data_interface: Data,
-        component: Unit | Application,
-        substrate: SUBSTRATES,
-    ):
-        super().__init__(relation, data_interface, component, substrate)
-        # Redundant definition as lint can't resolve that super's relation may be None
-        self.relation = relation
-        self.relation_data = self.data_interface.as_dict(self.relation.id)
+    def __bool__(self):
+        """Boolean evaluation based on the existence of self.relation."""
+        try:
+            return bool(self.relation)
+        except AttributeError:
+            return False
 
     @property
     def data(self) -> MutableMapping:
@@ -64,6 +48,10 @@ class RelationState(StateBase):
 
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
+        if not self.relation:
+            logger.warning(
+                f"Fields {list(items.keys())} were attempted to be written on the relation before it exists."
+            )
         delete_fields = [key for key in items if not items[key]]
         update_content = {k: items[k] for k in items if k not in delete_fields}
 
@@ -78,7 +66,7 @@ class ZKClient(RelationState):
 
     def __init__(
         self,
-        relation: Relation,
+        relation: Relation | None,
         data_interface: Data,
         component: Application,
         substrate: SUBSTRATES,
@@ -88,7 +76,7 @@ class ZKClient(RelationState):
         tls: str = "",
         uris: str = "",
     ):
-        super().__init__(relation, data_interface, component, substrate)
+        super().__init__(relation, data_interface, None, substrate)
         self.app = component
         self._password = password
         self._endpoints = endpoints
@@ -136,18 +124,16 @@ class ZKClient(RelationState):
             - 'w' - write
             - 'a' - append
         """
-        return self.relation_data.get(
-            "chroot-acl", "cdrwa"
-        )  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("chroot-acl", "cdrwa")
 
     @property
     def chroot(self) -> str:
         """The client requested root zNode path value."""
         chroot = self.relation_data.get("chroot", "")
-        if chroot and not chroot.startswith("/") and chroot:
+        if chroot and not chroot.startswith("/"):
             chroot = f"/{chroot}"
 
-        return chroot  # pyright: ignore reportGeneralTypeIssues
+        return chroot
 
 
 class ZKCluster(RelationState):
@@ -155,7 +141,7 @@ class ZKCluster(RelationState):
 
     def __init__(
         self,
-        relation: Relation,
+        relation: Relation | None,
         data_interface: DataPeerData,
         component: Application,
         substrate: SUBSTRATES,
@@ -239,7 +225,7 @@ class ZKCluster(RelationState):
     @property
     def quorum(self) -> str:
         """The current quorum encryption for the cluster."""
-        return self.relation_data.get("quorum", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("quorum", "")
 
     @property
     def switching_encryption(self) -> bool:
@@ -257,8 +243,8 @@ class ZKServer(RelationState):
 
     def __init__(
         self,
-        relation: Relation,
-        data_interface: Data,
+        relation: Relation | None,
+        data_interface: DataPeerUnitData,
         component: Unit,
         substrate: SUBSTRATES,
     ):
@@ -271,7 +257,7 @@ class ZKServer(RelationState):
 
         e.g zookeeper/2 --> 2
         """
-        return int(self.component.name.split("/")[1])
+        return int(self.unit.name.split("/")[1])
 
     # -- Cluster Init --
 
@@ -288,17 +274,17 @@ class ZKServer(RelationState):
     @property
     def hostname(self) -> str:
         """The hostname for the unit."""
-        return self.relation_data.get("hostname", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("hostname", "")
 
     @property
     def fqdn(self) -> str:
         """The Fully Qualified Domain Name for the unit."""
-        return self.relation_data.get("fqdn", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("fqdn", "")
 
     @property
     def ip(self) -> str:
         """The IP for the unit."""
-        return self.relation_data.get("ip", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("ip", "")
 
     @property
     def server_id(self) -> int:
@@ -323,9 +309,9 @@ class ZKServer(RelationState):
                     break
 
         if self.substrate == "k8s":
-            host = f"{self.component.name.split('/')[0]}-{self.unit_id}.{self.component.name.split('/')[0]}-endpoints"
+            host = f"{self.unit.name.split('/')[0]}-{self.unit_id}.{self.unit.name.split('/')[0]}-endpoints"
 
-        return host  # pyright: ignore reportGeneralTypeIssues
+        return host
 
     @property
     def server_string(self) -> str:
@@ -337,7 +323,7 @@ class ZKServer(RelationState):
     @property
     def quorum(self) -> str:
         """The quorum encryption currently set on the unit."""
-        return self.relation_data.get("quorum", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("quorum", "")
 
     @property
     def unified(self) -> bool:
@@ -352,39 +338,33 @@ class ZKServer(RelationState):
     @property
     def private_key(self) -> str:
         """The private-key contents for the unit to use for TLS."""
-        return self.relation_data.get("private-key", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("private-key", "")
 
     @property
     def keystore_password(self) -> str:
         """The Java Keystore password for the unit to use for TLS."""
-        return self.relation_data.get(
-            "keystore-password", ""
-        )  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("keystore-password", "")
 
     @property
     def truststore_password(self) -> str:
         """The Java Truststore password for the unit to use for TLS."""
-        return self.relation_data.get(
-            "truststore-password", ""
-        )  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("truststore-password", "")
 
     @property
     def csr(self) -> str:
         """The current certificate signing request contents for the unit."""
-        return self.relation_data.get("csr", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("csr", "")
 
     @property
     def certificate(self) -> str:
         """The certificate contents for the unit to use for TLS."""
-        return self.relation_data.get("certificate", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("certificate", "")
 
     @property
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
         # Backwards compatibility
-        if cert := self.relation_data.get("ca"):  # pyright: ignore reportGeneralTypeIssues
-            return cert
-        return self.relation_data.get("ca-cert", "")  # pyright: ignore reportGeneralTypeIssues
+        return self.relation_data.get("ca-cert", self.relation_data.get("ca", ""))
 
     @property
     def sans(self) -> dict[str, list[str]]:
