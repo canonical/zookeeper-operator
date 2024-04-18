@@ -127,7 +127,7 @@ class ZooKeeperCharm(CharmBase):
 
         self.unit.set_workload_version(self.workload.get_version())
         # don't complete install until passwords set
-        if not self.state.has_peer_relation():
+        if not self.state.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
@@ -279,6 +279,8 @@ class ZooKeeperCharm(CharmBase):
         # start units in order
         if (
             self.state.next_server
+            and self.state.next_server.component
+            and self.state.unit_server.component
             and self.state.next_server.component.name != self.state.unit_server.component.name
         ):
             self._set_status(Status.NOT_UNIT_TURN)
@@ -398,7 +400,12 @@ class ZooKeeperCharm(CharmBase):
                     self.config_manager.current_jaas
                 )  # if password in jaas file, unit has probably restarted
             ):
-                logger.debug(f"Skipping update of {client.component.name}, ACLs not yet set...")
+                if client.component:
+                    logger.debug(
+                        f"Skipping update of {client.component.name}, ACLs not yet set..."
+                    )
+                else:
+                    logger.debug("Client has not component (app|unit) specified, quitting...")
                 continue
 
             client.update(
