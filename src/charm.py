@@ -33,6 +33,7 @@ from literals import (
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     SUBSTRATE,
+    USER,
     DebugLevel,
     Status,
 )
@@ -121,8 +122,6 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
-        # resource_path = self.model.resources.fetch("zksnap")
-        # snap.install_local(resource_path, dangerous=True)
         install = self.workload.install()
         if not install:
             self._set_status(Status.SERVICE_NOT_INSTALLED)
@@ -214,7 +213,7 @@ class ZooKeeperCharm(CharmBase):
     def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
         self.workload.exec(["chmod", "770", f"{self.workload.paths.data_path}"])
-        self.workload.exec(["chown", f"{584788}:{GROUP}", f"{self.workload.paths.data_path}"])
+        self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
