@@ -7,7 +7,12 @@ import logging
 from collections.abc import MutableMapping
 from typing import Literal
 
-from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
+from charms.data_platform_libs.v0.data_interfaces import (
+    Data,
+    DataDict,
+    DataPeerData,
+    DataPeerUnitData,
+)
 from ops.model import Application, Relation, Unit
 from typing_extensions import override
 
@@ -32,7 +37,9 @@ class RelationState:
         self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
-        self.relation_data = self.data_interface.as_dict(self.relation.id) if self.relation else {}
+        self._relation_data = (
+            self.data_interface.as_dict(self.relation.id) if self.relation else {}
+        )
 
     def __bool__(self):
         """Boolean evaluation based on the existence of self.relation."""
@@ -46,6 +53,11 @@ class RelationState:
         """Data representing the state."""
         return self.relation_data
 
+    @property
+    def relation_data(self) -> MutableMapping:
+        """Snapshot of current relation data."""
+        return self._relation_data.data if isinstance(self._relation_data, DataDict) else {}
+
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
         if not self.relation:
@@ -55,10 +67,10 @@ class RelationState:
         delete_fields = [key for key in items if not items[key]]
         update_content = {k: items[k] for k in items if k not in delete_fields}
 
-        self.relation_data.update(update_content)
+        self._relation_data.update(update_content)
 
         for field in delete_fields:
-            del self.relation_data[field]
+            del self._relation_data[field]
 
 
 class ZKClient(RelationState):
@@ -124,12 +136,12 @@ class ZKClient(RelationState):
             - 'w' - write
             - 'a' - append
         """
-        return self.relation_data.get("chroot-acl", "cdrwa")
+        return self._relation_data.get("chroot-acl", "cdrwa")
 
     @property
     def chroot(self) -> str:
         """The client requested root zNode path value."""
-        chroot = self.relation_data.get("chroot", "")
+        chroot = self._relation_data.get("chroot", "")
         if chroot and not chroot.startswith("/"):
             chroot = f"/{chroot}"
 
@@ -173,7 +185,7 @@ class ZKCluster(RelationState):
         Returns:
             List of unit id integers
         """
-        return [int(unit_id) for unit_id in self.relation_data if unit_id.isdigit()]
+        return [int(unit_id) for unit_id in self._relation_data if unit_id.isdigit()]
 
     @property
     def added_unit_ids(self) -> list[int]:
@@ -185,7 +197,7 @@ class ZKCluster(RelationState):
         return [
             int(unit_id)
             for unit_id in self.quorum_unit_ids
-            if self.relation_data.get(str(unit_id)) == "added"
+            if self._relation_data.get(str(unit_id)) == "added"
         ]
 
     @property
@@ -198,7 +210,7 @@ class ZKCluster(RelationState):
         credentials = {
             user: password
             for user in CHARM_USERS
-            if (password := self.relation_data.get(f"{user}-password"))
+            if (password := self._relation_data.get(f"{user}-password"))
         }
 
         if not len(credentials) == len(CHARM_USERS):
@@ -213,29 +225,29 @@ class ZKCluster(RelationState):
         Returns:
             Dict of key username, value password
         """
-        return {key: value for key, value in self.relation_data.items() if "relation-" in key}
+        return {key: value for key, value in self._relation_data.items() if "relation-" in key}
 
     @property
     def rotate_passwords(self) -> bool:
         """Flag to check if the cluster should rotate their internal passwords."""
-        return bool(self.relation_data.get("rotate-passwords", ""))
+        return bool(self._relation_data.get("rotate-passwords", ""))
 
     # -- TLS --
 
     @property
     def quorum(self) -> str:
         """The current quorum encryption for the cluster."""
-        return self.relation_data.get("quorum", "")
+        return self._relation_data.get("quorum", "")
 
     @property
     def switching_encryption(self) -> bool:
         """Flag to check if the cluster is switching quorum encryption."""
-        return bool(self.relation_data.get("switching-encryption", ""))
+        return bool(self._relation_data.get("switching-encryption", ""))
 
     @property
     def tls(self) -> bool:
         """Flag to check if TLS is enabled for the cluster."""
-        return self.relation_data.get("tls", "") == "enabled"
+        return self._relation_data.get("tls", "") == "enabled"
 
 
 class ZKServer(RelationState):
@@ -264,27 +276,27 @@ class ZKServer(RelationState):
     @property
     def started(self) -> bool:
         """Flag to check if the unit has started the ZooKeeper service."""
-        return self.relation_data.get("state", None) == "started"
+        return self._relation_data.get("state", None) == "started"
 
     @property
     def password_rotated(self) -> bool:
         """Flag to check if the unit has rotated their internal passwords."""
-        return bool(self.relation_data.get("password-rotated", None))
+        return bool(self._relation_data.get("password-rotated", None))
 
     @property
     def hostname(self) -> str:
         """The hostname for the unit."""
-        return self.relation_data.get("hostname", "")
+        return self._relation_data.get("hostname", "")
 
     @property
     def fqdn(self) -> str:
         """The Fully Qualified Domain Name for the unit."""
-        return self.relation_data.get("fqdn", "")
+        return self._relation_data.get("fqdn", "")
 
     @property
     def ip(self) -> str:
         """The IP for the unit."""
-        return self.relation_data.get("ip", "")
+        return self._relation_data.get("ip", "")
 
     @property
     def server_id(self) -> int:
@@ -305,7 +317,7 @@ class ZKServer(RelationState):
         host = ""
         if self.substrate == "vm":
             for key in ["hostname", "ip", "private-address"]:
-                if host := self.relation_data.get(key, ""):
+                if host := self._relation_data.get(key, ""):
                     break
 
         if self.substrate == "k8s":
@@ -323,7 +335,7 @@ class ZKServer(RelationState):
     @property
     def quorum(self) -> str:
         """The quorum encryption currently set on the unit."""
-        return self.relation_data.get("quorum", "")
+        return self._relation_data.get("quorum", "")
 
     @property
     def unified(self) -> bool:
@@ -333,38 +345,38 @@ class ZKServer(RelationState):
         it's necessary to unify the ports first so that members can still
         communicate during the switch.
         """
-        return bool(self.relation_data.get("unified", ""))
+        return bool(self._relation_data.get("unified", ""))
 
     @property
     def private_key(self) -> str:
         """The private-key contents for the unit to use for TLS."""
-        return self.relation_data.get("private-key", "")
+        return self._relation_data.get("private-key", "")
 
     @property
     def keystore_password(self) -> str:
         """The Java Keystore password for the unit to use for TLS."""
-        return self.relation_data.get("keystore-password", "")
+        return self._relation_data.get("keystore-password", "")
 
     @property
     def truststore_password(self) -> str:
         """The Java Truststore password for the unit to use for TLS."""
-        return self.relation_data.get("truststore-password", "")
+        return self._relation_data.get("truststore-password", "")
 
     @property
     def csr(self) -> str:
         """The current certificate signing request contents for the unit."""
-        return self.relation_data.get("csr", "")
+        return self._relation_data.get("csr", "")
 
     @property
     def certificate(self) -> str:
         """The certificate contents for the unit to use for TLS."""
-        return self.relation_data.get("certificate", "")
+        return self._relation_data.get("certificate", "")
 
     @property
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
         # Backwards compatibility
-        return self.relation_data.get("ca-cert", self.relation_data.get("ca", ""))
+        return self._relation_data.get("ca-cert", self._relation_data.get("ca", ""))
 
     @property
     def sans(self) -> dict[str, list[str]]:
