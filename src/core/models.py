@@ -52,6 +52,8 @@ class RelationState:
             logger.warning(
                 f"Fields {list(items.keys())} were attempted to be written on the relation before it exists."
             )
+            return
+
         delete_fields = [key for key in items if not items[key]]
         update_content = {k: items[k] for k in items if k not in delete_fields}
 
