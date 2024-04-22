@@ -54,7 +54,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
         model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=APP_NAME
     )
     # Get the super password
-    super_password = get_password(model_full_name=ops_test.model_full_name)
+    super_password = await get_password(ops_test=ops_test)
     units = [u.name for u in ops_test.model.applications[APP_NAME].units]
     # Get hosts where Zookeeper is deployed
     hosts = await get_application_hosts(ops_test=ops_test, app_name=APP_NAME, units=units)
@@ -89,8 +89,9 @@ async def test_scale_up_gets_new_jaas_users(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=1)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
 
-    async with ops_test.fast_forward():
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", idle_period=30)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+    )
 
     assert ping_servers(ops_test)
     for unit in ops_test.model.applications[APP_NAME].units:
