@@ -212,7 +212,7 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
-        self.workload.exec(["chmod", "770", f"{self.workload.paths.data_path}"])
+        self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
         self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
 
     def _manual_restart(self, event: EventBase) -> None:
