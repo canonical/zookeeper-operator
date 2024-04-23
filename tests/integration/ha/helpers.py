@@ -2,10 +2,12 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 import logging
 import re
 import subprocess
 from pathlib import Path
+from typing import Dict, Optional
 
 import yaml
 from kazoo.client import KazooClient
@@ -18,6 +20,7 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 SERVICE_DEFAULT_PATH = "/etc/systemd/system/snap.charmed-zookeeper.daemon.service"
+PEER = "cluster"
 
 
 class ProcessError(Exception):
@@ -238,7 +241,7 @@ def network_throttle(machine_name: str) -> None:
     subprocess.check_call(limit_set_command.split())
     limit_set_command = f"lxc config device set {machine_name} eth0 limits.ingress=1kbit"
     subprocess.check_call(limit_set_command.split())
-    limit_set_command = f"lxc config set {machine_name} limits.network.priority=10"
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.priority=10"
     subprocess.check_call(limit_set_command.split())
 
 
@@ -248,7 +251,7 @@ def network_release(machine_name: str) -> None:
     Args:
         machine_name: lxc container hostname
     """
-    limit_set_command = f"lxc config set {machine_name} limits.network.priority="
+    limit_set_command = f"lxc config device set {machine_name} eth0 limits.priority="
     subprocess.check_call(limit_set_command.split())
     restore_unit_network(machine_name=machine_name)
 
@@ -309,37 +312,6 @@ async def reuse_storage(ops_test, unit_storage_id: str, app_name: str = APP_NAME
     await wait_idle(ops_test, apps=[app_name])
 
 
-def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
-    """Gets current `super-password` for a given ZooKeeper application.
-
-    Args:
-        ops_test: OpsTest
-        app_name: the ZooKeeper Juju application
-
-
-    Returns:
-        String of password for the `super` user
-    """
-    for unit in ops_test.model.applications[app_name].units:
-        show_unit = subprocess.check_output(
-            f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {unit.name}",
-            stderr=subprocess.PIPE,
-            shell=True,
-            universal_newlines=True,
-        )
-        response = yaml.safe_load(show_unit)
-        relations_info = response[f"{unit.name}"]["relation-info"]
-
-        password = None
-        for info in relations_info:
-            if info["endpoint"] == "cluster":
-                password = info["application-data"]["super-password"]
-                return password
-
-        if not password:
-            raise Exception("no relations found")
-
-
 async def send_control_signal(
     ops_test: OpsTest, unit_name: str, signal: str, app_name: str = APP_NAME
 ) -> None:
@@ -365,23 +337,28 @@ async def send_control_signal(
         )
 
 
-def get_password(ops_test: OpsTest) -> str:
-    # getting relation data
-    show_unit = subprocess.check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {APP_NAME}/0",
-        stderr=subprocess.PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    response = yaml.safe_load(show_unit)
-    relations_info = response[f"{APP_NAME}/0"]["relation-info"]
+async def get_password(
+    ops_test, user: Optional[str] = "super", app_name: Optional[str] = None
+) -> str:
+    if not app_name:
+        app_name = APP_NAME
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{app_name}.app", app_name)
+    return secret_data.get(f"{user}-password")
 
-    for info in relations_info:
-        if info["endpoint"] == "cluster":
-            password = info["application-data"]["super-password"]
-            return password
-    else:
-        raise Exception("no relations found")
+
+async def get_secret_by_label(ops_test, label: str, owner: Optional[str] = None) -> Dict[str, str]:
+    secrets_meta_raw = await ops_test.juju("list-secrets", "--format", "json")
+    secrets_meta = json.loads(secrets_meta_raw[1])
+
+    for secret_id in secrets_meta:
+        if owner and not secrets_meta[secret_id]["owner"] == owner:
+            continue
+        if secrets_meta[secret_id]["label"] == label:
+            break
+
+    secret_data_raw = await ops_test.juju("show-secret", "--format", "json", "--reveal", secret_id)
+    secret_data = json.loads(secret_data_raw[1])
+    return secret_data[secret_id]["content"]["Data"]
 
 
 def write_key(host: str, password: str, username: str = "super") -> None:
