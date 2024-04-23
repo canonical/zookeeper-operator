@@ -14,8 +14,8 @@ from ops.charm import (
     InstallEvent,
     LeaderElectedEvent,
     RelationDepartedEvent,
-    StorageAttachedEvent,
     SecretChangedEvent,
+    StorageAttachedEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
@@ -218,6 +218,7 @@ class ZooKeeperCharm(CharmBase):
         """Handler for `storage_attached` events."""
         self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
         self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
+
     def _on_secret_changed(self, event: SecretChangedEvent):
         """Reconfigure services on a secret changed event."""
         if not event.secret.label:
