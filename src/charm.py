@@ -215,12 +215,15 @@ class ZooKeeperCharm(CharmBase):
         if not self.state.cluster.relation:
             return
 
-        if event.secret.label == self.state.cluster.data_interface._generate_secret_label(
-            PEER,
-            self.state.cluster.relation.id,
-            "extra",  # type:ignore noqa  -- Changes with the https://github.com/canonical/data-platform-libs/issues/124
-        ):
-            self._on_cluster_relation_changed(event)
+        try:
+            if event.secret.label == self.state.cluster.data_interface._generate_secret_label(
+                PEER,
+                self.state.cluster.relation.id,
+                "extra",  # type:ignore noqa  -- Addressed in https://github.com/canonical/data-platform-libs/issues/124
+            ):
+                self._on_cluster_relation_changed(event)
+        except TypeError:
+            return
 
     def _manual_restart(self, event: EventBase) -> None:
         """Forces a rolling-restart event.
