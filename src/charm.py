@@ -15,6 +15,7 @@ from ops.charm import (
     LeaderElectedEvent,
     RelationDepartedEvent,
     SecretChangedEvent,
+    StorageAttachedEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
@@ -29,10 +30,12 @@ from literals import (
     CHARM_KEY,
     CHARM_USERS,
     DEPENDENCIES,
+    GROUP,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
     PEER,
     SUBSTRATE,
+    USER,
     DebugLevel,
     Status,
 )
@@ -113,6 +116,10 @@ class ZooKeeperCharm(CharmBase):
         )
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_changed
+        )
+
+        self.framework.observe(
+            getattr(self.on, "data_storage_attached"), self._on_storage_attached
         )
 
     # --- CORE EVENT HANDLERS ---
@@ -206,6 +213,11 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self._set_status(Status.ACTIVE)
+
+    def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
+        """Handler for `storage_attached` events."""
+        self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
+        self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
 
     def _on_secret_changed(self, event: SecretChangedEvent):
         """Reconfigure services on a secret changed event."""
