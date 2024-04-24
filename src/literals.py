@@ -10,7 +10,7 @@ from typing import Literal
 
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase, WaitingStatus
 
-CHARMED_ZOOKEEPER_SNAP_REVISION = 33
+CHARMED_ZOOKEEPER_SNAP_REVISION = 34
 
 SUBSTRATE = "vm"
 CHARM_KEY = "zookeeper"
