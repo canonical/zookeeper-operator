@@ -26,8 +26,8 @@ peers:
     interface: upgrade
 
 provides:
-  zookeeper:
-    interface: zookeeper
+  database:
+    interface: zookeeper_client
   cos-agent:
     interface: cos_agent
     limit: 1

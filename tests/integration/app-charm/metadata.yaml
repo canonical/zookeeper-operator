@@ -15,5 +15,5 @@ peers:
     interface: cluster
 
 requires:
-  zookeeper:
-    interface: zookeeper
+  database:
+    interface: zookeeper_client
