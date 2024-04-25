@@ -427,7 +427,10 @@ class ZooKeeperCharm(CharmBase):
                     "tls": client.tls,
                     "username": client.username,
                     "password": client.password,
-                    "chroot": client.chroot,
+                    "database": client.database,
+                    # Duplicated for compatibility with older requirers
+                    # TODO (zkclient): Remove this entry
+                    "chroot": client.database,
                 }
             )
 

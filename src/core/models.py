@@ -4,6 +4,7 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
+import warnings
 from collections.abc import MutableMapping
 from typing import Literal
 
@@ -104,7 +105,7 @@ class ZKClient(RelationState):
     @property
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
-        return self._uris + self.chroot if self._uris else ""
+        return self._uris + self.database if self._uris else ""
 
     @property
     def tls(self) -> str:
@@ -131,7 +132,22 @@ class ZKClient(RelationState):
     @property
     def chroot(self) -> str:
         """The client requested root zNode path value."""
+        # TODO (zkclient): Remove this property and replace by "" in self.database
         chroot = self.relation_data.get("chroot", "")
+        if chroot:
+            warnings.warn(
+                "Using 'chroot' in the databag is deprecated, use 'database' instead",
+                DeprecationWarning,
+            )
+        if chroot and not chroot.startswith("/"):
+            chroot = f"/{chroot}"
+
+        return chroot
+
+    @property
+    def database(self) -> str:
+        """The client requested root zNode path value."""
+        chroot = self.relation_data.get("database", self.chroot)
         if chroot and not chroot.startswith("/"):
             chroot = f"/{chroot}"
 

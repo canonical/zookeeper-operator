@@ -50,7 +50,7 @@ class ApplicationCharm(CharmBase):
             return
 
         # reasonable confidence there won't be conflicting chroots
-        self.relation.data[self.app].update({"chroot": f"{CHARM_KEY}_{random.randrange(1,99)}"})
+        self.relation.data[self.app].update({"database": f"{CHARM_KEY}_{random.randrange(1,99)}"})
 
     def _log(self, event: RelationEvent):
         return

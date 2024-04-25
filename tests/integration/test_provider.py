@@ -61,7 +61,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     hosts = await get_application_hosts(ops_test=ops_test, app_name=APP_NAME, units=units)
     # Check acl permission for the application on each Zookeeper host
     for host in hosts:
-        check_acl_permission(host, super_password, relation_data["chroot"])
+        check_acl_permission(host, super_password, relation_data["database"])
 
 
 @pytest.mark.abort_on_fail
