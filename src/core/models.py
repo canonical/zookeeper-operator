@@ -382,7 +382,20 @@ class ZKServer(RelationState):
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
         # Backwards compatibility
-        return self.relation_data.get("ca-cert", self.relation_data.get("ca", ""))
+        # TODO (zkclient): Remove this property and replace by "" in self.ca_cert
+        ca = self.relation_data.get("ca", "")
+        if ca:
+            warnings.warn(
+                "Using 'ca' in the databag is deprecated, use 'ca_cert' instead",
+                DeprecationWarning,
+            )
+        return ca
+
+    @property
+    def ca_cert(self) -> str:
+        """The root CA contents for the unit to use for TLS."""
+        return self.relation_data.get("ca-cert", self.ca)
+
 
     @property
     def sans(self) -> dict[str, list[str]]:

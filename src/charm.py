@@ -318,7 +318,7 @@ class ZooKeeperCharm(CharmBase):
         if (
             self.state.cluster.tls
             and self.state.unit_server.certificate
-            and self.state.unit_server.ca
+            and self.state.unit_server.ca_cert
         ):  # TLS is probably completed
             self.tls_manager.set_private_key()
             self.tls_manager.set_ca()
