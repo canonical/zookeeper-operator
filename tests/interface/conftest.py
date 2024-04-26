@@ -1,6 +1,7 @@
 import pytest
-from charm import ZooKeeperCharm
 from interface_tester.plugin import InterfaceTester
+
+from charm import ZooKeeperCharm
 
 
 @pytest.fixture

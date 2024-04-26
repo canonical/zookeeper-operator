@@ -396,7 +396,6 @@ class ZKServer(RelationState):
         """The root CA contents for the unit to use for TLS."""
         return self.relation_data.get("ca-cert", self.ca)
 
-
     @property
     def sans(self) -> dict[str, list[str]]:
         """The Subject Alternative Name for the unit's TLS certificates."""
