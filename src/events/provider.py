@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProviderEvents(Object):
-    """Event handlers for related applications on the `zookeeper_client` relation interface."""
+    """Event handlers for related applications on the `zookeeper` relation interface."""
 
     def __init__(self, charm):
         super().__init__(charm, "provider")

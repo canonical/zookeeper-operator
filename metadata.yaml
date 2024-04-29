@@ -27,7 +27,7 @@ peers:
 
 provides:
   database:
-    interface: zookeeper_client
+    interface: zookeeper
   cos-agent:
     interface: cos_agent
     limit: 1

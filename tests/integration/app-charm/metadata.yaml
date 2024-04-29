@@ -16,4 +16,4 @@ peers:
 
 requires:
   database:
-    interface: zookeeper_client
+    interface: zookeeper
