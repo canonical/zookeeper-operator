@@ -1,11 +1,11 @@
-from unittest.mock import PropertyMock, patch
-
 import unittest
+from unittest.mock import PropertyMock
+
 import pytest
 from interface_tester.plugin import InterfaceTester
+from src.literals import Status
 
 from charm import ZooKeeperCharm
-from src.literals import Status
 
 
 @pytest.fixture
