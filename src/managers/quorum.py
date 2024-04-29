@@ -201,11 +201,11 @@ class QuorumManager:
             generated_acl = make_acl(
                 scheme="sasl",
                 credential=client.username,
-                read="r" in client.chroot_acl,
-                write="w" in client.chroot_acl,
-                create="c" in client.chroot_acl,
-                delete="d" in client.chroot_acl,
-                admin="a" in client.chroot_acl,
+                read="r" in client.extra_user_roles,
+                write="w" in client.extra_user_roles,
+                create="c" in client.extra_user_roles,
+                delete="d" in client.extra_user_roles,
+                admin="a" in client.extra_user_roles,
             )
             logger.info(f"{generated_acl=}")
 

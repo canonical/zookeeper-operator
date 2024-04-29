@@ -422,15 +422,15 @@ class ZooKeeperCharm(CharmBase):
 
             client.update(
                 {
-                    "uris": client.uris,
                     "endpoints": client.endpoints,
                     "tls": client.tls,
                     "username": client.username,
                     "password": client.password,
                     "database": client.database,
                     # Duplicated for compatibility with older requirers
-                    # TODO (zkclient): Remove this entry
+                    # TODO (zkclient): Remove these entries
                     "chroot": client.database,
+                    "uris": client.uris,
                 }
             )
 

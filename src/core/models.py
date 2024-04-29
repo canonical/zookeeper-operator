@@ -105,6 +105,11 @@ class ZKClient(RelationState):
     @property
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
+        # TODO (zkclient): Remove this property
+        warnings.warn(
+            "Using 'uris' in the databag is deprecated, use 'endpoints' instead",
+            DeprecationWarning,
+        )
         return self._uris + self.database if self._uris else ""
 
     @property
@@ -127,7 +132,25 @@ class ZKClient(RelationState):
             - 'w' - write
             - 'a' - append
         """
+        # TODO (zkclient): Remove this property and replace by "cdrwa" in self.extra_user_roles
+        warnings.warn(
+            "Using 'chroot-acl' in the databag is deprecated, use 'extra-user-roles' instead",
+            DeprecationWarning,
+        )
         return self.relation_data.get("chroot-acl", "cdrwa")
+
+    @property
+    def extra_user_roles(self) -> str:
+        """The client defined ACLs for their requested ACL.
+
+        Contains:
+            - 'c' - create
+            - 'd' - delete
+            - 'r' - read
+            - 'w' - write
+            - 'a' - append
+        """
+        return self.relation_data.get("extra-user-roles", self.chroot_acl)
 
     @property
     def chroot(self) -> str:
