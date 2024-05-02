@@ -65,7 +65,7 @@ class ZooKeeperCharm(CharmBase):
             self,
             substrate=SUBSTRATE,
             dependency_model=ZooKeeperDependencyModel(
-                **DEPENDENCIES  # pyright: ignore[reportArgumentType]
+                **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
             ),
         )
 
