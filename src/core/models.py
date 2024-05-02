@@ -133,11 +133,17 @@ class ZKClient(RelationState):
             - 'a' - append
         """
         # TODO (zkclient): Remove this property and replace by "cdrwa" in self.extra_user_roles
-        warnings.warn(
-            "Using 'chroot-acl' in the databag is deprecated, use 'extra-user-roles' instead",
-            DeprecationWarning,
-        )
-        return self.relation_data.get("chroot-acl", "cdrwa")
+        acl = self.relation_data.get("chroot-acl")
+        if acl is not None:
+            warnings.warn(
+                "Using 'chroot-acl' in the databag is deprecated, use 'extra-user-roles' instead",
+                DeprecationWarning,
+            )
+
+        else:
+            acl = "cdrwa"
+
+        return acl
 
     @property
     def extra_user_roles(self) -> str:
