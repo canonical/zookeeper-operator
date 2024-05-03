@@ -102,8 +102,8 @@ class ZKClient(RelationState):
         """The ZooKeeper connection endpoints for the client application to connect with."""
         return self._endpoints
 
-    @deprecated("Using 'uris' in the databag is deprecated, use 'endpoints' instead")
     @property
+    @deprecated("Using 'uris' in the databag is deprecated, use 'endpoints' instead")
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
         # TODO (zkclient): Remove this property
