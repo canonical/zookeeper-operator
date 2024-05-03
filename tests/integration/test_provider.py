@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 APP_NAME = "zookeeper"
 DUMMY_NAME_1 = "app"
 DUMMY_NAME_2 = "appii"
-REL_NAME = "database"
+REL_NAME = "zookeeper"
 
 
 @pytest.mark.abort_on_fail

@@ -16,7 +16,7 @@ SUBSTRATE = "vm"
 CHARM_KEY = "zookeeper"
 
 PEER = "cluster"
-REL_NAME = "database"
+REL_NAME = "zookeeper"
 CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
