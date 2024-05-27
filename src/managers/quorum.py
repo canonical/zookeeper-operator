@@ -102,17 +102,19 @@ class QuorumManager:
 
         return {"hostname": hostname, "fqdn": fqdn, "ip": ip}
 
-    def _get_updated_servers(self, add: list[str], remove: list[str]) -> dict[str, str]:
+    def _get_updated_servers(self, add: list[str]) -> dict[str, str]:
         """Simple wrapper for building `updated_servers` for passing to app data updates."""
-        servers_to_update = add + remove
-
         updated_servers = {}
-        for server_string in servers_to_update:
+        for server_string in add:
             unit_id = str(int(re.findall(r"server.([0-9]+)", server_string)[0]) - 1)
             if server_string in add:
                 updated_servers[unit_id] = "added"
-            elif server_string in remove:
-                updated_servers[unit_id] = "removed"
+
+        # settings units to removed that were handled in relation-departed
+        # also set here in case leader missed the event
+        for added_id in self.state.cluster.quorum_unit_ids:
+            if added_id not in [server.unit_id for server in self.state.servers]:
+                updated_servers[str(added_id)] = "removed"
 
         return updated_servers
 
@@ -123,7 +125,6 @@ class QuorumManager:
 
         After grabbing all the "started" units that the leader can see in the peer relation
             unit data.
-        Removes members not in the quorum anymore (i.e `relation_departed`/`leader_elected` event)
         Adds new members to the quorum (i.e `relation_joined` event).
 
         Returns:
@@ -138,21 +139,12 @@ class QuorumManager:
         active_server_strings = {server.server_string for server in self.state.started_servers}
 
         try:
-            # remove units first, faster due to no startup/sync delay
-            zk_members = self.client.server_members
-            servers_to_remove = list(zk_members - active_server_strings)
-            logger.debug(f"{servers_to_remove=}")
-
-            self.client.remove_members(members=servers_to_remove)
-
             # sorting units to ensure units are added in id order
             zk_members = self.client.server_members
             servers_to_add = sorted(active_server_strings - zk_members)
-            logger.debug(f"{servers_to_add=}")
-
             self.client.add_members(members=servers_to_add)
 
-            return self._get_updated_servers(add=servers_to_add, remove=servers_to_remove)
+            return self._get_updated_servers(add=servers_to_add)
 
         # caught errors relate to a unit/zk_server not yet being ready to change
         except (

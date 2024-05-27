@@ -191,7 +191,6 @@ class ZKCluster(RelationState):
         substrate: SUBSTRATES,
     ):
         super().__init__(relation, data_interface, component, substrate)
-        # Lint :-/ It can't resolve the subtype otherwise, even though the same assignment happens in super()
         self.data_interface = data_interface
         self.app = component
 
