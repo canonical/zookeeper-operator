@@ -233,7 +233,7 @@ class ZooKeeperCharm(CharmBase):
         ):
             pass
 
-    def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
+    def _on_storage_attached(self, _: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
         self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
         self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
@@ -401,7 +401,7 @@ class ZooKeeperCharm(CharmBase):
                 logger.debug("tls disabled - switching to non-ssl")
                 self.state.cluster.update({"quorum": "non-ssl"})
 
-            if self.state.all_units_quorum:
+            if self.state.all_units_same_encryption:
                 logger.debug(
                     "all units running desired encryption - removing switching-encryption"
                 )
