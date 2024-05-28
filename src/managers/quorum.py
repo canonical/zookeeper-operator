@@ -22,6 +22,7 @@ from kazoo.security import make_acl
 from ops.charm import RelationEvent
 
 from core.cluster import ClusterState
+from core.models import ZKServer
 from literals import CLIENT_PORT
 
 logger = logging.getLogger(__name__)
@@ -156,6 +157,17 @@ class QuorumManager:
         ) as e:
             logger.warning(str(e))
             return {}
+
+    def server_in_quorum(self, server: ZKServer) -> bool:
+        """Checks if server is in current quorum.
+
+        Args:
+            server: the server to check
+
+        Returns:
+            True if server is found in the quorum. Otherwise False.
+        """
+        return server.server_string in self.client.server_members
 
     @staticmethod
     def _is_child_of(path: str, chroots: Set[str]) -> bool:

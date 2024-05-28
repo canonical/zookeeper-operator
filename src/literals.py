@@ -68,6 +68,7 @@ class Status(Enum):
         BlockedStatus("unable to install zookeeper service"), "ERROR"
     )
     SERVICE_NOT_RUNNING = StatusLevel(BlockedStatus("zookeeper service not running"), "ERROR")
+    SERVICE_NOT_QUORUM = StatusLevel(BlockedStatus("unit not in the zookeeper quorum"), "ERROR")
     CONTAINER_NOT_CONNECTED = StatusLevel(
         MaintenanceStatus("zookeeper container not ready"), "DEBUG"
     )

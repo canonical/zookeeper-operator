@@ -209,6 +209,11 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.SERVICE_UNHEALTHY)
             return
 
+        # in case server was erroneously removed from the quorum
+        if not self.state.stale_quorum and not self.quorum_manager.server_in_quorum:
+            self._set_status(Status.SERVICE_NOT_QUORUM)
+            return
+
         self._set_status(Status.ACTIVE)
 
     def _on_cluster_relation_departed(self, event: RelationDepartedEvent) -> None:
