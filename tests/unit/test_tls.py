@@ -159,7 +159,7 @@ def test_certificates_available_succeeds(harness):
         )
 
         assert harness.charm.state.unit_server.certificate
-        assert harness.charm.state.unit_server.ca
+        assert harness.charm.state.unit_server.ca_cert
 
     # The certs are saved in a secret, with expected keys
     secret = harness.charm.model.get_secret(label=f"{PEER}.zookeeper.unit")
@@ -197,7 +197,7 @@ def test_certificates_available_halfway_through_upgrade_succeeds(harness):
         )
 
         assert harness.charm.state.unit_server.certificate
-        assert harness.charm.state.unit_server.ca
+        assert harness.charm.state.unit_server.ca_cert
 
         # The certs are saved in a secret, with expected keys
         secret = harness.charm.model.get_secret(label=f"{PEER}.zookeeper.unit")
@@ -218,7 +218,7 @@ def test_certificates_broken(harness):
         harness.set_leader(True)
 
     assert harness.charm.state.unit_server.certificate
-    assert harness.charm.state.unit_server.ca
+    assert harness.charm.state.unit_server.ca_cert
     assert harness.charm.state.unit_server.csr
 
     # implicitly tests these method calls

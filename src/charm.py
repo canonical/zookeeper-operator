@@ -65,7 +65,7 @@ class ZooKeeperCharm(CharmBase):
             self,
             substrate=SUBSTRATE,
             dependency_model=ZooKeeperDependencyModel(
-                **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
+                **DEPENDENCIES  # pyright: ignore[reportArgumentType]
             ),
         )
 
@@ -318,7 +318,7 @@ class ZooKeeperCharm(CharmBase):
         if (
             self.state.cluster.tls
             and self.state.unit_server.certificate
-            and self.state.unit_server.ca
+            and self.state.unit_server.ca_cert
         ):  # TLS is probably completed
             self.tls_manager.set_private_key()
             self.tls_manager.set_ca()
@@ -422,12 +422,15 @@ class ZooKeeperCharm(CharmBase):
 
             client.update(
                 {
-                    "uris": client.uris,
                     "endpoints": client.endpoints,
                     "tls": client.tls,
                     "username": client.username,
                     "password": client.password,
-                    "chroot": client.chroot,
+                    "database": client.database,
+                    # Duplicated for compatibility with older requirers
+                    # TODO (zkclient): Remove these entries
+                    "chroot": client.database,
+                    "uris": client.uris,
                 }
             )
 

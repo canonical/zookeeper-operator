@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 APP_NAME = "zookeeper"
 DUMMY_NAME_1 = "app"
 DUMMY_NAME_2 = "appii"
+REL_NAME = "zookeeper"
 
 
 @pytest.mark.abort_on_fail
@@ -51,7 +52,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     application_unit = ops_test.model.applications[DUMMY_NAME_1].units[0]
     # Get relation data
     relation_data = get_relation_data(
-        model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=APP_NAME
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=REL_NAME
     )
     # Get the super password
     super_password = await get_password(ops_test=ops_test)
@@ -60,7 +61,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     hosts = await get_application_hosts(ops_test=ops_test, app_name=APP_NAME, units=units)
     # Check acl permission for the application on each Zookeeper host
     for host in hosts:
-        check_acl_permission(host, super_password, relation_data["chroot"])
+        check_acl_permission(host, super_password, relation_data["database"])
 
 
 @pytest.mark.abort_on_fail
