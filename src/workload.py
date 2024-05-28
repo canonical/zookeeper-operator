@@ -15,7 +15,6 @@ from subprocess import CalledProcessError
 from charms.operator_libs_linux.v1 import snap
 from ops.pebble import ExecError
 from tenacity import retry
-from tenacity.retry import retry_if_not_result
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_fixed
 from typing_extensions import override
@@ -85,13 +84,9 @@ class ZKWorkload(WorkloadBase):
             cwd=working_dir,
         )
 
+    @property
     @override
-    @retry(
-        wait=wait_fixed(1),
-        stop=stop_after_attempt(5),
-        retry_error_callback=lambda state: state.outcome.result(),  # type: ignore
-        retry=retry_if_not_result(lambda result: True if result else False),
-    )
+    @retry(wait=wait_fixed(1), stop=stop_after_attempt(5))
     def alive(self) -> bool:
         try:
             return bool(self.zookeeper.services[self.SNAP_SERVICE]["active"])
@@ -100,14 +95,12 @@ class ZKWorkload(WorkloadBase):
 
     @property
     @override
-    @retry(
-        wait=wait_fixed(2),
-        stop=stop_after_attempt(5),
-        retry=retry_if_not_result(lambda result: True if result else False),
-        retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
-    )
+    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
+        if not self.alive:
+            return False
+
         # netcat isn't a default utility, so can't guarantee it's on the charm containers
         # this ugly hack avoids needing netcat
         bash_netcat = (

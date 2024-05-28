@@ -11,16 +11,19 @@ from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
 from kazoo.exceptions import BadVersionError, ReconfigInProcessError
-from ops.charm import (
+from ops import (
+    ActiveStatus,
     CharmBase,
+    EventBase,
     InstallEvent,
     RelationDepartedEvent,
     SecretChangedEvent,
+    StartEvent,
+    StatusBase,
     StorageAttachedEvent,
+    WaitingStatus,
 )
-from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus, StatusBase, WaitingStatus
 
 from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
@@ -261,7 +264,7 @@ class ZooKeeperCharm(CharmBase):
         ):
             self._on_cluster_relation_changed(event)
 
-    def _manual_restart(self, event: EventBase) -> None:
+    def _manual_restart(self, event: StartEvent) -> None:
         """Forces a rolling-restart event.
 
         Necessary for ensuring that `on_start` restarts roll.
