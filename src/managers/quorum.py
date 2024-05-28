@@ -113,7 +113,7 @@ class QuorumManager:
 
         # settings units to removed that were handled in relation-departed
         # also set here in case leader missed the event
-        for added_id in self.state.cluster.quorum_unit_ids:
+        for added_id in self.state.cluster.added_unit_ids:
             if added_id not in [server.unit_id for server in self.state.servers]:
                 updated_servers[str(added_id)] = "removed"
 
