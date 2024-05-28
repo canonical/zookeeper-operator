@@ -6,7 +6,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import DEFAULT, Mock, PropertyMock, patch
 
 import pytest
 import yaml
@@ -175,14 +175,23 @@ def test_relation_changed_emitted_for_relation_joined(harness):
         patched.assert_called_once()
 
 
-def test_relation_changed_emitted_for_relation_departed(harness):
+def test_relation_departed_removes_members(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.set_leader(True)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/2")
 
-    with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
-        harness.charm.on.cluster_relation_departed.emit(harness.charm.state.peer_relation)
-        patched.assert_called_once()
+    with patch.multiple(
+        "charms.zookeeper.v0.client.ZooKeeperManager",
+        get_leader=DEFAULT,
+        remove_members=DEFAULT,
+    ) as patched_manager:
+        harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
+        harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/2")
+
+        assert patched_manager["remove_members"].call_count == 2
 
 
 def test_relation_changed_starts_units(harness):
@@ -571,37 +580,6 @@ def test_adding_units_updates_relation_data(harness):
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/1", {"quorum": "ssl"})
 
         assert 1 in harness.charm.state.cluster.quorum_unit_ids
-
-
-def test_update_quorum_skips_relation_departed(harness):
-    with harness.hooks_disabled():
-        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-
-    with (
-        patch("managers.quorum.QuorumManager.update_cluster") as patched_update_cluster,
-        patch("core.cluster.ClusterState.all_units_related", return_value=True),
-        patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
-    ):
-        harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-        patched_update_cluster.assert_not_called()
-
-
-def test_update_quorum_updates_cluster_for_relation_departed(harness):
-    with harness.hooks_disabled():
-        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
-        harness.set_leader(True)
-
-    with (
-        patch("managers.quorum.QuorumManager.update_cluster") as patched_update_cluster,
-        patch("managers.config.ConfigManager.config_changed", return_value=True),
-        patch("core.cluster.ClusterState.all_units_related", return_value=True),
-        patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
-    ):
-        harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
-        patched_update_cluster.assert_called()
 
 
 def test_update_quorum_updates_cluster_for_leader_elected(harness):

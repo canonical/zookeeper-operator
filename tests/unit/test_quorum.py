@@ -33,18 +33,20 @@ def harness():
 
 
 def test_get_updated_servers(harness):
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0")
+        harness.update_relation_data(
+            harness.charm.state.peer_relation.id,
+            f"{CHARM_KEY}",
+            {"0": "added", "3": "removed", "4": "added"},
+        )
+
     added_servers = [
         "server.2=gandalf.the.grey",
     ]
-    removed_servers = [
-        "server.2=gandalf.the.grey",
-        "server.3=in.a.hole.in.the.ground.there.lived.a:hobbit",
-    ]
-    updated_servers = harness.charm.quorum_manager._get_updated_servers(
-        add=added_servers, remove=removed_servers
-    )
+    updated_servers = harness.charm.quorum_manager._get_updated_servers(add=added_servers)
 
-    assert updated_servers == {"2": "removed", "1": "added"}
+    assert updated_servers == {"1": "added", "4": "removed"}
 
 
 def test_is_child_of(harness):
