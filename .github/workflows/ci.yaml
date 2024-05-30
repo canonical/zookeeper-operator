@@ -105,7 +105,7 @@ jobs:
       - unit-test
       - build
       - integration-test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64, jammy, large]
     timeout-minutes: 120
     steps:
       - name: Checkout
