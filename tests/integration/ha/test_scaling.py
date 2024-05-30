@@ -21,12 +21,11 @@ async def test_deploy_active(ops_test: OpsTest):
         num_units=3,
         storage={"data": {"pool": "lxd-btrfs", "size": 10240}},
     )
+    await helpers.wait_idle(ops_test, units=3)
 
-    # ensures juju leader is one of unit 0, 1, 2
-    # ran before cluster has fully initialised, hence different to below scale-up test
-    await ops_test.model.block_until(
-        lambda: len(ops_test.model.applications[helpers.APP_NAME].units) == 3
-    )
+
+@pytest.mark.abort_on_fail
+async def test_simple_scale_up(ops_test: OpsTest):
     await ops_test.model.applications[helpers.APP_NAME].add_units(count=3)
     await helpers.wait_idle(ops_test, units=6)
 
@@ -38,9 +37,7 @@ async def test_simple_scale_down(ops_test: OpsTest):
     )
     await helpers.wait_idle(ops_test, units=3)
 
-
-@pytest.mark.abort_on_fail
-async def test_simple_scale_up(ops_test: OpsTest):
+    # scaling back up
     await ops_test.model.applications[helpers.APP_NAME].add_units(count=3)
     await helpers.wait_idle(ops_test, units=6)
 
