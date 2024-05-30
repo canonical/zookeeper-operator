@@ -41,6 +41,9 @@ def test_get_updated_servers(harness):
             {"0": "added", "3": "removed", "4": "added"},
         )
 
+    # at this stage, we have only 1 peer unit-0, and have 'lost' unit-4, which was 'added' but not yet removed
+    # we add unit-1 below, and expect the leader to set unit-1 to 'added', and unit-4 to 'removed'
+
     added_servers = [
         "server.2=gandalf.the.grey",
     ]

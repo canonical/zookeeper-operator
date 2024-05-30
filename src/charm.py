@@ -238,6 +238,9 @@ class ZooKeeperCharm(CharmBase):
         ):
             pass
 
+        # NOTE: if the leader is also going down, it may miss the event to set {unit.id: removed}
+        # to avoid this, eventual clean up occurs during update-status calling update_quorum
+
     def _on_storage_attached(self, _: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
         self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
