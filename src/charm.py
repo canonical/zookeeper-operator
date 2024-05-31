@@ -9,10 +9,11 @@ import time
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
+from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
+from kazoo.exceptions import BadVersionError, ReconfigInProcessError
 from ops.charm import (
     CharmBase,
     InstallEvent,
-    LeaderElectedEvent,
     RelationDepartedEvent,
     SecretChangedEvent,
     StorageAttachedEvent,
@@ -115,7 +116,7 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "cluster_relation_joined"), self._on_cluster_relation_changed
         )
         self.framework.observe(
-            getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_changed
+            getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_departed
         )
 
         self.framework.observe(
@@ -183,10 +184,6 @@ class ZooKeeperCharm(CharmBase):
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
 
-        # don't delay scale-down leader ops by restarting dying unit
-        if getattr(event, "departing_unit", None) == self.unit:
-            return
-
         # check whether restart is needed for all `*_changed` events
         # only restart where necessary to avoid slowdowns
         # config_changed call here implicitly updates jaas + zoo.cfg
@@ -212,9 +209,39 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.SERVICE_UNHEALTHY)
             return
 
+        # in case server was erroneously removed from the quorum
+        if not self.state.stale_quorum and not self.quorum_manager.server_in_quorum:
+            self._set_status(Status.SERVICE_NOT_QUORUM)
+            return
+
         self._set_status(Status.ACTIVE)
 
-    def _on_storage_attached(self, event: StorageAttachedEvent) -> None:
+    def _on_cluster_relation_departed(self, event: RelationDepartedEvent) -> None:
+        """Handler for `relation_departed` events."""
+        # is related to issue found in https://bugs.launchpad.net/juju/+bug/2053055
+        # likely due to a controller upgrade or a cloud maintenance with machines being reshuffled
+        # periodically, juju would emit a LeaderElected event, and would return no peer units
+        # the leader would then remove all other units from the quorum, which when restarted, would fail
+        if not event.departing_unit:
+            return
+
+        departing_server_id = (
+            int(event.departing_unit.name.split("/")[1]) + 1
+        )  # server-ids must be positive integers
+
+        try:
+            self.quorum_manager.client.remove_members(members=[f"server.{departing_server_id}"])
+        except (
+            ReconfigInProcessError,  # another unit already handling
+            BadVersionError,  # another unit handled
+            QuorumLeaderNotFoundError,  # this unit is departing, can't find leader in peer data
+        ):
+            pass
+
+        # NOTE: if the leader is also going down, it may miss the event to set {unit.id: removed}
+        # to avoid this, eventual clean up occurs during update-status calling update_quorum
+
+    def _on_storage_attached(self, _: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
         self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
         self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
@@ -356,10 +383,6 @@ class ZooKeeperCharm(CharmBase):
 
         if (
             self.state.stale_quorum  # in the case of scale-up
-            or isinstance(  # to run without delay to maintain quorum on scale down
-                event,
-                (RelationDepartedEvent, LeaderElectedEvent),
-            )
             or self.state.healthy  # to ensure run on update-status
         ):
             updated_servers = self.quorum_manager.update_cluster()
@@ -386,7 +409,7 @@ class ZooKeeperCharm(CharmBase):
                 logger.debug("tls disabled - switching to non-ssl")
                 self.state.cluster.update({"quorum": "non-ssl"})
 
-            if self.state.all_units_quorum:
+            if self.state.all_units_same_encryption:
                 logger.debug(
                     "all units running desired encryption - removing switching-encryption"
                 )
