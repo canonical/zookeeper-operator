@@ -270,7 +270,7 @@ class ClusterState(Object):
         return True
 
     @property
-    def all_units_quorum(self) -> bool:
+    def all_units_same_encryption(self) -> bool:
         """Flag to check if all units are using the same quorum encryption."""
         if not self.cluster:
             return False
@@ -324,7 +324,7 @@ class ClusterState(Object):
     @property
     def ready(self) -> Status:
         """Gets appropriate Status if the charm is ready to handle related applications."""
-        if not self.all_units_quorum:
+        if not self.all_units_same_encryption:
             return Status.NOT_ALL_QUORUM
 
         if self.cluster.switching_encryption:

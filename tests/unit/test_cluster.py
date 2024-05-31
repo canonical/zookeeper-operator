@@ -279,7 +279,7 @@ def test_all_units_unified_succeeds(harness):
     assert harness.charm.state.all_units_unified
 
 
-def test_all_units_quorum_fails_wrong_quorum(harness):
+def test_all_units_same_encryption_fails_wrong_quorum(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
@@ -289,16 +289,16 @@ def test_all_units_quorum_fails_wrong_quorum(harness):
             harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"quorum": "non-ssl"}
         )
 
-        assert not harness.charm.state.all_units_quorum
+        assert not harness.charm.state.all_units_same_encryption
 
         harness.update_relation_data(
             harness.charm.state.peer_relation.id, CHARM_KEY, {"quorum": "ssl"}
         )
 
-        assert not harness.charm.state.all_units_quorum
+        assert not harness.charm.state.all_units_same_encryption
 
 
-def test_all_units_quorum_succeeds(harness):
+def test_all_units_same_encryption_succeeds(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
@@ -311,4 +311,4 @@ def test_all_units_quorum_succeeds(harness):
             harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"quorum": "ssl"}
         )
 
-    assert harness.charm.state.all_units_quorum
+    assert harness.charm.state.all_units_same_encryption
