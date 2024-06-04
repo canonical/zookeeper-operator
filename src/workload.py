@@ -14,7 +14,7 @@ from subprocess import CalledProcessError
 
 from charms.operator_libs_linux.v1 import snap
 from ops.pebble import ExecError
-from tenacity import retry
+from tenacity import retry, retry_if_result
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_fixed
 from typing_extensions import override
@@ -86,7 +86,12 @@ class ZKWorkload(WorkloadBase):
 
     @property
     @override
-    @retry(wait=wait_fixed(1), stop=stop_after_attempt(5))
+    @retry(
+        wait=wait_fixed(1),
+        stop=stop_after_attempt(5),
+        retry=retry_if_result(lambda result: result is False),
+        retry_error_callback=lambda _: False,
+    )
     def alive(self) -> bool:
         try:
             return bool(self.zookeeper.services[self.SNAP_SERVICE]["active"])
@@ -95,7 +100,12 @@ class ZKWorkload(WorkloadBase):
 
     @property
     @override
-    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
+    @retry(
+        wait=wait_fixed(1),
+        stop=stop_after_attempt(5),
+        retry=retry_if_result(lambda result: result is False),
+        retry_error_callback=lambda _: False,
+    )
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
         if not self.alive:
