@@ -201,6 +201,7 @@ def test_relation_changed_starts_units(harness):
         harness.set_planned_units(1)
 
     with (
+        patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=False),
         patch("charm.ZooKeeperCharm.init_server") as patched,
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),

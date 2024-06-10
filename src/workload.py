@@ -14,9 +14,7 @@ from subprocess import CalledProcessError
 
 from charms.operator_libs_linux.v1 import snap
 from ops.pebble import ExecError
-from tenacity import retry, retry_if_result
-from tenacity.stop import stop_after_attempt
-from tenacity.wait import wait_fixed
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from core.workload import WorkloadBase
