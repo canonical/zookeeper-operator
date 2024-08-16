@@ -10,7 +10,7 @@ import time
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
-from kazoo.exceptions import BadVersionError, ReconfigInProcessError
+from kazoo.exceptions import BadArgumentsError, BadVersionError, ReconfigInProcessError
 from ops import (
     ActiveStatus,
     CharmBase,
@@ -225,7 +225,7 @@ class ZooKeeperCharm(CharmBase):
         # likely due to a controller upgrade or a cloud maintenance with machines being reshuffled
         # periodically, juju would emit a LeaderElected event, and would return no peer units
         # the leader would then remove all other units from the quorum, which when restarted, would fail
-        if not event.departing_unit:
+        if not event.departing_unit or not self.model.app.planned_units():
             return
 
         departing_server_id = (
@@ -238,6 +238,7 @@ class ZooKeeperCharm(CharmBase):
             ReconfigInProcessError,  # another unit already handling
             BadVersionError,  # another unit handled
             QuorumLeaderNotFoundError,  # this unit is departing, can't find leader in peer data
+            BadArgumentsError,  # already handled
         ):
             pass
 
