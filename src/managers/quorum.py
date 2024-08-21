@@ -10,8 +10,6 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Set
 
-from kazoo.security import make_acl
-
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
@@ -20,6 +18,7 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError, ConnectionClosedError
 from kazoo.handlers.threading import KazooTimeoutError
+from kazoo.security import make_acl
 from ops.charm import RelationEvent
 
 from core.cluster import ClusterState
@@ -223,11 +222,11 @@ class QuorumManager:
             # Looks for newly related applications not in config yet
             if client.database not in leader_chroots:
                 logger.info(f"CREATE CHROOT - {client.database}")
-                self.client.create_znode_leader(path=client.database, acls=None)
+                self.client.create_znode_leader(path=client.database, acls=[generated_acl])
 
             # Looks for existing related applications
             logger.debug(f"UPDATE CHROOT - {client.database}")
-            self.client.set_acls_znode_leader(path=client.database, acls=None)
+            self.client.set_acls_znode_leader(path=client.database, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
