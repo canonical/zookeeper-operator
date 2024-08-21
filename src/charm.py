@@ -257,7 +257,7 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_remove(self, _: RemoveEvent) -> None:
         """Handler for `remove` events."""
-        # self.workload.exec(["umount", self.workload.paths.data_path])
+        self.workload.exec(["umount", self.workload.paths.data_path])
         self.workload.remove()
 
     def _on_storage_attached(self, _: StorageAttachedEvent) -> None:
