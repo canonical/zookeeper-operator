@@ -188,3 +188,8 @@ class ZKWorkload(WorkloadBase):
             return ""
 
         return version
+
+    def remove(self) -> None:
+        """Removes and purges the snap."""
+        logger.info("Removing snap...")
+        self.zookeeper.ensure(snap.SnapState.Absent)

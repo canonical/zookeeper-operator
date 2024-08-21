@@ -17,9 +17,11 @@ from ops import (
     EventBase,
     InstallEvent,
     RelationDepartedEvent,
+    RemoveEvent,
     SecretChangedEvent,
     StartEvent,
     StatusBase,
+    StopEvent,
     StorageAttachedEvent,
     WaitingStatus,
 )
@@ -123,6 +125,8 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_departed
         )
+        self.framework.observe(getattr(self.on, "stop"), self._on_stop)
+        self.framework.observe(getattr(self.on, "remove"), self._on_remove)
 
         self.framework.observe(
             getattr(self.on, "data_storage_attached"), self._on_storage_attached
@@ -246,6 +250,15 @@ class ZooKeeperCharm(CharmBase):
 
         # NOTE: if the leader is also going down, it may miss the event to set {unit.id: removed}
         # to avoid this, eventual clean up occurs during update-status calling update_quorum
+
+    def _on_stop(self, _: StopEvent) -> None:
+        """Handler for `stop` events."""
+        self.workload.stop()
+
+    def _on_remove(self, _: RemoveEvent) -> None:
+        """Handler for `remove` events."""
+        # self.workload.exec(["umount", self.workload.paths.data_path])
+        self.workload.remove()
 
     def _on_storage_attached(self, _: StorageAttachedEvent) -> None:
         """Handler for `storage_attached` events."""
