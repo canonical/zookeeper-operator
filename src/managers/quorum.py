@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Set
 
+from kazoo.security import make_acl
+
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
@@ -194,25 +196,22 @@ class QuorumManager:
         leader_chroots = self.client.leader_znodes(path="/")
         logger.debug(f"{leader_chroots=}")
 
-        # requested_acls = set()
         requested_chroots = set()
 
         for client in self.state.clients:
             if not client.database:
                 continue
 
-            # generated_acl = make_digest_acl(
-            #     username=client.username,
-            #     password=client.password,
-            #     read="r" in client.extra_user_roles,
-            #     write="w" in client.extra_user_roles,
-            #     create="c" in client.extra_user_roles,
-            #     delete="d" in client.extra_user_roles,
-            #     admin="a" in client.extra_user_roles,
-            # )
-            # logger.info(f"{generated_acl=}")
-            #
-            # requested_acls.add(generated_acl)
+            generated_acl = make_acl(
+                scheme="sasl",
+                credential=client.username,
+                read="r" in client.extra_user_roles,
+                write="w" in client.extra_user_roles,
+                create="c" in client.extra_user_roles,
+                delete="d" in client.extra_user_roles,
+                admin="a" in client.extra_user_roles,
+            )
+            logger.info(f"{generated_acl=}")
 
             # FIXME: data-platform-libs should handle this when it's implemented
             if client.database:
@@ -226,9 +225,9 @@ class QuorumManager:
                 logger.info(f"CREATE CHROOT - {client.database}")
                 self.client.create_znode_leader(path=client.database, acls=None)
 
-            # # Looks for existing related applications
-            # logger.info(f"UPDATE CHROOT - {client.database}")
-            # self.client.set_acls_znode_leader(path=client.database, acls=None)
+            # Looks for existing related applications
+            logger.debug(f"UPDATE CHROOT - {client.database}")
+            self.client.set_acls_znode_leader(path=client.database, acls=None)
 
         # Looks for applications no longer in the relation but still in config
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
