@@ -20,6 +20,7 @@ REL_NAME = "zookeeper"
 CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
+S3_REL_NAME = "s3-credentials"
 CLIENT_PORT = 2181
 SECURE_CLIENT_PORT = 2182
 SERVER_PORT = 2888
