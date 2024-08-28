@@ -18,7 +18,7 @@ class BackupManager:
     def __init__(self) -> None:
         pass
 
-    def create_bucket(self, s3_parameters) -> bool:
+    def create_bucket(self, s3_parameters: dict) -> bool:
         """Create bucket if it does not exists."""
         session = boto3.Session(
             aws_access_key_id=s3_parameters["access-key"],
@@ -49,3 +49,17 @@ class BackupManager:
             logger.info(f"Created bucket {bucket_name}")
 
         return True
+
+    def write_test_string(self, s3_parameters: dict) -> None:
+        """Write content in the object storage."""
+        session = boto3.Session(
+            aws_access_key_id=s3_parameters["access-key"],
+            aws_secret_access_key=s3_parameters["secret-key"],
+            region_name=s3_parameters["region"] if s3_parameters["region"] else None,
+        )
+
+        s3 = session.resource("s3")
+        bucket = s3.Bucket(s3_parameters["bucket"])  # pyright: ignore [reportAttributeAccessIssue]
+
+        file = bucket.Object("test_file.txt")
+        file.put(Body=b"somecontent")

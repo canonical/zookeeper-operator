@@ -12,6 +12,7 @@ from charms.data_platform_libs.v0.s3 import (
     CredentialsGoneEvent,
     S3Requirer,
 )
+from ops import ActionEvent
 from ops.framework import Object
 
 from literals import S3_BACKUPS_PATH, S3_REL_NAME, Status
@@ -92,9 +93,28 @@ class BackupEvents(Object):
 
         self.charm.state.cluster.update({"s3-credentials": ""})
 
-    def _on_create_backup_action(self, _):
+    def _on_create_backup_action(self, event: ActionEvent):
         # TODO
-        pass
+        failure_conditions = [
+            (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
+            (
+                not self.charm.state.stable,
+                "Cluster must be stable before making a backup",
+            ),
+            (
+                not self.charm.state.cluster.s3_credentials,
+                "Cluster needs an access to an object storage to make a backup",
+            ),
+        ]
+
+        for check, msg in failure_conditions:
+            if check:
+                logging.error(msg)
+                event.set_results({"error": msg})
+                event.fail(msg)
+                return
+
+        self.backup_manager.write_test_string(self.charm.state.cluster.s3_credentials)
 
     def _on_list_backups_action(self, _):
         # TODO
