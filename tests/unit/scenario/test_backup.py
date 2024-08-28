@@ -97,6 +97,25 @@ def test_credentials_changed_no_peers_defered(ctx: Context, base_state: State):
     assert state_out.deferred[0].name == "credentials_changed"
 
 
+def test_missing_config_status_blocked(ctx: Context, base_state: State):
+    # Given
+    relation_s3 = Relation(
+        interface="s3",
+        endpoint=S3_REL_NAME,
+        remote_app_name="s3",
+        # missing mandatory 'bucket'
+        remote_app_data={"access-key": "speakfriend", "secret-key": "mellon"},
+    )
+    cluster_peer = PeerRelation(PEER, PEER, local_app_data={})
+    state_in = base_state.replace(relations=[cluster_peer, relation_s3])
+
+    # When
+    state_out = ctx.run(relation_s3.changed_event, state_in)
+
+    # Then
+    assert state_out.unit_status == Status.MISSING_S3_CONFIG.value.status
+
+
 def test_bucket_not_created_status_blocked(ctx: Context, base_state: State):
     # Given
     relation_s3 = Relation(

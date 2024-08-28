@@ -63,7 +63,7 @@ class BackupEvents(Object):
             logger.warning(
                 f"Missing required S3 parameters in relation with S3 integrator: {missing_required_parameters}"
             )
-            self.charm._set_status(Status.SERVICE_NOT_INSTALLED)
+            self.charm._set_status(Status.MISSING_S3_CONFIG)
             return
 
         s3_parameters = self.s3_requirer.get_s3_connection_info()
