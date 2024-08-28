@@ -16,10 +16,9 @@ TLS_NAME = "self-signed-certificates"
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_ssl_quorum(ops_test: OpsTest):
-    charm = await ops_test.build_charm(".")
+async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
     await asyncio.gather(
-        ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3),
+        ops_test.model.deploy(zk_charm, application_name=APP_NAME, num_units=3),
         ops_test.model.deploy(
             TLS_NAME,
             application_name=TLS_NAME,

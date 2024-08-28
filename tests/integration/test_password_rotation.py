@@ -23,9 +23,8 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.abort_on_fail
 @pytest.mark.password_rotation
-async def test_deploy_active(ops_test: OpsTest):
-    charm = await ops_test.build_charm(".")
-    await ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3)
+async def test_deploy_active(ops_test: OpsTest, zk_charm):
+    await ops_test.model.deploy(zk_charm, application_name=APP_NAME, num_units=3)
 
     async with ops_test.fast_forward():
         await ops_test.model.block_until(
