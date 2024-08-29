@@ -49,7 +49,7 @@ async def test_deploy_active(ops_test: OpsTest, zk_charm, cloud_configs, cloud_c
         ops_test.model.deploy(S3_INTEGRATOR, channel=S3_CHANNEL),
     )
 
-    await ops_test.models.wait_for_idle(apps=[S3_INTEGRATOR], status="blocked", timeout=1000)
+    await ops_test.model.wait_for_idle(apps=[S3_INTEGRATOR], status="blocked", timeout=1000)
 
     logger.info("Syncing credentials")
 
