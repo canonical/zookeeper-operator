@@ -2,9 +2,9 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import logging
 import os
 import shutil
-import logging
 from pathlib import Path
 
 import pytest
