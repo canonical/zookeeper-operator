@@ -74,7 +74,9 @@ optional = true
 
 [tool.poetry.group.integration.dependencies]
 pytest = ">=7.2"
-juju = "^3.4.0"
+# FIXME (libjuju): Unpin once GH#1093 is fixed
+# (impossible to parse storage constraints)
+juju = "^3.4.0,<3.5.2"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
 pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
@@ -109,7 +111,7 @@ mccabe.max-complexity = 10
 
 [tool.pyright]
 include = ["src"]
-extraPaths = ["./lib"]
+extraPaths = ["./lib", "src"]
 pythonVersion = "3.10"
 pythonPlatform = "All"
 typeCheckingMode = "basic"

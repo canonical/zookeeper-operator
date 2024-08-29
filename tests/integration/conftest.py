@@ -4,6 +4,7 @@
 
 import os
 import shutil
+import logging
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ async def zk_charm(ops_test: OpsTest):
     in_ci = os.environ.get("CI", None) is not None
     local_charm = next(iter(Path(".").glob("*.charm")), None)
     if in_ci and local_charm is not None:
+        logging.info("Using existing built charm")
         return local_charm.absolute()
 
     charm = await ops_test.build_charm(".")
