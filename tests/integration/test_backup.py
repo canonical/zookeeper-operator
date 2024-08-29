@@ -98,7 +98,7 @@ async def test_relate_active_bucket_created(ops_test: OpsTest, s3_bucket):
     )
 
     # bucket exists
-    assert s3_bucket.meta.client.head_bucket(s3_bucket.name)
+    assert s3_bucket.meta.client.head_bucket(Bucket=s3_bucket.name)
 
 
 @pytest.mark.abort_on_fail
