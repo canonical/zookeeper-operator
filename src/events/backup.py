@@ -31,7 +31,7 @@ class BackupEvents(Object):
         super().__init__(charm, "backup")
         self.charm: "ZooKeeperCharm" = charm
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
-        self.backup_manager = BackupManager()
+        self.backup_manager = BackupManager(self.charm.state)
 
         self.framework.observe(
             self.s3_requirer.on.credentials_changed, self._on_s3_credentials_changed
