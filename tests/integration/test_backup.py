@@ -7,8 +7,8 @@ import logging
 import socket
 
 import pytest
-from pytest_operator.plugin import OpsTest
 import pytest_microceph
+from pytest_operator.plugin import OpsTest
 
 from .helpers import APP_NAME
 
