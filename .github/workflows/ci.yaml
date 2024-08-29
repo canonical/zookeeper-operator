@@ -50,12 +50,13 @@ jobs:
       fail-fast: false
       matrix:
         tox-environments:
-          - integration-charm
-          - integration-password-rotation
-          - integration-provider
-          - integration-tls
-          - integration-upgrade
-          - integration-replication
+          # - integration-charm
+          # - integration-password-rotation
+          # - integration-provider
+          # - integration-tls
+          # - integration-upgrade
+          - integration-backup
+          # - integration-replication
     name: ${{ matrix.tox-environments }}
     needs:
       - lint

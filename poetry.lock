@@ -1447,6 +1447,26 @@ docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
 testing = ["coverage (>=6.2)", "flaky (>=3.5.0)", "hypothesis (>=5.7.1)", "mypy (>=0.931)", "pytest-trio (>=0.7.0)"]
 
 [[package]]
+name = "pytest-microceph"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.8"
+files = []
+develop = false
+
+[package.dependencies]
+boto3 = "*"
+pytest = "*"
+
+[package.source]
+type = "git"
+url = "https://github.com/canonical/data-platform-workflows"
+reference = "v20.0.2"
+resolved_reference = "37b15891a2ad9842721107fa4a42b6eb39ec830a"
+subdirectory = "python/pytest_plugins/microceph"
+
+[[package]]
 name = "pytest-mock"
 version = "3.14.0"
 description = "Thin-wrapper around the mock package for easier use with pytest"
@@ -1497,8 +1517,8 @@ pyyaml = "*"
 [package.source]
 type = "git"
 url = "https://github.com/canonical/data-platform-workflows"
-reference = "v6.1.1"
-resolved_reference = "c9bf1f5fb128800ed4f0a317509884f75c63902b"
+reference = "v20.0.2"
+resolved_reference = "37b15891a2ad9842721107fa4a42b6eb39ec830a"
 subdirectory = "python/pytest_plugins/pytest_operator_cache"
 
 [[package]]
@@ -2062,4 +2082,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0ea18892203cc9ffd05f597e72bc644d1835d39030c69d1dc537a966d1dba811"
+content-hash = "02090bfad66ea041332bcf98471c5966c03b48306fb375a385f16bc22a85884e"
