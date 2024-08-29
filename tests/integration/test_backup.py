@@ -39,7 +39,7 @@ def cloud_configs(microceph: pytest_microceph.ConnectionInformation):
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_active(ops_test: OpsTest, zk_charm, cloud_config, cloud_credentials):
+async def test_deploy_active(ops_test: OpsTest, zk_charm, cloud_configs, cloud_credentials):
     await asyncio.gather(
         ops_test.model.deploy(
             zk_charm,
