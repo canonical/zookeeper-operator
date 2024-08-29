@@ -2,10 +2,8 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import logging
 import os
 import shutil
-from pathlib import Path
 
 import pytest
 from pytest_operator.plugin import OpsTest
@@ -23,11 +21,5 @@ def copy_data_interfaces_library_into_charm(ops_test: OpsTest):
 @pytest.fixture(scope="module")
 async def zk_charm(ops_test: OpsTest):
     """Zookeeper charm used for integration testing."""
-    in_ci = os.environ.get("CI", None) is not None
-    local_charm = next(iter(Path(".").glob("*.charm")), None)
-    if in_ci and local_charm is not None:
-        logging.info("Using existing built charm")
-        return local_charm.absolute()
-
     charm = await ops_test.build_charm(".")
     return charm
