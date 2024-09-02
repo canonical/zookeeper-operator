@@ -28,6 +28,7 @@ name = "zookeeper-operator"
 version = "1.0"
 description = "zookeeper-operator"
 authors = []
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"

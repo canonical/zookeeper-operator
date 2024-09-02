@@ -174,6 +174,54 @@ def test_certificates_available_succeeds(harness: Harness[ZooKeeperCharm]):
     }
 
 
+def test_renew_certificates_auto_reload(harness: Harness[ZooKeeperCharm]):
+    # Setup working relation
+    harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+    harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
+
+    harness.update_relation_data(
+        harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"csr": "not-missing"}
+    )
+
+    with patch.multiple(
+        "managers.tls.TLSManager",
+        set_private_key=DEFAULT,
+        set_ca=DEFAULT,
+        set_certificate=DEFAULT,
+        set_truststore=DEFAULT,
+        set_p12_keystore=DEFAULT,
+    ):
+        harness.charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="cert",
+            ca="ca",
+            chain=["ca", "cert"],
+        )
+
+    with (
+        patch.multiple(
+            "managers.tls.TLSManager",
+            set_private_key=DEFAULT,
+            set_ca=DEFAULT,
+            set_certificate=DEFAULT,
+            set_truststore=DEFAULT,
+            set_p12_keystore=DEFAULT,
+        ),
+        patch(
+            "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"
+        ) as patched_restart,
+    ):
+        harness.charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="new-cert",
+            ca="ca",
+            chain=["ca", "cert"],
+        )
+
+    assert harness.charm.state.unit_server.certificate == "new-cert"
+    assert not patched_restart.called
+
+
 def test_certificates_available_halfway_through_upgrade_succeeds(harness: Harness[ZooKeeperCharm]):
     harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
