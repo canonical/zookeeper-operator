@@ -32,10 +32,4 @@ set-tls-private-key:
       description: The content of private key for internal communications with clients. Content will be auto-generated if this option is not specified.
 
 create-backup:
-  description: todo
-
-list-backups:
-  description: todo
-
-restore:
-  description: todo
+  description: TODO. This action is only used for testing at the moment.
