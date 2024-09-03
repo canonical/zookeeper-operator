@@ -9,7 +9,7 @@ from subprocess import PIPE, check_output
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from .helpers import APP_NAME, check_properties, ping_servers
+from .helpers import APP_NAME, check_properties, get_address, ping_servers
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +132,7 @@ async def test_renew_cert(ops_test: OpsTest):
     assert ping_servers(ops_test)
 
     # check client-presented certs
-    for unit in ops_test.model.applications[APP_NAME].units:
-        host = unit.public_address
-        break
+    host = get_address(ops_test, unit_num=0)
 
     response = check_output(
         f"openssl s_client -showcerts -connect {host}:2182 < /dev/null",
