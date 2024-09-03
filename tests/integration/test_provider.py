@@ -26,8 +26,7 @@ REL_NAME = "zookeeper"
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_charms_relate_active(ops_test: OpsTest):
-    zk_charm = await ops_test.build_charm(".")
+async def test_deploy_charms_relate_active(ops_test: OpsTest, zk_charm):
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
 
     await asyncio.gather(

@@ -34,6 +34,9 @@ METRICS_PROVIDER_PORT = 7000
 USER = 584788
 GROUP = "root"
 
+S3_REL_NAME = "s3-credentials"
+S3_BACKUPS_PATH = "zookeeper_backups"
+
 DEPENDENCIES = {
     "service": {
         "dependencies": {},
@@ -97,9 +100,13 @@ class Status(Enum):
     SERVICE_UNHEALTHY = StatusLevel(
         BlockedStatus("zookeeper service is unreachable or not serving requests"), "ERROR"
     )
+    MISSING_S3_CONFIG = StatusLevel(
+        BlockedStatus("invalid s3 configuration - missing mandatory parameters"), "ERROR"
+    )
+    BUCKET_NOT_CREATED = StatusLevel(BlockedStatus("cannot create s3 bucket"), "ERROR")
 
 
-SECRETS_APP = ["sync-password", "super-password"]
+SECRETS_APP = ["sync-password", "super-password", "s3-credentials"]
 SECRETS_UNIT = [
     "ca-cert",
     "csr",
