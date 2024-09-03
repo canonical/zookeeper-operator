@@ -55,20 +55,26 @@ class TLSManager:
         try:
             self._import_ca_in_truststore()
 
+            if self.substrate == "vm":
+                self.workload.exec(
+                    command=["chown", "snap_daemon:root", self.workload.paths.truststore],
+                )
         except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
             if "already exists" in str(e.stdout):
                 # replace ca in four steps to prevent the truststore for being empty at any point.
                 try:
-                    self.workload.exec(
-                        command=["chown", "root:root", self.workload.paths.truststore],
-                    )
+                    if self.substrate == "vm":
+                        self.workload.exec(
+                            command=["chown", "root:root", self.workload.paths.truststore],
+                        )
                     self._import_ca_in_truststore("ca-temp")
                     self._delete_ca_in_truststore("ca")
                     self._import_ca_in_truststore("ca")
                     self._delete_ca_in_truststore("ca-temp")
-                    self.workload.exec(
-                        command=["chown", "snap_daemon:root", self.workload.paths.truststore],
-                    )
+                    if self.substrate == "vm":
+                        self.workload.exec(
+                            command=["chown", "snap_daemon:root", self.workload.paths.truststore],
+                        )
                 except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
 
                     logger.error(str(e.stdout))
