@@ -4,11 +4,12 @@
 
 import asyncio
 import logging
+from subprocess import PIPE, check_output
 
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from .helpers import APP_NAME, check_properties, ping_servers
+from .helpers import APP_NAME, check_properties, get_address, ping_servers
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
             channel="edge",
             num_units=1,
             config={"ca-common-name": "zookeeper"},
+            # FIXME (certs): Unpin the revision once the charm is fixed
             revision=163,
         ),
     )
@@ -115,3 +117,28 @@ async def test_client_relate_maintains_quorum(ops_test: OpsTest):
         [APP_NAME, dummy_name], status="active", timeout=1000, idle_period=30
     )
     assert ping_servers(ops_test)
+
+
+@pytest.mark.abort_on_fail
+async def test_renew_cert(ops_test: OpsTest):
+    # invalidate previous certs
+    await ops_test.model.applications[TLS_NAME].set_config({"ca-common-name": "new-name"})
+
+    await ops_test.model.wait_for_idle([APP_NAME], status="active", timeout=1000, idle_period=30)
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(60)
+
+    # check quorum TLS
+    assert ping_servers(ops_test)
+
+    # check client-presented certs
+    host = await get_address(ops_test, unit_num=0)
+
+    response = check_output(
+        f"openssl s_client -showcerts -connect {host}:2182 < /dev/null",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    assert "CN = new-name" in response
