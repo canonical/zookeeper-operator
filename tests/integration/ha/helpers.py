@@ -4,7 +4,6 @@
 
 import json
 import logging
-import re
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional
@@ -13,6 +12,8 @@ import yaml
 from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
 from tenacity import RetryError, Retrying, retry, stop_after_attempt, wait_fixed
+
+from literals import ADMIN_SERVER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -54,24 +55,21 @@ def srvr(host: str) -> dict:
     """Calls srvr 4lw command to specified host.
 
     Args:
-        host: ZooKeeper address and port to issue srvr 4lw command to
+        host: ZooKeeper address to issue srvr 4lw command to
 
     Returns:
         Dict of srvr command output key/values
     """
     response = subprocess.check_output(
-        f"echo srvr | nc {host} 2181", stderr=subprocess.PIPE, shell=True, universal_newlines=True
+        f"curl {host}:{ADMIN_SERVER_PORT}/commands/srvr -m 10",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
     )
 
     assert response, "ZooKeeper not running"
 
-    result = {}
-    for item in response.splitlines():
-        k = re.split(": ", item)[0]
-        v = re.split(": ", item)[1]
-        result[k] = v
-
-    return result
+    return json.loads(response)
 
 
 def get_hosts_from_status(
@@ -177,7 +175,7 @@ def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> 
     """
     for host in hosts.split(","):
         try:
-            mode = srvr(host.split(":")[0])["Mode"]
+            mode = srvr(host.split(":")[0]).get("server_stats", {}).get("server_state", "")
         except subprocess.CalledProcessError:  # unit is down
             continue
         if mode == "leader":
