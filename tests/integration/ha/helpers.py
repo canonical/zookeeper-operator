@@ -480,7 +480,12 @@ def ping_servers(ops_test: OpsTest) -> bool:
     """
     for unit in ops_test.model.applications[APP_NAME].units:
         host = unit.public_address
-        mode = srvr(host)["Mode"]
+        srvr_response = srvr(host)
+
+        if srvr_response.get("error", None):
+            return False
+
+        mode = srvr_response.get("server_stats", {}).get("server_state", "")
         if mode not in ["leader", "follower"]:
             return False
 
