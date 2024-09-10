@@ -10,7 +10,7 @@ from typing import Literal
 
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, StatusBase, WaitingStatus
 
-CHARMED_ZOOKEEPER_SNAP_REVISION = 34
+CHARMED_ZOOKEEPER_SNAP_REVISION = 39
 
 SUBSTRATE = "vm"
 CHARM_KEY = "zookeeper"
@@ -23,6 +23,7 @@ CERTS_REL_NAME = "certificates"
 CLIENT_PORT = 2181
 SECURE_CLIENT_PORT = 2182
 SERVER_PORT = 2888
+ADMIN_SERVER_PORT = 8080
 ELECTION_PORT = 3888
 JMX_PORT = 9998
 METRICS_PROVIDER_PORT = 7000
@@ -42,7 +43,7 @@ DEPENDENCIES = {
         "dependencies": {},
         "name": "zookeeper",
         "upgrade_supported": "^3.5",
-        "version": "3.8.4",
+        "version": "3.9.2",
     },
 }
 

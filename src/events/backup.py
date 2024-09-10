@@ -99,10 +99,10 @@ class BackupEvents(Object):
                 not self.charm.state.stable,
                 "Cluster must be stable before making a backup",
             ),
-            (
-                not self.charm.state.cluster.s3_credentials,
-                "Cluster needs an access to an object storage to make a backup",
-            ),
+            # (
+            #     not self.charm.state.cluster.s3_credentials,
+            #     "Cluster needs an access to an object storage to make a backup",
+            # ),
         ]
 
         for check, msg in failure_conditions:
@@ -112,7 +112,13 @@ class BackupEvents(Object):
                 event.fail(msg)
                 return
 
-        self.backup_manager.write_test_string()
+        # self.backup_manager.write_test_string()
+        backup_metadata = self.backup_manager.create_backup(
+            self.charm.state.unit_server.host,
+            "super",
+            self.charm.state.cluster.internal_user_credentials.get("super", ""),
+        )
+        logging.warning(backup_metadata)
 
     def _on_list_backups_action(self, _):
         # TODO

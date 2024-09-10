@@ -5,13 +5,17 @@
 """Helpers for managing backups."""
 
 import logging
+from datetime import datetime
 
 import boto3
+import httpx
+import yaml
 from botocore import loaders, regions
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import Bucket
 
-from core.stubs import S3ConnectionInfo
+from core.stubs import BackupMetadata, S3ConnectionInfo
+from literals import ADMIN_SERVER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +91,68 @@ class BackupManager:
     def write_test_string(self) -> None:
         """Write content in the object storage."""
         self.bucket.put_object(Key="test_file.txt", Body=b"test string")
+
+    def create_backup(self, zk_host: str, zk_user: str, zk_pwd: str):
+        """Create a snapshot with ZooKeeper admin server and stream it to the object storage."""
+        date = datetime.now()
+        snapshot_name = f"{date:%Y-%m-%dT%H:%M:%SZ}"
+        snapshot_path = f"{snapshot_name}/snapshot"
+
+        # It is very likely that the file is loaded in memory, because the file-like interface is not yet seekable.
+        # We cannot be sure because finding this information in boto code base is time consuming.
+        # If this ever become an issue, we can find a workaround by using the 'content-length' header from the
+        # admin server. Or write to a temp file.
+        with httpx.stream(
+            "GET",
+            f"http://{zk_host}:{ADMIN_SERVER_PORT}/commands/snapshot?streaming=true",
+            headers={"Authorization": f"digest {zk_user}:{zk_pwd}"},
+        ) as response:
+
+            response_headers = response.headers
+            quorum_leader_zxid = int(response_headers["last_zxid"], base=16)
+            metadata: BackupMetadata = {
+                "id": snapshot_name,
+                "log-sequence-number": quorum_leader_zxid,
+                "path": snapshot_path,
+            }
+
+            self.bucket.upload_fileobj(_StreamingToFileSyncAdapter(response), f"{snapshot_name}/snapshot")  # type: ignore
+            self.bucket.put_object(
+                Key=f"{snapshot_name}/metadata.yaml", Body=yaml.dump(metadata, encoding="utf8")
+            )
+
+        return metadata
+
+    def display_backups_metadata(self, backup_entries: list[BackupMetadata]):
+        pass
+
+
+class _StreamingToFileSyncAdapter:
+    """Wrapper to make httpx.stream behave like a file-like object.
+
+    boto needs a .read method with an optional amount-of-bytes parameter from the file-like object.
+    Taken from https://github.com/encode/httpx/discussions/2296#discussioncomment-6781355
+    """
+
+    def __init__(self, response: httpx.Response):
+        self.streaming_source = response.iter_bytes()
+        self.buffer = b""
+        self.buffer_offset = 0
+
+    def read(self, num_bytes: int = 4096) -> bytes:
+        while len(self.buffer) - self.buffer_offset < num_bytes:
+            try:
+                chunk = next(self.streaming_source)
+                self.buffer += chunk
+            except StopIteration:
+                break
+
+        if len(self.buffer) - self.buffer_offset >= num_bytes:
+            data = self.buffer[self.buffer_offset : self.buffer_offset + num_bytes]
+            self.buffer_offset += num_bytes
+            return data
+        else:
+            data = self.buffer[self.buffer_offset :]
+            self.buffer = b""
+            self.buffer_offset = 0
+            return data
