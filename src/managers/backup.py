@@ -99,7 +99,6 @@ class BackupManager:
 
     def create_backup(self) -> BackupMetadata:
         """Create a snapshot with ZooKeeper admin server and stream it to the object storage."""
-        zk_host = self.state.unit_server.host
         zk_user = "super"
         zk_pwd = self.state.cluster.internal_user_credentials.get("super", "")
         date = datetime.now()
@@ -114,7 +113,7 @@ class BackupManager:
         # the response. Or write to a temp file as a last resort.
         with httpx.stream(
             "GET",
-            f"http://{zk_host}:{ADMIN_SERVER_PORT}/commands/snapshot?streaming=true",
+            f"http://localhost:{ADMIN_SERVER_PORT}/commands/snapshot?streaming=true",
             headers={"Authorization": f"digest {zk_user}:{zk_pwd}"},
         ) as response:
 
