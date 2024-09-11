@@ -32,7 +32,7 @@ class BackupEvents(Object):
         super().__init__(charm, "backup")
         self.charm: "ZooKeeperCharm" = charm
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
-        self.backup_manager = BackupManager(self.charm.state.cluster.s3_credentials)
+        self.backup_manager = BackupManager(self.charm.state)
 
         self.framework.observe(
             self.s3_requirer.on.credentials_changed, self._on_s3_credentials_changed
@@ -99,10 +99,10 @@ class BackupEvents(Object):
                 not self.charm.state.stable,
                 "Cluster must be stable before making a backup",
             ),
-            # (
-            #     not self.charm.state.cluster.s3_credentials,
-            #     "Cluster needs an access to an object storage to make a backup",
-            # ),
+            (
+                not self.charm.state.cluster.s3_credentials,
+                "Cluster needs an access to an object storage to make a backup",
+            ),
         ]
 
         for check, msg in failure_conditions:
@@ -112,13 +112,13 @@ class BackupEvents(Object):
                 event.fail(msg)
                 return
 
-        # self.backup_manager.write_test_string()
-        backup_metadata = self.backup_manager.create_backup(
-            self.charm.state.unit_server.host,
-            "super",
-            self.charm.state.cluster.internal_user_credentials.get("super", ""),
+        self.backup_manager.write_test_string()
+        backup_metadata = self.backup_manager.create_backup()
+
+        output = self.backup_manager.format_backups_table(
+            [backup_metadata], title="Backup created"
         )
-        logging.warning(backup_metadata)
+        event.log(output)
 
     def _on_list_backups_action(self, _):
         # TODO

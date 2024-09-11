@@ -6,6 +6,7 @@
 
 import logging
 from datetime import datetime
+from io import StringIO
 
 import boto3
 import httpx
@@ -13,7 +14,10 @@ import yaml
 from botocore import loaders, regions
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import Bucket
+from rich.console import Console
+from rich.table import Table
 
+from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
 from literals import ADMIN_SERVER_PORT
 
@@ -23,12 +27,13 @@ logger = logging.getLogger(__name__)
 class BackupManager:
     """Manager for all things backup-related."""
 
-    def __init__(self, s3_parameters: S3ConnectionInfo) -> None:
-        self.s3_parameters = s3_parameters
+    def __init__(self, state: ClusterState) -> None:
+        self.state = state
 
     @property
     def bucket(self) -> Bucket:
         """S3 bucket to read from and write to."""
+        self.s3_parameters = self.state.cluster.s3_credentials
         s3 = boto3.resource(
             "s3",
             aws_access_key_id=self.s3_parameters["access-key"],
@@ -92,16 +97,21 @@ class BackupManager:
         """Write content in the object storage."""
         self.bucket.put_object(Key="test_file.txt", Body=b"test string")
 
-    def create_backup(self, zk_host: str, zk_user: str, zk_pwd: str):
+    def create_backup(self) -> BackupMetadata:
         """Create a snapshot with ZooKeeper admin server and stream it to the object storage."""
+        zk_host = self.state.unit_server.host
+        zk_user = "super"
+        zk_pwd = self.state.cluster.internal_user_credentials.get("super", "")
         date = datetime.now()
         snapshot_name = f"{date:%Y-%m-%dT%H:%M:%SZ}"
         snapshot_path = f"{snapshot_name}/snapshot"
 
-        # It is very likely that the file is loaded in memory, because the file-like interface is not yet seekable.
+        # It is very likely that the file is fully loaded in memory, because the file-like interface is
+        # not seekable, and I have a strong suspicion that boto uses this to figure out if it can
+        # upload in one go or need to use a multipart request.
         # We cannot be sure because finding this information in boto code base is time consuming.
-        # If this ever become an issue, we can find a workaround by using the 'content-length' header from the
-        # admin server. Or write to a temp file.
+        # If this ever become an issue, we can find a workaround by using the 'content-length' header from
+        # the response. Or write to a temp file as a last resort.
         with httpx.stream(
             "GET",
             f"http://{zk_host}:{ADMIN_SERVER_PORT}/commands/snapshot?streaming=true",
@@ -123,8 +133,24 @@ class BackupManager:
 
         return metadata
 
-    def display_backups_metadata(self, backup_entries: list[BackupMetadata]):
-        pass
+    def format_backups_table(
+        self, backup_entries: list[BackupMetadata], title: str = "Backups"
+    ) -> str:
+        """Format backups metadata into a readable table."""
+        table = Table(title=title)
+
+        table.add_column("Id", no_wrap=True)
+        table.add_column("Log-sequence-number", justify="right")
+        table.add_column("path")
+
+        for meta in backup_entries:
+            table.add_row(meta["id"], str(meta["log-sequence-number"]), meta["path"])
+
+        console = Console(file=StringIO(), width=79)
+        console.print(table)
+        str_output = console.file.getvalue()
+
+        return str_output
 
 
 class _StreamingToFileSyncAdapter:
