@@ -98,10 +98,10 @@ class BackupEvents(Object):
                 not self.charm.state.stable,
                 "Cluster must be stable before making a backup",
             ),
-            # (
-            #     not self.charm.state.cluster.s3_credentials,
-            #     "Cluster needs an access to an object storage to make a backup",
-            # ),
+            (
+                not self.charm.state.cluster.s3_credentials,
+                "Cluster needs an access to an object storage to make a backup",
+            ),
         ]
 
         for check, msg in failure_conditions:
