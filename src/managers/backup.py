@@ -93,10 +93,6 @@ class BackupManager:
 
         return True
 
-    def write_test_string(self) -> None:
-        """Write content in the object storage."""
-        self.bucket.put_object(Key="test_file.txt", Body=b"test string")
-
     def create_backup(self) -> BackupMetadata:
         """Create a snapshot with ZooKeeper admin server and stream it to the object storage."""
         zk_user = "super"

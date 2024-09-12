@@ -92,7 +92,6 @@ class BackupEvents(Object):
         self.charm.state.cluster.update({"s3-credentials": ""})
 
     def _on_create_backup_action(self, event: ActionEvent):
-        # TODO
         failure_conditions = [
             (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
             (
@@ -112,7 +111,6 @@ class BackupEvents(Object):
                 event.fail(msg)
                 return
 
-        self.backup_manager.write_test_string()
         backup_metadata = self.backup_manager.create_backup()
 
         output = self.backup_manager.format_backups_table(
