@@ -145,11 +145,11 @@ class BackupManager:
         for meta in backup_entries:
             table.add_row(meta["id"], str(meta["log-sequence-number"]), meta["path"])
 
-        console = Console(file=StringIO(), width=79)
+        out_f = StringIO()
+        console = Console(file=out_f, width=79)
         console.print(table)
-        str_output = console.file.getvalue()
 
-        return str_output
+        return out_f.getvalue()
 
 
 class _StreamingToFileSyncAdapter:
