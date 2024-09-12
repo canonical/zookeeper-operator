@@ -7,9 +7,7 @@ import json
 import logging
 from pathlib import Path
 from unittest.mock import PropertyMock, patch
-import dataclasses
 
-from scenario.state import ActionFailed
 import pytest
 import yaml
 from scenario import Container, Context, PeerRelation, Relation, State
@@ -169,7 +167,8 @@ def test_action_create_backup_not_leader(ctx: Context, base_state: State):
     # When
     # Then
     with pytest.raises(ActionFailed) as exc_info:
-        state_out = ctx.run(ctx.on.action("create-backup"), state_in)
+        _ = ctx.run(ctx.on.action("create-backup"), state_in)
+
     assert exc_info.value.message == "Action must be ran on the application leader"
 
 
@@ -183,7 +182,7 @@ def test_action_create_backup_unstable(ctx: Context, base_state: State):
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=False),
         pytest.raises(ActionFailed) as exc_info,
     ):
-        state_out = ctx.run(ctx.on.action("create-backup"), state_in)
+        _ = ctx.run(ctx.on.action("create-backup"), state_in)
 
     assert exc_info.value.message == "Cluster must be stable before making a backup"
 
@@ -198,7 +197,8 @@ def test_action_create_backup_no_creds(ctx: Context, base_state: State):
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         pytest.raises(ActionFailed) as exc_info,
     ):
-        state_out = ctx.run(ctx.on.action("create-backup"), state_in)
+        _ = ctx.run(ctx.on.action("create-backup"), state_in)
+
     assert (
         exc_info.value.message == "Cluster needs an access to an object storage to make a backup"
     )
