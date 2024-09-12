@@ -33,15 +33,15 @@ class BackupManager:
     @property
     def bucket(self) -> Bucket:
         """S3 bucket to read from and write to."""
-        self.s3_parameters = self.state.cluster.s3_credentials
+        s3_parameters = self.state.cluster.s3_credentials
         s3 = boto3.resource(
             "s3",
-            aws_access_key_id=self.s3_parameters["access-key"],
-            aws_secret_access_key=self.s3_parameters["secret-key"],
-            region_name=self.s3_parameters["region"] if self.s3_parameters["region"] else None,
-            endpoint_url=self._construct_endpoint(self.s3_parameters),
+            aws_access_key_id=s3_parameters["access-key"],
+            aws_secret_access_key=s3_parameters["secret-key"],
+            region_name=s3_parameters["region"] if s3_parameters["region"] else None,
+            endpoint_url=self._construct_endpoint(s3_parameters),
         )
-        return s3.Bucket(self.s3_parameters["bucket"])
+        return s3.Bucket(s3_parameters["bucket"])
 
     def _construct_endpoint(self, s3_parameters: S3ConnectionInfo) -> str:
         """Construct the S3 service endpoint using the region.
