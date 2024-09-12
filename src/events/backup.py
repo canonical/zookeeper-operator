@@ -137,7 +137,7 @@ class BackupEvents(Object):
         backups_metadata = self.backup_manager.list_backups()
         output = self.backup_manager.format_backups_table(backups_metadata)
         event.log(output)
-        event.set_results({"backups": backups_metadata})
+        event.set_results({"backups": json.dumps(backups_metadata)})
 
     def _on_restore_action(self, _):
         # TODO
