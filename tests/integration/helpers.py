@@ -166,8 +166,9 @@ async def ping_servers(ops_test: OpsTest) -> bool:
 
 async def correct_version_running(ops_test: OpsTest, expected_version: str) -> bool:
     for unit in ops_test.model.applications[APP_NAME].units:
-        host = unit.public_address
-        if expected_version not in srvr(host)["Zookeeper version"]:
+        srvr_response = srvr(ops_test.model_full_name, unit.name)
+
+        if expected_version not in srvr_response.get("version", ""):
             return False
 
     return True
