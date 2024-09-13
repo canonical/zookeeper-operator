@@ -108,15 +108,13 @@ class ZKWorkload(WorkloadBase):
             return False
 
         try:
-            response = httpx.get(
-                f"http://localhost:{ADMIN_SERVER_PORT}/commands/ruok", timeout=10
-            ).json()
-            response.raise_on_status()
+            response = httpx.get(f"http://localhost:{ADMIN_SERVER_PORT}/commands/ruok", timeout=10)
+            response.raise_for_status()
 
         except httpx.HTTPError:
             return False
 
-        if response.get("error", None):
+        if response.json().get("error", None):
             return False
 
         return True
@@ -158,15 +156,13 @@ class ZKWorkload(WorkloadBase):
             return ""
 
         try:
-            response = httpx.get(
-                f"http://localhost:{ADMIN_SERVER_PORT}/commands/srvr", timeout=10
-            ).json()
-            response.raise_on_status()
+            response = httpx.get(f"http://localhost:{ADMIN_SERVER_PORT}/commands/srvr", timeout=10)
+            response.raise_for_status()
 
         except httpx.HTTPError:
             return ""
 
-        if not (full_version := response.get("version", "")):
+        if not (full_version := response.json().get("version", "")):
             return full_version
         else:
             return full_version.split("-")[0]
