@@ -46,6 +46,8 @@ typing-extensions = "^4.9.0"
 boto3 = "^1.34.159"
 pyopenssl = "^24.2.1"
 boto3-stubs = {extras = ["s3"], version = "^1.35.8"}
+httpx = "^0.27.2"
+rich = "^13.8.1"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -71,7 +73,7 @@ pytest = ">=7.2"
 coverage = {extras = ["toml"], version = ">7.0"}
 jsonschema = ">=4.10"
 pytest-mock = "^3.11.1"
-ops-scenario = "^6.0.0"
+ops-scenario = "^7.0.0"
 
 [tool.poetry.group.integration]
 optional = true
@@ -116,7 +118,7 @@ mccabe.max-complexity = 10
 
 [tool.pyright]
 include = ["src"]
-extraPaths = ["./lib"]
+extraPaths = ["./lib", "src"]
 pythonVersion = "3.10"
 pythonPlatform = "All"
 typeCheckingMode = "basic"
