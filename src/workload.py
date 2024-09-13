@@ -3,17 +3,15 @@
 # See LICENSE file for licensing details.
 
 """Implementation of WorkloadBase for running on VMs."""
-import json
 import logging
 import os
 import secrets
 import shutil
 import string
 import subprocess
-from subprocess import CalledProcessError
 
+import httpx
 from charms.operator_libs_linux.v1 import snap
-from ops.pebble import ExecError
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
@@ -110,11 +108,12 @@ class ZKWorkload(WorkloadBase):
             return False
 
         try:
-            response = json.loads(
-                self.exec(["curl", f"localhost:{ADMIN_SERVER_PORT}/commands/ruok", "-m", "10"])
-            )
+            response = httpx.get(
+                f"http://localhost:{ADMIN_SERVER_PORT}/commands/ruok", timeout=10
+            ).json()
+            response.raise_on_status()
 
-        except (ExecError, CalledProcessError, json.JSONDecodeError):
+        except httpx.HTTPError:
             return False
 
         if response.get("error", None):
@@ -159,11 +158,12 @@ class ZKWorkload(WorkloadBase):
             return ""
 
         try:
-            response = json.loads(
-                self.exec(["curl", f"localhost:{ADMIN_SERVER_PORT}/commands/srvr", "-m", "10"])
-            )
+            response = httpx.get(
+                f"http://localhost:{ADMIN_SERVER_PORT}/commands/srvr", timeout=10
+            ).json()
+            response.raise_on_status()
 
-        except (ExecError, CalledProcessError, json.JSONDecodeError):
+        except httpx.HTTPError:
             return ""
 
         if not (full_version := response.get("version", "")):
