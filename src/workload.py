@@ -5,20 +5,18 @@
 """Implementation of WorkloadBase for running on VMs."""
 import logging
 import os
-import re
 import secrets
 import shutil
 import string
 import subprocess
-from subprocess import CalledProcessError
 
+import httpx
 from charms.operator_libs_linux.v1 import snap
-from ops.pebble import ExecError
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from core.workload import WorkloadBase
-from literals import CHARMED_ZOOKEEPER_SNAP_REVISION, CLIENT_PORT
+from literals import ADMIN_SERVER_PORT, CHARMED_ZOOKEEPER_SNAP_REVISION
 
 logger = logging.getLogger(__name__)
 
@@ -109,27 +107,14 @@ class ZKWorkload(WorkloadBase):
         if not self.alive:
             return False
 
-        # netcat isn't a default utility, so can't guarantee it's on the charm containers
-        # this ugly hack avoids needing netcat
-        bash_netcat = (
-            f"echo '4lw' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
-        )
-        ruok = [bash_netcat.replace("4lw", "ruok")]
-        srvr = [bash_netcat.replace("4lw", "srvr")]
-
-        # timeout needed as it can sometimes hang forever if there's a problem
-        # for example when the endpoint is unreachable
-        timeout = ["timeout", "10s", "bash", "-c"]
-
         try:
-            ruok_response = self.exec(command=timeout + ruok)
-            if not ruok_response or "imok" not in ruok_response:
-                return False
+            response = httpx.get(f"http://localhost:{ADMIN_SERVER_PORT}/commands/ruok", timeout=10)
+            response.raise_for_status()
 
-            srvr_response = self.exec(command=timeout + srvr)
-            if not srvr_response or "not currently serving requests" in srvr_response:
-                return False
-        except (ExecError, CalledProcessError):
+        except httpx.HTTPError:
+            return False
+
+        if response.json().get("error", None):
             return False
 
         return True
@@ -152,7 +137,7 @@ class ZKWorkload(WorkloadBase):
             self.zookeeper.hold()
 
             return True
-        except (snap.SnapError) as e:
+        except snap.SnapError as e:
             logger.error(str(e))
             return False
 
@@ -170,21 +155,14 @@ class ZKWorkload(WorkloadBase):
         if not self.healthy:
             return ""
 
-        stat = [
-            "bash",
-            "-c",
-            f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-; )",
-        ]
-
         try:
-            stat_response = self.exec(command=stat)
-            if not stat_response:
-                return ""
+            response = httpx.get(f"http://localhost:{ADMIN_SERVER_PORT}/commands/srvr", timeout=10)
+            response.raise_for_status()
 
-            matcher = re.search(r"(?P<version>\d\.\d\.\d)", stat_response)
-            version = matcher.group("version") if matcher else ""
-
-        except (ExecError, CalledProcessError):
+        except httpx.HTTPError:
             return ""
 
-        return version
+        if not (full_version := response.json().get("version", "")):
+            return full_version
+        else:
+            return full_version.split("-")[0]
