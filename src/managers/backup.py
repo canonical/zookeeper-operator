@@ -14,7 +14,7 @@ from operator import attrgetter
 import boto3
 import httpx
 import yaml
-from botocore import loaders, regions
+from botocore import loaders, regions, config
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import Bucket
 from rich.console import Console
@@ -45,6 +45,7 @@ class BackupManager:
             aws_secret_access_key=s3_parameters["secret-key"],
             region_name=s3_parameters["region"] if s3_parameters["region"] else None,
             endpoint_url=self._construct_endpoint(s3_parameters),
+            config=config.Config(retries={"mode": "standard", "max_attempts": 3}),
         )
         return s3.Bucket(s3_parameters["bucket"])
 
