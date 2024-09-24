@@ -41,7 +41,7 @@ class BackupEvents(Object):
 
         self.framework.observe(self.charm.on.create_backup_action, self._on_create_backup_action)
         self.framework.observe(self.charm.on.list_backups_action, self._on_list_backups_action)
-        # self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
+        self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
 
     def _on_s3_credentials_changed(self, event: CredentialsChangedEvent):
         if not self.charm.unit.is_leader():
@@ -139,6 +139,51 @@ class BackupEvents(Object):
         event.log(output)
         event.set_results({"backups": json.dumps(backups_metadata)})
 
-    def _on_restore_action(self, _):
-        # TODO
-        pass
+    def _on_restore_action(self, event: ActionEvent):
+        """
+        Steps:
+
+        - stop client traffic
+        - stop all units
+        - backup local state so that we can rollback if anything goes wrong
+        - wipe data folders
+        - get snapshot from object storage, save in data folder
+        - restart units
+
+        - everything ok, delete local backup
+        - something wrong, rollback local state by re-using the previous steps
+
+        """
+        failure_conditions = [
+            (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
+            (
+                not self.charm.state.cluster.s3_credentials,
+                "Cluster needs an access to an object storage to make a backup",
+            ),
+            (
+                not (id_to_restore := event.params.get("backup-id", "")),
+                "No backup id to restore provided",
+            ),
+            (
+                not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
+                "Backup id not found in storage object",
+            ),
+        ]
+
+        for check, msg in failure_conditions:
+            if check:
+                logging.error(msg)
+                event.set_results({"error": msg})
+                event.fail(msg)
+                return
+
+        self.charm._set_status(Status.ONGOING_RESTORE)
+
+        # do stuff
+        import time
+
+        time.sleep(10)
+
+        # check everything ok
+
+        self.charm._set_status(self.charm.state.stable)

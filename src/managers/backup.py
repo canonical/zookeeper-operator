@@ -177,6 +177,23 @@ class BackupManager:
 
         return out_f.getvalue()
 
+    def is_snapshot_in_bucket(self, backup_id: str) -> bool:
+        """Check whether the requested snapshot to restore is in the object storage."""
+        try:
+            bucket = self.bucket
+        except KeyError:
+            return False
+
+        try:
+            content = bucket.meta.client.head_object(
+                Bucket=bucket.name, Key=os.path.join(self.backups_path, backup_id, "snapshot")
+            )
+        except ClientError as ex:
+            if "(404)" in ex.args[0]:
+                return False
+            raise
+        return content.get("ResponseMetadata", None) is not None
+
 
 class _StreamingToFileSyncAdapter:
     """Wrapper to make httpx.stream behave like a file-like object.

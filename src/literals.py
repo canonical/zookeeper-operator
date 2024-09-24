@@ -106,6 +106,7 @@ class Status(Enum):
         BlockedStatus("invalid s3 configuration - missing mandatory parameters"), "ERROR"
     )
     BUCKET_NOT_CREATED = StatusLevel(BlockedStatus("cannot create s3 bucket"), "ERROR")
+    ONGOING_RESTORE = StatusLevel(MaintenanceStatus("restoring backup"), "INFO")
 
 
 SECRETS_APP = ["sync-password", "super-password", "s3-credentials"]
