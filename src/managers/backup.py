@@ -14,7 +14,7 @@ from operator import attrgetter
 import boto3
 import httpx
 import yaml
-from botocore import loaders, regions, config
+from botocore import config, loaders, regions
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import Bucket
 from rich.console import Console

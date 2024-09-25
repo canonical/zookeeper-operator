@@ -24,6 +24,8 @@ peers:
     interface: rolling_op
   upgrade:
     interface: upgrade
+  restore:
+    interface: restore
 
 provides:
   zookeeper:

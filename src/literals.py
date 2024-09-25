@@ -17,6 +17,7 @@ CHARM_KEY = "zookeeper"
 
 PEER = "cluster"
 REL_NAME = "zookeeper"
+RESTORE = "restore"
 CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
