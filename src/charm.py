@@ -345,6 +345,7 @@ class ZooKeeperCharm(CharmBase):
 
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
+        self.config_manager.set_client_jaas_config()
 
         # during reschedules (e.g upgrades or otherwise) we lose all files
         # need to manually add-back key/truststores
