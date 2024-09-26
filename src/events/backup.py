@@ -185,7 +185,10 @@ class BackupEvents(Object):
                 not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
                 "Backup id not found in storage object",
             ),
-            # TODO: check for ongoing restore
+            (
+                bool(self.restore_state.cluster.id_to_restore),
+                "A snapshot restore is currently ongoing",
+            ),
         ]
 
         for check, msg in failure_conditions:
@@ -201,9 +204,10 @@ class BackupEvents(Object):
                 "restore-instruction": RestoreStep.NOT_STARTED.value,
             }
         )
-        event.log(f"Beggining restore flow for snapshot {id_to_restore}")
+        event.log(f"Beginning restore flow for snapshot {id_to_restore}")
 
     def _restore_event_dispatch(self, event: RelationEvent):
+        """Dispatch restore event to the proper method."""
         cluster_state = self.restore_state.cluster
         unit_state = self.restore_state.unit_server
 
@@ -230,7 +234,7 @@ class BackupEvents(Object):
                 pass
 
     def _maybe_progress_step(self):
-        """Check that all units are done with the current restore flow instruction and move to the next if applicable."""
+        """Check that all units are done with the current instruction and move to the next if applicable."""
         current_instruction = self.restore_state.cluster.restore_instruction
         next_instruction = current_instruction.next_step()
 
@@ -254,7 +258,6 @@ class BackupEvents(Object):
 
     def _download_and_restore(self):
         logger.info("Restoring - restore snapshot")
-        # TODO
         self.backup_manager.restore_snapshot(
             self.restore_state.cluster.id_to_restore, self.charm.workload
         )
@@ -354,8 +357,6 @@ class RestoreState(Object):
     def peer_relation(self) -> Relation | None:
         """The cluster peer relation."""
         return self.model.get_relation(RESTORE)
-
-    # --- CORE COMPONENTS---
 
     @property
     def unit_server(self) -> ZKServerRestore:
