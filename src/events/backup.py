@@ -201,6 +201,7 @@ class BackupEvents(Object):
                 "restore-instruction": RestoreStep.NOT_STARTED.value,
             }
         )
+        event.log(f"Beggining restore flow for snapshot {id_to_restore}")
 
     def _restore_event_dispatch(self, event: RelationEvent):
         cluster_state = self.restore_state.cluster
