@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 """Helpers for managing backups."""
+from __future__ import annotations
 
 import logging
 import os
@@ -10,6 +11,8 @@ from datetime import datetime
 from io import BytesIO, StringIO
 from itertools import islice
 from operator import attrgetter
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import boto3
 import httpx
@@ -20,9 +23,12 @@ from mypy_boto3_s3.service_resource import Bucket
 from rich.console import Console
 from rich.table import Table
 
-from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
-from literals import ADMIN_SERVER_PORT, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH
+from literals import ADMIN_SERVER_PORT, PATHS, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH, USER
+
+if TYPE_CHECKING:
+    from core.cluster import ClusterState
+    from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +199,30 @@ class BackupManager:
                 return False
             raise
         return content.get("ResponseMetadata", None) is not None
+
+    def restore_snapshot(self, backup_id: str, workload: ZKWorkload) -> None:
+        """Download and restore a snapshot.
+
+        Restoring requires removing the previous files on disk. For good measure, we move them to a backup folder,
+        so that we can manually restore them if something goes wrong.
+        """
+        data_dir = Path(PATHS["DATA"]) / "data" / "version-2"
+        data_log_dir = Path(PATHS["DATA"]) / "data-log" / "version-2"
+
+        workload.exec(["bash", "-c", f"cp -rp {data_dir} {data_dir.parent / 'version-2.bak'}"])
+        workload.exec(
+            ["bash", "-c", f"cp -rp {data_log_dir} {data_log_dir.parent / 'version-2.bak'}"]
+        )
+
+        workload.exec(["bash", "-c", f"rm -rf {data_dir / '*'}"])
+        workload.exec(["bash", "-c", f"rm -rf {data_log_dir / '*'}"])
+
+        restored_snapshot = data_dir / "snapshot.0"
+        self.bucket.Object(os.path.join(self.backups_path, backup_id, "snapshot")).download_file(
+            f"{restored_snapshot}"
+        )
+
+        workload.exec(["bash", "-c", f"chown {USER}:{USER} {restored_snapshot}"])
 
 
 class _StreamingToFileSyncAdapter:

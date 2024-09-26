@@ -3,6 +3,8 @@
 # See LICENSE file for licensing details.
 
 """Event handlers for creating and restoring backups."""
+from __future__ import annotations
+
 import json
 import logging
 from enum import Enum
@@ -43,7 +45,7 @@ class BackupEvents(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "backup")
-        self.charm: "ZooKeeperCharm" = charm
+        self.charm: ZooKeeperCharm = charm
         self.restore_state = RestoreState(self.charm, substrate=SUBSTRATE)
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
         self.backup_manager = BackupManager(self.charm.state)
@@ -250,11 +252,10 @@ class BackupEvents(Object):
         )
 
     def _download_and_restore(self):
-        logger.info("Restoring - downloading snapshot")
+        logger.info("Restoring - restore snapshot")
         # TODO
-        self.charm.workload.write(
-            self.restore_state.cluster.id_to_restore,
-            "/var/snap/charmed-zookeeper/current/etc/zookeeper/restored",
+        self.backup_manager.restore_snapshot(
+            self.restore_state.cluster.id_to_restore, self.charm.workload
         )
         self.restore_state.unit_server.update({"restore-progress": RestoreStep.RESTORE.value})
 
