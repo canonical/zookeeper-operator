@@ -203,7 +203,7 @@ class BackupManager:
     def restore_snapshot(self, backup_id: str, workload: ZKWorkload) -> None:
         """Download and restore a snapshot.
 
-        Restoring requires removing the previous files on disk. For good measure, we move them to a backup folder,
+        Restoring requires removing the previous files on disk. In this step, we move them to a backup folder,
         so that we can manually restore them if something goes wrong.
         """
         data_dir = Path(PATHS["DATA"]) / "data" / "version-2"
@@ -223,6 +223,14 @@ class BackupManager:
         )
 
         workload.exec(["bash", "-c", f"chown {USER}:{USER} {restored_snapshot}"])
+
+    def cleanup_leftover_files(self, workload: ZKWorkload) -> None:
+        """Cleanup the files previously stored in the data and data-log directories."""
+        data_dir = Path(PATHS["DATA"]) / "data" / "version-2.bak"
+        data_log_dir = Path(PATHS["DATA"]) / "data-log" / "version-2.bak"
+
+        workload.exec(["bash", "-c", f"rm -rf {data_dir}"])
+        workload.exec(["bash", "-c", f"rm -rf {data_log_dir}"])
 
 
 class _StreamingToFileSyncAdapter:
