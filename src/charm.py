@@ -11,15 +11,19 @@ from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
 from kazoo.exceptions import BadVersionError, ReconfigInProcessError
-from ops.charm import (
+from ops import (
+    ActiveStatus,
     CharmBase,
+    EventBase,
     InstallEvent,
-    LeaderElectedEvent,
     RelationDepartedEvent,
+    SecretChangedEvent,
+    StartEvent,
+    StatusBase,
+    StorageAttachedEvent,
+    WaitingStatus,
 )
-from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus, StatusBase
 
 from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
@@ -30,9 +34,12 @@ from literals import (
     CHARM_KEY,
     CHARM_USERS,
     DEPENDENCIES,
+    GROUP,
     JMX_PORT,
     METRICS_PROVIDER_PORT,
+    PEER,
     SUBSTRATE,
+    USER,
     DebugLevel,
     Status,
 )
@@ -62,7 +69,7 @@ class ZooKeeperCharm(CharmBase):
             self,
             substrate=SUBSTRATE,
             dependency_model=ZooKeeperDependencyModel(
-                **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
+                **DEPENDENCIES  # pyright: ignore[reportArgumentType]
             ),
         )
 
@@ -103,6 +110,8 @@ class ZooKeeperCharm(CharmBase):
             getattr(self.on, "config_changed"), self._on_cluster_relation_changed
         )
 
+        self.framework.observe(getattr(self.on, "secret_changed"), self._on_secret_changed)
+
         self.framework.observe(
             getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_changed
         )
@@ -111,6 +120,10 @@ class ZooKeeperCharm(CharmBase):
         )
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_departed
+        )
+
+        self.framework.observe(
+            getattr(self.on, "data_storage_attached"), self._on_storage_attached
         )
 
     # --- CORE EVENT HANDLERS ---
@@ -123,9 +136,10 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
+        self.unit.set_workload_version(self.workload.get_version())
         # don't complete install until passwords set
         if not self.state.peer_relation:
-            self._set_status(Status.NO_PEER_RELATION)
+            self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
 
@@ -152,6 +166,8 @@ class ZooKeeperCharm(CharmBase):
         if not self.upgrade_events.idle:
             event.defer()
             return
+
+        self.unit.set_workload_version(self.workload.get_version())
 
         # refreshing unit hostname relation data in case ip changed
         self.state.unit_server.update(self.quorum_manager.get_hostname_mapping())
@@ -228,7 +244,27 @@ class ZooKeeperCharm(CharmBase):
         # NOTE: if the leader is also going down, it may miss the event to set {unit.id: removed}
         # to avoid this, eventual clean up occurs during update-status calling update_quorum
 
-    def _manual_restart(self, event: EventBase) -> None:
+    def _on_storage_attached(self, _: StorageAttachedEvent) -> None:
+        """Handler for `storage_attached` events."""
+        self.workload.exec(["chmod", "750", f"{self.workload.paths.data_path}"])
+        self.workload.exec(["chown", f"{USER}:{GROUP}", f"{self.workload.paths.data_path}"])
+
+    def _on_secret_changed(self, event: SecretChangedEvent):
+        """Reconfigure services on a secret changed event."""
+        if not event.secret.label:
+            return
+
+        if not self.state.cluster.relation:
+            return
+
+        if event.secret.label == self.state.cluster.data_interface._generate_secret_label(
+            PEER,
+            self.state.cluster.relation.id,
+            "extra",  # type:ignore noqa  -- Changes with the https://github.com/canonical/data-platform-libs/issues/124
+        ):
+            self._on_cluster_relation_changed(event)
+
+    def _manual_restart(self, event: StartEvent) -> None:
         """Forces a rolling-restart event.
 
         Necessary for ensuring that `on_start` restarts roll.
@@ -285,6 +321,8 @@ class ZooKeeperCharm(CharmBase):
         # start units in order
         if (
             self.state.next_server
+            and self.state.next_server.component
+            and self.state.unit_server.component
             and self.state.next_server.component.name != self.state.unit_server.component.name
         ):
             self._set_status(Status.NOT_UNIT_TURN)
@@ -310,7 +348,7 @@ class ZooKeeperCharm(CharmBase):
         if (
             self.state.cluster.tls
             and self.state.unit_server.certificate
-            and self.state.unit_server.ca
+            and self.state.unit_server.ca_cert
         ):  # TLS is probably completed
             self.tls_manager.set_private_key()
             self.tls_manager.set_ca()
@@ -348,10 +386,6 @@ class ZooKeeperCharm(CharmBase):
 
         if (
             self.state.stale_quorum  # in the case of scale-up
-            or isinstance(  # to run without delay to maintain quorum on scale down
-                event,
-                (RelationDepartedEvent, LeaderElectedEvent),
-            )
             or self.state.healthy  # to ensure run on update-status
         ):
             updated_servers = self.quorum_manager.update_cluster()
@@ -404,17 +438,25 @@ class ZooKeeperCharm(CharmBase):
                     self.config_manager.current_jaas
                 )  # if password in jaas file, unit has probably restarted
             ):
-                logger.debug(f"Skipping update of {client.component.name}, ACLs not yet set...")
+                if client.component:
+                    logger.debug(
+                        f"Skipping update of {client.component.name}, ACLs not yet set..."
+                    )
+                else:
+                    logger.debug("Client has not component (app|unit) specified, quitting...")
                 continue
 
             client.update(
                 {
-                    "uris": client.uris,
                     "endpoints": client.endpoints,
                     "tls": client.tls,
                     "username": client.username,
                     "password": client.password,
-                    "chroot": client.chroot,
+                    "database": client.database,
+                    # Duplicated for compatibility with older requirers
+                    # TODO (zkclient): Remove these entries
+                    "chroot": client.database,
+                    "uris": client.uris,
                 }
             )
 

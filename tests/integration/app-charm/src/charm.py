@@ -11,6 +11,7 @@ of the libraries in this repository.
 import logging
 import random
 
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
 from ops.charm import CharmBase, RelationEvent
 from ops.main import main
 from ops.model import ActiveStatus
@@ -30,6 +31,8 @@ class ApplicationCharm(CharmBase):
         super().__init__(*args)
         self.name = CHARM_KEY
 
+        self.requires_interface = DatabaseRequires(self, REL_NAME, "/myapp")
+
         self.framework.observe(getattr(self.on, "start"), self._on_start)
         self.framework.observe(self.on[REL_NAME].relation_changed, self._log)
         self.framework.observe(self.on[REL_NAME].relation_broken, self._log)
@@ -47,7 +50,12 @@ class ApplicationCharm(CharmBase):
             return
 
         # reasonable confidence there won't be conflicting chroots
-        self.relation.data[self.app].update({"chroot": f"{CHARM_KEY}_{random.randrange(1,99)}"})
+        self.relation.data[self.app].update(
+            {
+                "database": f"{CHARM_KEY}_{random.randrange(1,99)}",
+                "requested-secrets": """["username","password","tls","tls-ca","uris"]""",
+            }
+        )
 
     def _log(self, event: RelationEvent):
         return

@@ -17,6 +17,7 @@ markers = ["unstable"]
 [tool.black]
 line-length = 99
 target-version = ["py310"]
+extend-exclude = "tests/integration/app-charm/lib"
 
 [tool.isort]
 profile = "black"
@@ -30,14 +31,14 @@ authors = []
 [tool.poetry.dependencies]
 python = "^3.10"
 ops = "^2.4.1"
-kazoo = ">=2.8.0"
+kazoo = ">=2.8.0,<2.10"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
-cryptography = "^39.0.0"
+cryptography = ">42.0.0"
 cosl = ">=0.0.5"
 pydantic = "^1.10.7"
 pyyaml = "^6.0.1"
-poetry-plugin-export = ">=1.6"
+typing-extensions = "^4.9.0"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -69,7 +70,7 @@ optional = true
 
 [tool.poetry.group.integration.dependencies]
 pytest = ">=7.2"
-juju = "^3.2.0"
+juju = "^3.4.0"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
 pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
@@ -78,7 +79,14 @@ pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workf
 
 [tool.ruff]
 line-length = 99
+extend-exclude = ["__pycache__", "*.egg_info", "tests/integration/app-charm/lib"]
+target-version="py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
 select = ["E", "W", "F", "C", "N", "D", "I001"]
+ignore = ["E501", "D107"]
+per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104", "E999"], "src/literals.py" = ["D101"]}
 extend-ignore = [
     "D203",
     "D204",
@@ -93,14 +101,7 @@ extend-ignore = [
     "D409",
     "D413",
 ]
-ignore = ["E501", "D107"]
-extend-exclude = ["__pycache__", "*.egg_info"]
-per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104", "E999"], "src/literals.py" = ["D101"]}
-target-version="py310"
-src = ["src", "tests"]
-
-[tool.ruff.mccabe]
-max-complexity = 10
+mccabe.max-complexity = 10
 
 [tool.pyright]
 include = ["src"]

@@ -46,7 +46,12 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
 @pytest.mark.abort_on_fail
 async def test_remove_tls_provider(ops_test: OpsTest):
     await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME])
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(90)
+
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], idle_period=30)
 
     assert ping_servers(ops_test)
 
@@ -67,11 +72,16 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
             config={"ca-common-name": "zookeeper"},
         ),
     )
+
+    await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", idle_period=30)
+
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
-    async with ops_test.fast_forward(fast_interval="90s"):
-        await ops_test.model.wait_for_idle(
-            apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
-        )
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(90)
+
+    await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", idle_period=30)
 
     assert ping_servers(ops_test)
 
