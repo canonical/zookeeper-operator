@@ -153,12 +153,13 @@ class BackupEvents(Object):
         """Restore a snapshot referenced by its id.
 
         Steps:
-        - stop client traffic (still necessary if we stops the units?)
+        - stop client traffic
         - stop all units
-        - backup local state so that we can rollback if anything goes wrong (manual op?)
+        - backup local state so that we can rollback if anything goes wrong (manual op)
         - wipe data folders
         - get snapshot from object storage, save in data folder
         - restart units
+        - cleanup leftover files
         - notify clients
         """
         failure_conditions = [

@@ -439,12 +439,7 @@ class ZooKeeperCharm(CharmBase):
             client.update({"endpoints": ""})
 
     def update_client_data(self) -> None:
-        """Writes necessary relation data to all related applications.
-
-        Args:
-            force_update: Add a random value to a field not part of the schema to trigger the
-              relation-changed events on the clients even if the rest of the field stays the same.
-        """
+        """Writes necessary relation data to all related applications."""
         if not self.unit.is_leader():
             return
 
