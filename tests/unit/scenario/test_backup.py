@@ -17,7 +17,6 @@ from charm import ZooKeeperCharm
 from literals import (
     CONTAINER,
     PEER,
-    RESTORE,
     S3_REL_NAME,
     SUBSTRATE,
     Status,
@@ -312,9 +311,7 @@ def test_action_restore_ongoing_restore(ctx: Context, base_state: State):
         "bucket": "moria",
         "region": "",
     }
-    restore_peer = PeerRelation(
-        RESTORE, RESTORE, local_app_data={"id-to-restore": "ongoing-backup-id"}
-    )
+    restore_peer = PeerRelation(PEER, PEER, local_app_data={"id-to-restore": "ongoing-backup-id"})
     state_in = dataclasses.replace(base_state, relations=[restore_peer])
 
     # When

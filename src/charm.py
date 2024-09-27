@@ -157,7 +157,7 @@ class ZooKeeperCharm(CharmBase):
         if self.unit.is_leader():
             self.state.cluster.update({"quorum": "default - non-ssl"})
 
-    def _on_cluster_relation_changed(self, event: EventBase) -> None:
+    def _on_cluster_relation_changed(self, event: EventBase) -> None:  # noqa: C901
         """Generic handler for all 'something changed, update' events across all relations."""
         # not all methods called
         if not self.state.peer_relation:
@@ -170,6 +170,11 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
+        if self.state.cluster.id_to_restore:
+            # Ongoing backup restore, we can early return here since the
+            # chain of events is only relevant to the backup event handler
+            return
+
         self.unit.set_workload_version(self.workload.get_version())
 
         # refreshing unit hostname relation data in case ip changed
@@ -177,7 +182,7 @@ class ZooKeeperCharm(CharmBase):
         self.config_manager.set_etc_hosts()
 
         # don't run (and restart) if some units are still joining
-        # instead, wait for relation-changed from it's setting of 'started'
+        # instead, wait for relation-changed from its setting of 'started'
         # also don't run (and restart) if some units still need to set ip
         self._set_status(self.state.all_installed)
         if not isinstance(self.unit.status, ActiveStatus):

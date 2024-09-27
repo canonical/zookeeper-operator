@@ -7,14 +7,8 @@ from __future__ import annotations
 
 import json
 import logging
-from enum import Enum
 from typing import TYPE_CHECKING, cast
 
-from charms.data_platform_libs.v0.data_interfaces import (
-    DataPeerData,
-    DataPeerOtherUnitData,
-    DataPeerUnitData,
-)
 from charms.data_platform_libs.v0.s3 import (
     CredentialsChangedEvent,
     CredentialsGoneEvent,
@@ -22,16 +16,13 @@ from charms.data_platform_libs.v0.s3 import (
 )
 from ops import (
     ActionEvent,
-    Application,
-    Relation,
     RelationEvent,
-    Unit,
 )
 from ops.framework import Object
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 
-from core.models import SUBSTRATES, RelationState
-from core.stubs import S3ConnectionInfo
-from literals import RESTORE, S3_BACKUPS_PATH, S3_REL_NAME, SUBSTRATE, Status
+from core.stubs import RestoreStep, S3ConnectionInfo
+from literals import S3_BACKUPS_PATH, S3_REL_NAME, Status
 from managers.backup import BackupManager
 
 if TYPE_CHECKING:
@@ -46,7 +37,6 @@ class BackupEvents(Object):
     def __init__(self, charm):
         super().__init__(charm, "backup")
         self.charm: ZooKeeperCharm = charm
-        self.restore_state = RestoreState(self.charm, substrate=SUBSTRATE)
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
         self.backup_manager = BackupManager(self.charm.state)
 
@@ -60,7 +50,7 @@ class BackupEvents(Object):
         self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
 
         self.framework.observe(
-            getattr(self.charm.on, "restore_relation_changed"), self._restore_event_dispatch
+            getattr(self.charm.on, "cluster_relation_changed"), self._restore_event_dispatch
         )
 
     def _on_s3_credentials_changed(self, event: CredentialsChangedEvent):
@@ -186,7 +176,7 @@ class BackupEvents(Object):
                 "Backup id not found in storage object",
             ),
             (
-                bool(self.restore_state.cluster.id_to_restore),
+                bool(self.charm.state.cluster.id_to_restore),
                 "A snapshot restore is currently ongoing",
             ),
         ]
@@ -198,7 +188,7 @@ class BackupEvents(Object):
                 event.fail(msg)
                 return
 
-        self.restore_state.cluster.update(
+        self.charm.state.cluster.update(
             {
                 "id-to-restore": id_to_restore,
                 "restore-instruction": RestoreStep.NOT_STARTED.value,
@@ -208,14 +198,15 @@ class BackupEvents(Object):
 
     def _restore_event_dispatch(self, event: RelationEvent):
         """Dispatch restore event to the proper method."""
-        cluster_state = self.restore_state.cluster
-        unit_state = self.restore_state.unit_server
+        cluster_state = self.charm.state.cluster
+        unit_state = self.charm.state.unit_server
 
         if not cluster_state.id_to_restore:
-            self.restore_state.unit_server.update(
-                {"restore-progress": RestoreStep.NOT_STARTED.value}
-            )
-            self.charm._set_status(self.charm.state.ready)
+            if unit_state.restore_progress is not RestoreStep.NOT_STARTED:
+                self.charm.state.unit_server.update(
+                    {"restore-progress": RestoreStep.NOT_STARTED.value}
+                )
+                self.charm._set_status(self.charm.state.ready)
             return
 
         if self.charm.unit.is_leader():
@@ -235,11 +226,11 @@ class BackupEvents(Object):
 
     def _maybe_progress_step(self):
         """Check that all units are done with the current instruction and move to the next if applicable."""
-        current_instruction = self.restore_state.cluster.restore_instruction
+        current_instruction = self.charm.state.cluster.restore_instruction
         next_instruction = current_instruction.next_step()
 
         if all(
-            (unit.restore_progress is current_instruction for unit in self.restore_state.servers)
+            (unit.restore_progress is current_instruction for unit in self.charm.state.servers)
         ):
             payload = {"restore-instruction": next_instruction.value}
             if current_instruction is RestoreStep.CLEAN:
@@ -249,171 +240,34 @@ class BackupEvents(Object):
                 self.charm.quorum_manager.update_acls()
                 self.charm.update_client_data(force_update=True)
 
-            self.restore_state.cluster.update(payload)
+            self.charm.state.cluster.update(payload)
 
-    def _stop_workflow(self):
+    def _stop_workflow(self) -> None:
         self.charm._set_status(Status.ONGOING_RESTORE)
         logger.info("Restoring - stopping workflow")
         self.charm.workload.stop()
-        self.restore_state.unit_server.update(
-            {"restore-progress": RestoreStep.STOP_WORKFLOW.value}
-        )
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.STOP_WORKFLOW.value})
 
-    def _download_and_restore(self):
+    def _download_and_restore(self) -> None:
         logger.info("Restoring - restore snapshot")
         self.backup_manager.restore_snapshot(
-            self.restore_state.cluster.id_to_restore, self.charm.workload
+            self.charm.state.cluster.id_to_restore, self.charm.workload
         )
-        self.restore_state.unit_server.update({"restore-progress": RestoreStep.RESTORE.value})
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.RESTORE.value})
 
-    def _restart_workflow(self):
+    def _restart_workflow(self) -> None:
         logger.info("Restoring - restarting workflow")
         self.charm.workload.restart()
-        self.restore_state.unit_server.update({"restore-progress": RestoreStep.RESTART.value})
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.RESTART.value})
 
-    def _cleaning(self):
+    @retry(
+        wait=wait_fixed(5),
+        stop=stop_after_attempt(3),
+        retry=retry_if_result(lambda res: res is False),
+    )
+    def _cleaning(self) -> bool | None:
+        if not self.charm.workload.healthy:
+            return False
         logger.info("Restoring - cleaning files")
-        # TODO
-        self.restore_state.unit_server.update({"restore-progress": RestoreStep.CLEAN.value})
-
-
-class RestoreStep(str, Enum):
-    """Represent restore flow step."""
-
-    NOT_STARTED = ""
-    STOP_WORKFLOW = "stop"
-    RESTORE = "restore"
-    RESTART = "restart"
-    CLEAN = "clean"
-
-    def next_step(self):
-        """Get the next logical restore flow step."""
-        match self:
-            case RestoreStep.NOT_STARTED:
-                return RestoreStep.STOP_WORKFLOW
-            case RestoreStep.STOP_WORKFLOW:
-                return RestoreStep.RESTORE
-            case RestoreStep.RESTORE:
-                return RestoreStep.RESTART
-            case RestoreStep.RESTART:
-                return RestoreStep.CLEAN
-            case RestoreStep.CLEAN:
-                return RestoreStep.NOT_STARTED
-
-
-class ZKServerRestore(RelationState):
-    """Restore-focused state collection metadata for a charm unit."""
-
-    def __init__(
-        self,
-        relation: Relation | None,
-        data_interface: DataPeerUnitData,
-        component: Unit,
-        substrate: SUBSTRATES,
-    ):
-        super().__init__(relation, data_interface, component, substrate)
-        self.unit = component
-
-    @property
-    def restore_progress(self) -> RestoreStep:
-        """Latest restore flow step the unit went through."""
-        return RestoreStep(self.relation_data.get("restore-progress", ""))
-
-
-class ZKClusterRestore(RelationState):
-    """Restore-focused state collection metadata for the charm application."""
-
-    def __init__(
-        self,
-        relation: Relation | None,
-        data_interface: DataPeerData,
-        component: Application,
-        substrate: SUBSTRATES,
-    ):
-        super().__init__(relation, data_interface, component, substrate)
-        self.data_interface = data_interface
-        self.app = component
-
-    @property
-    def id_to_restore(self) -> str:
-        """Backup id to restore."""
-        return self.relation_data.get("id-to-restore", "")
-
-    @property
-    def restore_instruction(self) -> RestoreStep:
-        """Current restore flow step to go through."""
-        return RestoreStep(self.relation_data.get("restore-instruction", ""))
-
-
-class RestoreState(Object):
-    """Collection of global cluster state for Framework/Object."""
-
-    def __init__(self, charm: Object, substrate: SUBSTRATES):
-        super().__init__(parent=charm, key="restore_state")
-        self.substrate: SUBSTRATES = substrate
-
-        self.peer_app_interface = DataPeerData(self.model, relation_name=RESTORE)
-        self.peer_unit_interface = DataPeerUnitData(self.model, relation_name=RESTORE)
-        self._servers_data = {}
-
-    @property
-    def peer_relation(self) -> Relation | None:
-        """The cluster peer relation."""
-        return self.model.get_relation(RESTORE)
-
-    @property
-    def unit_server(self) -> ZKServerRestore:
-        """The server state of the current running Unit."""
-        return ZKServerRestore(
-            relation=self.peer_relation,
-            data_interface=self.peer_unit_interface,
-            component=self.model.unit,
-            substrate=self.substrate,
-        )
-
-    @property
-    def peer_units_data_interfaces(self) -> dict[Unit, DataPeerOtherUnitData]:
-        """The cluster peer relation."""
-        if not self.peer_relation or not self.peer_relation.units:
-            return {}
-
-        for unit in self.peer_relation.units:
-            if unit not in self._servers_data:
-                self._servers_data[unit] = DataPeerOtherUnitData(
-                    model=self.model, unit=unit, relation_name=RESTORE
-                )
-        return self._servers_data
-
-    @property
-    def cluster(self) -> ZKClusterRestore:
-        """The cluster state of the current running App."""
-        return ZKClusterRestore(
-            relation=self.peer_relation,
-            data_interface=self.peer_app_interface,
-            component=self.model.app,
-            substrate=self.substrate,
-        )
-
-    @property
-    def servers(self) -> set[ZKServerRestore]:
-        """Grabs all servers in the current peer relation, including the running unit server.
-
-        Returns:
-            Set of ZKServers in the current peer relation, including the running unit server.
-        """
-        if not self.peer_relation:
-            return set()
-
-        servers = set()
-        for unit, data_interface in self.peer_units_data_interfaces.items():
-            servers.add(
-                ZKServerRestore(
-                    relation=self.peer_relation,
-                    data_interface=data_interface,
-                    component=unit,
-                    substrate=self.substrate,
-                )
-            )
-        servers.add(self.unit_server)
-
-        return servers
+        self.backup_manager.cleanup_leftover_files(self.charm.workload)
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.CLEAN.value})
