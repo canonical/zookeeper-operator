@@ -6,7 +6,6 @@
 
 import logging
 import time
-import uuid
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
@@ -164,15 +163,15 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.NO_PEER_RELATION)
             return
 
+        if self.state.cluster.id_to_restore:
+            # Ongoing backup restore, we can early return here since the
+            # chain of events is only relevant to the backup event handler
+            return
+
         # don't want to prematurely set config using outdated/missing relation data
         # also skip update-status overriding statues during upgrades
         if not self.upgrade_events.idle:
             event.defer()
-            return
-
-        if self.state.cluster.id_to_restore:
-            # Ongoing backup restore, we can early return here since the
-            # chain of events is only relevant to the backup event handler
             return
 
         self.unit.set_workload_version(self.workload.get_version())
@@ -431,7 +430,15 @@ class ZooKeeperCharm(CharmBase):
 
         self.update_client_data()
 
-    def update_client_data(self, force_update: bool = False) -> None:
+    def disconnect_clients(self) -> None:
+        """Remove a necessary part of the client databag, acting as a logical disconnect."""
+        if not self.unit.is_leader():
+            return
+
+        for client in self.state.clients:
+            client.update({"endpoints": ""})
+
+    def update_client_data(self) -> None:
         """Writes necessary relation data to all related applications.
 
         Args:
@@ -461,21 +468,19 @@ class ZooKeeperCharm(CharmBase):
                     logger.debug("Client has not component (app|unit) specified, quitting...")
                 continue
 
-            payload = {
-                "endpoints": client.endpoints,
-                "tls": client.tls,
-                "username": client.username,
-                "password": client.password,
-                "database": client.database,
-                # Duplicated for compatibility with older requirers
-                # TODO (zkclient): Remove these entries
-                "chroot": client.database,
-                "uris": client.uris,
-            }
-
-            if force_update:
-                payload |= {"force-update-uuid": str(uuid.uuid4())}
-            client.update(payload)
+            client.update(
+                {
+                    "endpoints": client.endpoints,
+                    "tls": client.tls,
+                    "username": client.username,
+                    "password": client.password,
+                    "database": client.database,
+                    # Duplicated for compatibility with older requirers
+                    # TODO (zkclient): Remove these entries
+                    "chroot": client.database,
+                    "uris": client.uris,
+                }
+            )
 
     def _set_status(self, key: Status) -> None:
         """Sets charm status."""
