@@ -244,7 +244,10 @@ class BackupEvents(Object):
             payload = {"restore-instruction": next_instruction.value}
             if current_instruction is RestoreStep.CLEAN:
                 payload = payload | {"id-to-restore": "", "to_restore": ""}
-                # TODO: notify clients
+                # Update ACLs for already related clients and trigger a relation-changed
+                # on their side
+                self.charm.quorum_manager.update_acls()
+                self.charm.update_client_data(force_update=True)
 
             self.restore_state.cluster.update(payload)
 

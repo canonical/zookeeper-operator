@@ -6,6 +6,7 @@
 
 import logging
 import time
+import uuid
 
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
@@ -425,8 +426,13 @@ class ZooKeeperCharm(CharmBase):
 
         self.update_client_data()
 
-    def update_client_data(self) -> None:
-        """Writes necessary relation data to all related applications."""
+    def update_client_data(self, force_update: bool = False) -> None:
+        """Writes necessary relation data to all related applications.
+
+        Args:
+            force_update: Add a random value to a field not part of the schema to trigger the
+              relation-changed events on the clients even if the rest of the field stays the same.
+        """
         if not self.unit.is_leader():
             return
 
@@ -450,19 +456,21 @@ class ZooKeeperCharm(CharmBase):
                     logger.debug("Client has not component (app|unit) specified, quitting...")
                 continue
 
-            client.update(
-                {
-                    "endpoints": client.endpoints,
-                    "tls": client.tls,
-                    "username": client.username,
-                    "password": client.password,
-                    "database": client.database,
-                    # Duplicated for compatibility with older requirers
-                    # TODO (zkclient): Remove these entries
-                    "chroot": client.database,
-                    "uris": client.uris,
-                }
-            )
+            payload = {
+                "endpoints": client.endpoints,
+                "tls": client.tls,
+                "username": client.username,
+                "password": client.password,
+                "database": client.database,
+                # Duplicated for compatibility with older requirers
+                # TODO (zkclient): Remove these entries
+                "chroot": client.database,
+                "uris": client.uris,
+            }
+
+            if force_update:
+                payload |= {"force-update-uuid": str(uuid.uuid4())}
+            client.update(payload)
 
     def _set_status(self, key: Status) -> None:
         """Sets charm status."""
