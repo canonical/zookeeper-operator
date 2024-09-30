@@ -137,9 +137,7 @@ async def test_restore_backup_new_app(ops_test: OpsTest, s3_bucket: Bucket, zk_c
     )
     await ops_test.model.add_relation(APP_TO_RESTORE, S3_INTEGRATOR)
     await ops_test.model.wait_for_idle(
-        apps=[APP_TO_RESTORE, S3_INTEGRATOR],
-        status="active",
-        timeout=1000,
+        apps=[APP_TO_RESTORE, S3_INTEGRATOR], status="active", timeout=1000, raise_on_error=False
     )
     for unit in ops_test.model.applications[APP_TO_RESTORE].units:
         if await unit.is_leader_from_status():

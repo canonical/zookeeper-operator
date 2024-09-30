@@ -233,7 +233,16 @@ class QuorumManager:
                 self.client.set_acls_znode_leader(path=node, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config
+        restricted_acl = make_acl(
+            scheme="sasl",
+            credential="super",
+            read=True,
+            write=True,
+            create=True,
+            delete=True,
+            admin=True,
+        )
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):
                 logger.info(f"RESET ACLS CHROOT - {chroot}")
-                self.client.set_acls_znode_leader(path=chroot, acls=[])
+                self.client.set_acls_znode_leader(path=chroot, acls=[restricted_acl])
