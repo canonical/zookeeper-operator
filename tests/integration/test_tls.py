@@ -26,6 +26,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"ca-common-name": "zookeeper"},
+            revision=163,
         ),
     )
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
@@ -70,6 +71,7 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"ca-common-name": "zookeeper"},
+            revision=163,
         ),
     )
 
