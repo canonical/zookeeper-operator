@@ -199,11 +199,9 @@ class BackupEvents(Object):
 
     def _restore_event_dispatch(self, event: RelationEvent):
         """Dispatch restore event to the proper method."""
-        cluster_state = self.charm.state.cluster
-        unit_state = self.charm.state.unit_server
 
-        if not cluster_state.id_to_restore:
-            if unit_state.restore_progress is not RestoreStep.NOT_STARTED:
+        if not self.charm.state.cluster.id_to_restore:
+            if self.charm.state.unit_server.restore_progress is not RestoreStep.NOT_STARTED:
                 self.charm.state.unit_server.update(
                     {"restore-progress": RestoreStep.NOT_STARTED.value}
                 )
@@ -213,7 +211,7 @@ class BackupEvents(Object):
         if self.charm.unit.is_leader():
             self._maybe_progress_step()
 
-        match cluster_state.restore_instruction, unit_state.restore_progress:
+        match self.charm.state.cluster.restore_instruction, self.charm.state.unit_server.restore_progress:
             case RestoreStep.STOP_WORKFLOW, RestoreStep.NOT_STARTED:
                 self._stop_workflow()
             case RestoreStep.RESTORE, RestoreStep.STOP_WORKFLOW:
