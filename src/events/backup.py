@@ -3,8 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Event handlers for creating and restoring backups."""
-from __future__ import annotations
-
 import json
 import logging
 from typing import TYPE_CHECKING, cast
@@ -36,7 +34,7 @@ class BackupEvents(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "backup")
-        self.charm: ZooKeeperCharm = charm
+        self.charm: "ZooKeeperCharm" = charm
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
         self.backup_manager = BackupManager(self.charm.state)
 

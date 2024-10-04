@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Helpers for managing backups."""
-from __future__ import annotations
 
 import logging
 import os
@@ -12,7 +11,6 @@ from io import BytesIO, StringIO
 from itertools import islice
 from operator import attrgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import boto3
 import httpx
@@ -23,12 +21,11 @@ from mypy_boto3_s3.service_resource import Bucket
 from rich.console import Console
 from rich.table import Table
 
+from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
 from literals import ADMIN_SERVER_PORT, PATHS, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH, USER
+from workload import ZKWorkload
 
-if TYPE_CHECKING:
-    from core.cluster import ClusterState
-    from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
 
