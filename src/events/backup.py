@@ -179,7 +179,7 @@ class BackupEvents(Object):
                 "Backup id not found in storage object",
             ),
             (
-                lambda: bool(self.charm.state.cluster.id_to_restore),
+                lambda: bool(self.charm.state.cluster.is_restore_in_progress),
                 "A snapshot restore is currently ongoing",
             ),
         ]
@@ -203,7 +203,7 @@ class BackupEvents(Object):
 
     def _restore_event_dispatch(self, event: RelationEvent):
         """Dispatch restore event to the proper method."""
-        if not self.charm.state.cluster.id_to_restore:
+        if not self.charm.state.cluster.is_restore_in_progress:
             if self.charm.state.unit_server.restore_progress is not RestoreStep.NOT_STARTED:
                 self.charm.state.unit_server.update(
                     {"restore-progress": RestoreStep.NOT_STARTED.value}
@@ -231,9 +231,7 @@ class BackupEvents(Object):
         current_instruction = self.charm.state.cluster.restore_instruction
         next_instruction = current_instruction.next_step()
 
-        if all(
-            (unit.restore_progress is current_instruction for unit in self.charm.state.servers)
-        ):
+        if self.charm.state.is_next_restore_step_possible:
             payload = {"restore-instruction": next_instruction.value}
             if current_instruction is RestoreStep.CLEAN:
                 payload = payload | {"id-to-restore": "", "to_restore": ""}
