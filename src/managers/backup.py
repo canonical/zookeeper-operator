@@ -26,7 +26,6 @@ from core.stubs import BackupMetadata, S3ConnectionInfo
 from literals import ADMIN_SERVER_PORT, PATHS, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH, USER
 from workload import ZKWorkload
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -183,13 +182,8 @@ class BackupManager:
     def is_snapshot_in_bucket(self, backup_id: str) -> bool:
         """Check whether the requested snapshot to restore is in the object storage."""
         try:
-            bucket = self.bucket
-        except KeyError:
-            return False
-
-        try:
-            content = bucket.meta.client.head_object(
-                Bucket=bucket.name, Key=os.path.join(self.backups_path, backup_id, "snapshot")
+            content = self.bucket.meta.client.head_object(
+                Bucket=self.bucket.name, Key=os.path.join(self.backups_path, backup_id, "snapshot")
             )
         except ClientError as ex:
             if "(404)" in ex.args[0]:

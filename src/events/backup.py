@@ -160,28 +160,32 @@ class BackupEvents(Object):
         - cleanup leftover files
         - notify clients
         """
+        id_to_restore = event.params.get("backup-id", "")
         failure_conditions = [
-            (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
             (
-                not self.charm.state.cluster.s3_credentials,
+                lambda: not self.charm.unit.is_leader(),
+                "Action must be ran on the application leader",
+            ),
+            (
+                lambda: not self.charm.state.cluster.s3_credentials,
                 "Cluster needs an access to an object storage to make a backup",
             ),
             (
-                not (id_to_restore := event.params.get("backup-id", "")),
+                lambda: not id_to_restore,
                 "No backup id to restore provided",
             ),
             (
-                not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
+                lambda: not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
                 "Backup id not found in storage object",
             ),
             (
-                bool(self.charm.state.cluster.id_to_restore),
+                lambda: bool(self.charm.state.cluster.id_to_restore),
                 "A snapshot restore is currently ongoing",
             ),
         ]
 
         for check, msg in failure_conditions:
-            if check:
+            if check():
                 logging.error(msg)
                 event.set_results({"error": msg})
                 event.fail(msg)
@@ -199,7 +203,6 @@ class BackupEvents(Object):
 
     def _restore_event_dispatch(self, event: RelationEvent):
         """Dispatch restore event to the proper method."""
-
         if not self.charm.state.cluster.id_to_restore:
             if self.charm.state.unit_server.restore_progress is not RestoreStep.NOT_STARTED:
                 self.charm.state.unit_server.update(
