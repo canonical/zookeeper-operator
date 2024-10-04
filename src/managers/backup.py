@@ -195,7 +195,7 @@ class BackupManager:
             if "(404)" in ex.args[0]:
                 return False
             raise
-        return content.get("ResponseMetadata", None) is not None
+        return bool(content.get("ResponseMetadata", None))
 
     def restore_snapshot(self, backup_id: str, workload: ZKWorkload) -> None:
         """Download and restore a snapshot.
