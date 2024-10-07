@@ -156,11 +156,16 @@ class ZooKeeperCharm(CharmBase):
         if self.unit.is_leader():
             self.state.cluster.update({"quorum": "default - non-ssl"})
 
-    def _on_cluster_relation_changed(self, event: EventBase) -> None:
+    def _on_cluster_relation_changed(self, event: EventBase) -> None:  # noqa: C901
         """Generic handler for all 'something changed, update' events across all relations."""
         # not all methods called
         if not self.state.peer_relation:
             self._set_status(Status.NO_PEER_RELATION)
+            return
+
+        if self.state.cluster.is_restore_in_progress:
+            # Ongoing backup restore, we can early return here since the
+            # chain of events is only relevant to the backup event handler
             return
 
         # don't want to prematurely set config using outdated/missing relation data
@@ -176,7 +181,7 @@ class ZooKeeperCharm(CharmBase):
         self.config_manager.set_etc_hosts()
 
         # don't run (and restart) if some units are still joining
-        # instead, wait for relation-changed from it's setting of 'started'
+        # instead, wait for relation-changed from its setting of 'started'
         # also don't run (and restart) if some units still need to set ip
         self._set_status(self.state.all_installed)
         if not isinstance(self.unit.status, ActiveStatus):
@@ -345,6 +350,7 @@ class ZooKeeperCharm(CharmBase):
 
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
+        self.config_manager.set_client_jaas_config()
 
         # during reschedules (e.g upgrades or otherwise) we lose all files
         # need to manually add-back key/truststores
@@ -423,6 +429,14 @@ class ZooKeeperCharm(CharmBase):
                 logger.info(f"ZooKeeper cluster switching to {self.state.cluster.quorum} quorum")
 
         self.update_client_data()
+
+    def disconnect_clients(self) -> None:
+        """Remove a necessary part of the client databag, acting as a logical disconnect."""
+        if not self.unit.is_leader():
+            return
+
+        for client in self.state.clients:
+            client.update({"endpoints": ""})
 
     def update_client_data(self) -> None:
         """Writes necessary relation data to all related applications."""
