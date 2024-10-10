@@ -6,12 +6,21 @@ groups:
   # ==============
   - alert: ZooKeeper Missing
     expr: up{juju_charm!=".*"} == 0
-    for: 0m
+    for: 1m
     labels:
       severity: critical
     annotations:
       summary: Prometheus target missing (instance {{ $labels.instance }})
       description: "ZooKeeper target has disappeared. An exporter might be crashed.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+  - alert: Ensemble Member Missing
+    expr: min(synced_followers{juju_charm!=".*"}) + 1 < max(quorum_size{juju_charm!=".*"})
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: Prometheus target missing for member of the ZooKeeper ensemble  (instance {{ $labels.instance }})
+      description: "ZooKeeper ensemble member has disappeared. An exporter might be crashed.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
 
   - alert: JvmMemory Filling Up
     expr: (sum by (instance)(jvm_memory_bytes_used{area="heap",juju_charm!=".*"}) / sum by (instance)(jvm_memory_bytes_max{area="heap",juju_charm!=".*"})) * 100 > 80
@@ -56,7 +65,7 @@ groups:
       summary: "Instance {{ $labels.instance }} create too many connections"
       description: "{{ $labels.instance }} of job {{$labels.job}} create too many connections: [{{ $value }}]."
 
-  - alert: Znode Total Cccupied Memory Too Big
+  - alert: Znode Total Occupied Memory Too Big
     expr: approximate_data_size{juju_charm!=".*"} /1024 /1024 > 1 * 1024 # more than 1024 MB(1 GB)
     for: 1m
     labels:
@@ -164,11 +173,11 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Zookeeper have too high ephemeral znodes count."
+      summary: "Zookeeper has too high ephemeral znodes count."
 
   - alert: Zookeeper Unrecoverable Errors
     expr: increase(unrecoverable_error_count{juju_charm!=".*"}[2m]) > 0
     labels:
       severity: high
     annotations:
-      summary: "Zookeeper have unhandled Exception"
+      summary: "Zookeeper has unhandled Exception"
