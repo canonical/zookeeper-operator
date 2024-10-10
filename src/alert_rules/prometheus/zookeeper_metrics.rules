@@ -13,6 +13,15 @@ groups:
       summary: Prometheus target missing (instance {{ $labels.instance }})
       description: "ZooKeeper target has disappeared. An exporter might be crashed.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
 
+  - alert: Ensemble Member Missing
+    expr: floor(sum(up{juju_charm!=".*"}/2) < quorum_size{juju_charm!=".*"}
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: Prometheus target missing for member of the ZooKeeper ensemble  (instance {{ $labels.instance }})
+      description: "ZooKeeper ensemble member has disappeared. An exporter might be crashed.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
   - alert: JvmMemory Filling Up
     expr: (sum by (instance)(jvm_memory_bytes_used{area="heap",juju_charm!=".*"}) / sum by (instance)(jvm_memory_bytes_max{area="heap",juju_charm!=".*"})) * 100 > 80
     for: 2m
