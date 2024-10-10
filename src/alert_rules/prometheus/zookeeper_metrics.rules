@@ -6,7 +6,7 @@ groups:
   # ==============
   - alert: ZooKeeper Missing
     expr: up{juju_charm!=".*"} == 0
-    for: 0m
+    for: 1m
     labels:
       severity: critical
     annotations:
