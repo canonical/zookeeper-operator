@@ -4,50 +4,73 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
-from typing import Literal, MutableMapping
+import warnings
+from collections.abc import MutableMapping
+from typing import Literal
 
+from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
 from ops.model import Application, Relation, Unit
-from typing_extensions import override
+from typing_extensions import deprecated, override
 
-from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SERVER_PORT
+from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SECRETS_APP, SERVER_PORT
 
 logger = logging.getLogger(__name__)
 
 SUBSTRATES = Literal["vm", "k8s"]
 
 
-class StateBase:
-    """Base state object."""
+class RelationState:
+    """Relation state object."""
 
     def __init__(
-        self, relation: Relation | None, component: Unit | Application, substrate: SUBSTRATES
+        self,
+        relation: Relation | None,
+        data_interface: Data,
+        component: Unit | Application | None,
+        substrate: SUBSTRATES,
     ):
         self.relation = relation
+        self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
+        self.relation_data = self.data_interface.as_dict(self.relation.id) if self.relation else {}
+
+    def __bool__(self):
+        """Boolean evaluation based on the existence of self.relation."""
+        try:
+            return bool(self.relation)
+        except AttributeError:
+            return False
 
     @property
-    def relation_data(self) -> MutableMapping[str, str]:
-        """The raw relation data."""
-        if not self.relation:
-            return {}
-
-        return self.relation.data[self.component]
+    def data(self) -> MutableMapping:
+        """Data representing the state."""
+        return self.relation_data
 
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
         if not self.relation:
+            logger.warning(
+                f"Fields {list(items.keys())} were attempted to be written on the relation before it exists."
+            )
             return
 
-        self.relation_data.update(items)
+        delete_fields = [key for key in items if not items[key]]
+        update_content = {k: items[k] for k in items if k not in delete_fields}
+
+        self.relation_data.update(update_content)
+
+        for field in delete_fields:
+            del self.relation_data[field]
 
 
-class ZKClient(StateBase):
+class ZKClient(RelationState):
     """State collection metadata for a single related client application."""
 
     def __init__(
         self,
         relation: Relation | None,
+        data_interface: Data,
         component: Application,
         substrate: SUBSTRATES,
         local_app: Application | None = None,
@@ -56,21 +79,13 @@ class ZKClient(StateBase):
         tls: str = "",
         uris: str = "",
     ):
-        super().__init__(relation, component, substrate)
+        super().__init__(relation, data_interface, None, substrate)
         self.app = component
         self._password = password
         self._endpoints = endpoints
         self._tls = tls
         self._uris = uris
         self._local_app = local_app
-
-    @override
-    def update(self, items: dict[str, str]) -> None:
-        """Overridden update to allow for same interface, but writing to local app bag."""
-        if not self.relation or not self._local_app:
-            return
-
-        self.relation.data[self._local_app].update(items)
 
     @property
     def username(self) -> str:
@@ -88,9 +103,11 @@ class ZKClient(StateBase):
         return self._endpoints
 
     @property
+    @deprecated("Using 'uris' in the databag is deprecated, use 'endpoints' instead")
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
-        return self._uris + self.chroot if self._uris else ""
+        # TODO (zkclient): Remove this property
+        return self._uris + self.database if self._uris else ""
 
     @property
     def tls(self) -> str:
@@ -112,24 +129,85 @@ class ZKClient(StateBase):
             - 'w' - write
             - 'a' - append
         """
-        return self.relation_data.get("chroot-acl", "cdrwa")
+        # TODO (zkclient): Remove this property and replace by "cdrwa" in self.extra_user_roles
+        acl = self.relation_data.get("chroot-acl")
+        if acl is not None:
+            warnings.warn(
+                "Using 'chroot-acl' in the databag is deprecated, use 'extra-user-roles' instead",
+                DeprecationWarning,
+            )
+
+        else:
+            acl = "cdrwa"
+
+        return acl
+
+    @property
+    def extra_user_roles(self) -> str:
+        """The client defined ACLs for their requested ACL.
+
+        Contains:
+            - 'c' - create
+            - 'd' - delete
+            - 'r' - read
+            - 'w' - write
+            - 'a' - append
+        """
+        return self.relation_data.get("extra-user-roles", self.chroot_acl)
 
     @property
     def chroot(self) -> str:
         """The client requested root zNode path value."""
+        # TODO (zkclient): Remove this property and replace by "" in self.database
         chroot = self.relation_data.get("chroot", "")
-        if not chroot.startswith("/") and chroot:
+        if chroot:
+            warnings.warn(
+                "Using 'chroot' in the databag is deprecated, use 'database' instead",
+                DeprecationWarning,
+            )
+        if chroot and not chroot.startswith("/"):
+            chroot = f"/{chroot}"
+
+        return chroot
+
+    @property
+    def database(self) -> str:
+        """The client requested root zNode path value."""
+        chroot = self.relation_data.get("database", self.chroot)
+        if chroot and not chroot.startswith("/"):
             chroot = f"/{chroot}"
 
         return chroot
 
 
-class ZKCluster(StateBase):
+class ZKCluster(RelationState):
     """State collection metadata for the charm application."""
 
-    def __init__(self, relation: Relation | None, component: Application, substrate: SUBSTRATES):
-        super().__init__(relation, component, substrate)
+    def __init__(
+        self,
+        relation: Relation | None,
+        data_interface: DataPeerData,
+        component: Application,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
+        self.data_interface = data_interface
         self.app = component
+
+    @override
+    def update(self, items: dict[str, str]) -> None:
+        """Overridden update to allow for same interface, but writing to local app bag."""
+        if not self.relation:
+            return
+
+        for key, value in items.items():
+            if key in SECRETS_APP or key.startswith("relation-"):
+                if value:
+                    self.data_interface.set_secret(self.relation.id, key, value)
+                else:
+                    self.data_interface.delete_secret(self.relation.id, key)
+            else:
+                self.data_interface.update_relation_data(self.relation.id, {key: value})
 
     @property
     def quorum_unit_ids(self) -> list[int]:
@@ -203,11 +281,17 @@ class ZKCluster(StateBase):
         return self.relation_data.get("tls", "") == "enabled"
 
 
-class ZKServer(StateBase):
+class ZKServer(RelationState):
     """State collection metadata for a charm unit."""
 
-    def __init__(self, relation: Relation | None, component: Unit, substrate: SUBSTRATES):
-        super().__init__(relation, component, substrate)
+    def __init__(
+        self,
+        relation: Relation | None,
+        data_interface: DataPeerUnitData,
+        component: Unit,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
         self.unit = component
 
     @property
@@ -216,7 +300,7 @@ class ZKServer(StateBase):
 
         e.g zookeeper/2 --> 2
         """
-        return int(self.component.name.split("/")[1])
+        return int(self.unit.name.split("/")[1])
 
     # -- Cluster Init --
 
@@ -268,7 +352,7 @@ class ZKServer(StateBase):
                     break
 
         if self.substrate == "k8s":
-            host = f"{self.component.name.split('/')[0]}-{self.unit_id}.{self.component.name.split('/')[0]}-endpoints"
+            host = f"{self.unit.name.split('/')[0]}-{self.unit_id}.{self.unit.name.split('/')[0]}-endpoints"
 
         return host
 
@@ -322,7 +406,20 @@ class ZKServer(StateBase):
     @property
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
-        return self.relation_data.get("ca", "")
+        # Backwards compatibility
+        # TODO (zkclient): Remove this property and replace by "" in self.ca_cert
+        ca = self.relation_data.get("ca", "")
+        if ca:
+            warnings.warn(
+                "Using 'ca' in the databag is deprecated, use 'ca_cert' instead",
+                DeprecationWarning,
+            )
+        return ca
+
+    @property
+    def ca_cert(self) -> str:
+        """The root CA contents for the unit to use for TLS."""
+        return self.relation_data.get("ca-cert", self.ca)
 
     @property
     def sans(self) -> dict[str, list[str]]:

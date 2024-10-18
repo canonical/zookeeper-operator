@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 APP_NAME = "zookeeper"
 DUMMY_NAME_1 = "app"
 DUMMY_NAME_2 = "appii"
+REL_NAME = "zookeeper"
 
 
 @pytest.mark.abort_on_fail
@@ -51,16 +52,16 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     application_unit = ops_test.model.applications[DUMMY_NAME_1].units[0]
     # Get relation data
     relation_data = get_relation_data(
-        model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=APP_NAME
+        model_full_name=ops_test.model_full_name, unit=application_unit.name, endpoint=REL_NAME
     )
     # Get the super password
-    super_password = get_password(model_full_name=ops_test.model_full_name)
+    super_password = await get_password(ops_test=ops_test)
     units = [u.name for u in ops_test.model.applications[APP_NAME].units]
     # Get hosts where Zookeeper is deployed
     hosts = await get_application_hosts(ops_test=ops_test, app_name=APP_NAME, units=units)
     # Check acl permission for the application on each Zookeeper host
     for host in hosts:
-        check_acl_permission(host, super_password, relation_data["chroot"])
+        check_acl_permission(host, super_password, relation_data["database"])
 
 
 @pytest.mark.abort_on_fail
@@ -89,8 +90,9 @@ async def test_scale_up_gets_new_jaas_users(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=1)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
 
-    async with ops_test.fast_forward():
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", idle_period=30)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+    )
 
     assert ping_servers(ops_test)
     for unit in ops_test.model.applications[APP_NAME].units:

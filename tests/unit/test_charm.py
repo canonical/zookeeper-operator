@@ -2,10 +2,11 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 import logging
 import re
 from pathlib import Path
-from unittest.mock import DEFAULT, PropertyMock, patch
+from unittest.mock import DEFAULT, Mock, PropertyMock, patch
 
 import pytest
 import yaml
@@ -63,6 +64,7 @@ def test_install_fails_creates_passwords_succeeds(harness):
 
     with patch("workload.ZKWorkload.install"):
         harness.charm.on.install.emit()
+        assert harness.charm.state.cluster.relation_data
 
         assert harness.charm.state.cluster.internal_user_credentials
 
@@ -199,6 +201,7 @@ def test_relation_changed_starts_units(harness):
         harness.set_planned_units(1)
 
     with (
+        patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=False),
         patch("charm.ZooKeeperCharm.init_server") as patched,
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
@@ -299,6 +302,7 @@ def test_relation_changed_checks_alive_and_healthy(harness):
         patch(
             "workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True
         ) as patched_healthy,
+        patch("workload.ZKWorkload.get_version", return_value=""),  # uses .healthy
     ):
         harness.charm.on.config_changed.emit()
         patched_alive.assert_called()
@@ -515,7 +519,7 @@ def test_init_server_calls_necessary_methods(harness):
                 "ip": "aragorn",
                 "fqdn": "legolas",
                 "hostname": "gimli",
-                "ca": "keep it secret",
+                "ca-cert": "keep it secret",
                 "certificate": "keep it safe",
             },
         )
@@ -887,7 +891,7 @@ def test_port_updates_if_tls(harness):
         harness.add_relation(PEER, CHARM_KEY)
         app_id = harness.add_relation(REL_NAME, "application")
         harness.set_leader(True)
-        harness.update_relation_data(app_id, "application", {"chroot": "app"})
+        harness.update_relation_data(app_id, "application", {"database": "app"})
 
         # checking if ssl port and ssl flag are passed
         harness.update_relation_data(
@@ -933,11 +937,19 @@ def test_update_relation_data(harness):
         harness.set_leader(True)
         app_1_id = harness.add_relation(REL_NAME, "application")
         app_2_id = harness.add_relation(REL_NAME, "new_application")
-        harness.update_relation_data(app_1_id, "application", {"chroot": "app"})
+        harness.update_relation_data(
+            app_1_id,
+            "application",
+            {"database": "app", "requested-secrets": json.dumps(["username", "password"])},
+        )
         harness.update_relation_data(
             app_2_id,
             "new_application",
-            {"chroot": "new_app", "chroot-acl": "rw"},
+            {
+                "database": "new_app",
+                "extra-user-roles": "rw",
+                "requested-secrets": json.dumps(["username", "password"]),
+            },
         )
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
@@ -966,9 +978,8 @@ def test_update_relation_data(harness):
                 "hostname": "merry",
             },
         )
-        harness.update_relation_data(
+        harness.charm.state.peer_app_interface.update_relation_data(
             harness.charm.state.peer_relation.id,
-            CHARM_KEY,
             {f"relation-{app_1_id}": "mellon", f"relation-{app_2_id}": "friend"},
         )
 
@@ -989,16 +1000,22 @@ def test_update_relation_data(harness):
     # building bare clients for validation
     usernames = []
     passwords = []
+
     for relation in harness.charm.state.client_relations:
+        myclient = None
+        for client in harness.charm.state.clients:
+            if client.relation == relation:
+                myclient = client
         client = ZKClient(
             relation=relation,
+            data_interface=harness.charm.state.client_provider_interface,
             substrate=SUBSTRATE,
             component=relation.app,
             local_app=harness.charm.app,
-            password=relation.data[harness.charm.app].get("password", ""),
-            endpoints=relation.data[harness.charm.app].get("endpoints", ""),
-            uris=relation.data[harness.charm.app].get("uris", ""),
-            tls=relation.data[harness.charm.app].get("tls", ""),
+            password=myclient.relation_data.get("password", ""),
+            endpoints=myclient.relation_data.get("endpoints", ""),
+            uris=myclient.relation_data.get("uris", ""),
+            tls=myclient.relation_data.get("tls", ""),
         )
 
         assert client.username, (
@@ -1031,7 +1048,39 @@ def test_update_relation_data(harness):
             # checking client_port in uri
             assert re.search(r":[\d]+", uri)
 
-        assert client.uris.endswith(client.chroot)
+        assert client.uris.endswith(client.database)
 
         usernames.append(client.username)
         passwords.append(client.password)
+
+
+def test_workload_version_is_setted(harness, monkeypatch):
+    output_install = (
+        "Zookeeper version: 3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    )
+    output_changed = (
+        "Zookeeper version: 3.8.2-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    )
+    monkeypatch.setattr(
+        harness.charm.workload,
+        "exec",
+        Mock(side_effect=[output_install, output_changed]),
+    )
+    monkeypatch.setattr(harness.charm.workload, "install", Mock(return_value=True))
+    monkeypatch.setattr(harness.charm.workload, "healthy", Mock(return_value=True))
+
+    harness.add_relation(PEER, CHARM_KEY)
+    harness.charm.on.install.emit()
+    assert harness.get_workload_version() == "3.8.1"
+
+    with (
+        patch("charm.ZooKeeperCharm.init_server"),
+        patch("charm.ZooKeeperCharm.update_quorum"),
+        patch("managers.config.ConfigManager.config_changed"),
+        patch("core.cluster.ClusterState.all_units_related"),
+        patch("core.cluster.ClusterState.all_units_declaring_ip"),
+        patch("events.upgrade.ZKUpgradeEvents.idle", return_value=True),
+    ):
+        harness.charm.on.config_changed.emit()
+
+    assert harness.get_workload_version() == "3.8.2"
