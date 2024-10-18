@@ -173,11 +173,11 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Zookeeper have too high ephemeral znodes count."
+      summary: "Zookeeper has too high ephemeral znodes count."
 
   - alert: Zookeeper Unrecoverable Errors
     expr: increase(unrecoverable_error_count{juju_charm!=".*"}[2m]) > 0
     labels:
       severity: high
     annotations:
-      summary: "Zookeeper have unhandled Exception"
+      summary: "Zookeeper has unhandled Exception"
