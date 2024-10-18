@@ -14,7 +14,7 @@ groups:
       description: "ZooKeeper target has disappeared. An exporter might be crashed.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
 
   - alert: Ensemble Member Missing
-    expr: floor(sum(up{juju_charm!=".*"}/2) < quorum_size{juju_charm!=".*"}
+    expr: min(synced_followers{juju_charm!=".*"}) + 1 < max(quorum_size{juju_charm!=".*"})
     for: 0m
     labels:
       severity: critical
