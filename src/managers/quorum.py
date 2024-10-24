@@ -16,7 +16,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from kazoo.exceptions import BadArgumentsError, ConnectionClosedError
+from kazoo.exceptions import BadArgumentsError, ConnectionClosedError, NoNodeError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import make_acl
 from ops.charm import RelationEvent
@@ -241,4 +241,8 @@ class QuorumManager:
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):
                 logger.info(f"RESET ACLS CHROOT - {chroot}")
-                self.client.set_acls_znode_leader(path=chroot, acls=[restricted_acl])
+                try:
+                    self.client.set_acls_znode_leader(path=chroot, acls=[restricted_acl])
+                except NoNodeError as e:
+                    logger.error(e, stack_info=True, exc_info=True)
+                    continue
