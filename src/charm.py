@@ -421,7 +421,7 @@ class ZooKeeperCharm(CharmBase):
                 logger.debug("tls disabled - switching to non-ssl")
                 self.state.cluster.update({"quorum": "non-ssl"})
 
-            if self.state.all_units_same_encryption:
+            if self.state.all_units_quorum:
                 logger.debug(
                     "all units running desired encryption - removing switching-encryption"
                 )
