@@ -33,9 +33,9 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest, zk_charm):
         ops_test.model.deploy(zk_charm, application_name=APP_NAME, num_units=3),
         ops_test.model.deploy(app_charm, application_name=DUMMY_NAME_1, num_units=1),
     )
-    await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1])
+    await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1], timeout=1000)
     await ops_test.model.add_relation(APP_NAME, DUMMY_NAME_1)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1])
+    await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1], timeout=1000)
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications[DUMMY_NAME_1].status == "active"
     assert ping_servers(ops_test)

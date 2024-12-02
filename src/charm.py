@@ -7,13 +7,13 @@
 import logging
 import time
 
+from charms.data_platform_libs.v0.data_models import TypedCharmBase
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
 from kazoo.exceptions import BadArgumentsError, BadVersionError, ReconfigInProcessError
 from ops import (
     ActiveStatus,
-    CharmBase,
     EventBase,
     InstallEvent,
     RelationDepartedEvent,
@@ -22,10 +22,11 @@ from ops import (
     StatusBase,
     StorageAttachedEvent,
     WaitingStatus,
+    main,
 )
-from ops.main import main
 
 from core.cluster import ClusterState
+from core.structured_config import CharmConfig
 from events.backup import BackupEvents
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
@@ -45,15 +46,20 @@ from literals import (
     Status,
 )
 from managers.config import ConfigManager
+from managers.k8s import K8sManager
 from managers.quorum import QuorumManager
 from managers.tls import TLSManager
 from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpxcore").setLevel(logging.WARNING)
 
 
-class ZooKeeperCharm(CharmBase):
+class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
     """Charmed Operator for ZooKeeper."""
+
+    config_type = CharmConfig
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -83,6 +89,9 @@ class ZooKeeperCharm(CharmBase):
         )
         self.config_manager = ConfigManager(
             state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
+        )
+        self.k8s_manager = K8sManager(
+            pod_name=self.state.unit_server.pod_name, namespace=self.model.name
         )
 
         # --- LIB EVENT HANDLERS ---

@@ -53,10 +53,11 @@ class ZKUpgradeEvents(DataUpgrade):
     def client(self) -> ZooKeeperManager:
         """Cached client manager application for performing ZK commands."""
         return ZooKeeperManager(
-            hosts=[server.host for server in self.charm.state.started_servers],
+            hosts=[server.internal_address for server in self.charm.state.started_servers],
             client_port=CLIENT_PORT,
             username="super",
             password=self.charm.state.cluster.internal_user_credentials.get("super", ""),
+            read_only=False,
         )
 
     @retry(stop=stop_after_attempt(5), wait=wait_random(min=1, max=5), reraise=True)
@@ -77,7 +78,7 @@ class ZKUpgradeEvents(DataUpgrade):
         upgrade_stack = []
         for server in self.charm.state.servers:
             # upgrade quorum leader last
-            if server.host == self.client.leader:
+            if server.internal_address == self.client.zk_host:
                 upgrade_stack.insert(0, server.unit_id)
             else:
                 upgrade_stack.append(server.unit_id)
