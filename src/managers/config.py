@@ -280,14 +280,15 @@ class ConfigManager:
         Returns:
             Multiline string of `/etc/hosts` entries
         """
-        hosts_entries = []
+        current_etc_hosts = self.workload.read(path="/etc/hosts")
+        hosts_entries = set(current_etc_hosts)
         for server in self.state.servers:
             if not all([server.ip, server.hostname, server.fqdn]):
-                return []
+                continue
 
-            hosts_entries.append(f"{server.ip} {server.fqdn} {server.hostname}")
+            hosts_entries.add(f"{server.ip} {server.fqdn} {server.hostname}")
 
-        return hosts_entries
+        return list(hosts_entries)
 
     def _update_environment(self, env: dict[str, str]) -> None:
         """Updates the /etc/environment for the workload.
