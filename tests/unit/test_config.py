@@ -39,7 +39,6 @@ def ctx() -> Context:
     return ctx
 
 
-@pytest.mark.skip
 def test_etc_hosts_entries_empty_if_not_all_units_related(ctx: Context, base_state: State) -> None:
     # Given
     cluster_peer = PeerRelation(
@@ -59,7 +58,6 @@ def test_etc_hosts_entries_empty_if_not_all_units_related(ctx: Context, base_sta
         assert not charm.config_manager.etc_hosts_entries
 
 
-@pytest.mark.skip
 def test_etc_hosts_entries_empty_if_unit_not_yet_set(ctx: Context, base_state: State) -> None:
     # Given
     cluster_peer = PeerRelation(
