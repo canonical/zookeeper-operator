@@ -332,7 +332,7 @@ class ConfigManager:
     def set_etc_hosts(self) -> None:
         """Writes to /etc/hosts with peer-related units."""
         updated_etc_hosts = self._update_etc_hosts(self.etc_hosts_entries)
-        self.workload.write(content="\n".join(updated_etc_hosts), path="/etc/hosts")
+        self.workload.write(content=("\n".join(updated_etc_hosts) + "\n"), path="/etc/hosts")
 
     def set_jaas_config(self) -> None:
         """Sets the ZooKeeper JAAS config."""
