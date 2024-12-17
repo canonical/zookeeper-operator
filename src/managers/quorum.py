@@ -16,9 +16,9 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from kazoo.exceptions import BadArgumentsError, ConnectionClosedError, NoNodeError
+from kazoo.exceptions import BadArgumentsError, ConnectionClosedError
 from kazoo.handlers.threading import KazooTimeoutError
-from kazoo.security import READ_ACL_UNSAFE, make_acl, make_digest_acl_credential
+from kazoo.security import make_acl, make_digest_acl_credential
 from ops.charm import RelationEvent
 
 from core.cluster import ClusterState
@@ -236,20 +236,3 @@ class QuorumManager:
             subnodes = self.client.leader_znodes(path=client.database)
             for node in subnodes:
                 self.client.set_acls_znode_leader(path=node, acls=[sasl_acl, digest_acl])
-
-        # Looks for applications no longer in the relation but still in config
-        restricted_acl = make_acl(
-            scheme="sasl",
-            credential="super",
-            all=True,
-        )
-        for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
-            if not self._is_child_of(chroot, requested_chroots):
-                logger.info(f"RESET ACLS CHROOT - {chroot}")
-                try:
-                    self.client.set_acls_znode_leader(
-                        path=chroot, acls=[restricted_acl] + READ_ACL_UNSAFE
-                    )
-                except NoNodeError as e:
-                    logger.error(e, stack_info=True, exc_info=True)
-                    continue

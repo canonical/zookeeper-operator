@@ -28,14 +28,10 @@ quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+enforce.auth.enabled=true
+enforce.auth.schemes=sasl,digest
 audit.enable=true
 admin.serverAddress=localhost
-"""
-
-CLIENT_SASL_AUTH = """
-enforce.auth.enabled=true
-enforce.auth.schemes=sasl
-sessionRequireClientSASLAuth=true
 """
 
 TLS_PROPERTIES = """
@@ -187,7 +183,6 @@ class ConfigManager:
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
-            + (CLIENT_SASL_AUTH.splitlines() if self.config.enforce_sasl_client else [])
         )
 
         if self.state.cluster.tls:
