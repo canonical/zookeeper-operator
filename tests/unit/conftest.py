@@ -8,6 +8,8 @@ from ops import JujuVersion
 
 from literals import SUBSTRATE
 
+SNAP_NAME = "charmed-zookeeper"
+
 
 @pytest.fixture(autouse=True)
 def patched_idle(mocker, request):
@@ -88,4 +90,13 @@ def patched_node_port():
         ) as patched_node_port:
             yield patched_node_port
     else:
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patched_snap(monkeypatch):
+    cache = Mock()
+    cache.return_value = {SNAP_NAME: Mock()}
+    with monkeypatch.context() as m:
+        m.setattr("charms.operator_libs_linux.v1.snap.SnapCache", cache)
         yield
