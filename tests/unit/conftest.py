@@ -1,7 +1,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from unittest.mock import Mock, patch, PropertyMock
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 from ops import JujuVersion
