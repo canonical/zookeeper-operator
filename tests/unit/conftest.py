@@ -1,13 +1,14 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 from ops import JujuVersion
-from tests.unit.test_charm import PropertyMock
 
 from literals import SUBSTRATE
+
+SNAP_NAME = "charmed-zookeeper"
 
 
 @pytest.fixture(autouse=True)
@@ -89,4 +90,13 @@ def patched_node_port():
         ) as patched_node_port:
             yield patched_node_port
     else:
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patched_snap(monkeypatch):
+    cache = Mock()
+    cache.return_value = {SNAP_NAME: Mock()}
+    with monkeypatch.context() as m:
+        m.setattr("charms.operator_libs_linux.v1.snap.SnapCache", cache)
         yield
