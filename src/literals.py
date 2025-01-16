@@ -112,6 +112,7 @@ class Status(Enum):
 SECRETS_APP = ["sync-password", "super-password", "s3-credentials"]
 SECRETS_UNIT = [
     "ca-cert",
+    "chain",
     "csr",
     "certificate",
     "truststore-password",

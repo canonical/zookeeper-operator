@@ -4,6 +4,7 @@
 
 """Event handler for related applications on the `certificates` relation interface."""
 import base64
+import json
 import logging
 import os
 import re
@@ -118,11 +119,17 @@ class TLSEvents(Object):
             return
 
         self.charm.state.unit_server.update(
-            {"certificate": event.certificate, "ca-cert": event.ca, "ca": ""}
+            {
+                "certificate": event.certificate,
+                "ca-cert": event.ca,
+                "ca": "",
+                "chain": json.dumps(event.chain),
+            }
         )
 
         self.charm.tls_manager.set_private_key()
         self.charm.tls_manager.set_ca()
+        self.charm.tls_manager.set_chain()
         self.charm.tls_manager.set_certificate()
         self.charm.tls_manager.set_truststore()
         self.charm.tls_manager.set_p12_keystore()
@@ -156,7 +163,7 @@ class TLSEvents(Object):
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
         self.charm.state.unit_server.update(
-            {"csr": "", "certificate": "", "ca-cert": "", "ca": ""}
+            {"csr": "", "certificate": "", "ca-cert": "", "ca": "", "chain": ""}
         )
 
         # remove all existing keystores from the unit so we don't preserve certs
