@@ -281,6 +281,7 @@ class TLSManager:
                     self.workload.paths.certificate,
                     self.workload.paths.keystore,
                     self.workload.paths.truststore,
+                    "*.pem",
                 ],
                 working_dir=self.workload.paths.conf_path,
             )
