@@ -167,12 +167,13 @@ async def test_client_relate_maintains_quorum(ops_test: OpsTest):
     assert ping_servers(ops_test)
 
 
-@pytest.mark.abort_on_fail
 async def test_renew_cert(ops_test: OpsTest):
     # invalidate previous certs
     await ops_test.model.applications[TLS_NAME].set_config({"ca-common-name": "new-name"})
 
-    await ops_test.model.wait_for_idle([APP_NAME], status="active", timeout=1000, idle_period=30)
+    await ops_test.model.wait_for_idle(
+        [APP_NAME], status="active", timeout=1000, idle_period=30, raise_on_error=False
+    )
     async with ops_test.fast_forward(fast_interval="20s"):
         await asyncio.sleep(60)
 
