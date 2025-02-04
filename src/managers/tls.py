@@ -3,6 +3,8 @@
 # See LICENSE file for licensing details.
 
 """Manager for building necessary files for Java TLS auth."""
+from __future__ import annotations
+
 import logging
 import socket
 import subprocess
@@ -287,14 +289,7 @@ class TLSManager:
         """Removes all certs, keys, stores from the unit."""
         try:
             self.workload.exec(
-                command=[
-                    "rm",
-                    "-rf",
-                    "*.p12",
-                    "*.jks",
-                    "*.pem",
-                    "*.key",
-                ],
+                command="rm -rf *.p12 *.jks *.pem *.key",
                 working_dir=self.workload.paths.conf_path,
             )
         except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:

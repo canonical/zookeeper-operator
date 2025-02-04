@@ -101,7 +101,6 @@ async def test_manual_tls_chain(ops_test: OpsTest):
     assert len(trusted_aliases) == 3  # CA, intermediate, rootca
 
     # cleanup
-
     await ops_test.model.remove_application(MANUAL_TLS_NAME, block_until_done=True)
 
     # ensuring enough time for multiple rolling-restart with update-status
