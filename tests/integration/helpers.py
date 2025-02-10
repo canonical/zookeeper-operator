@@ -3,9 +3,11 @@
 # See LICENSE file for licensing details.
 
 import json
+import logging
 import re
+import tempfile
 from pathlib import Path
-from subprocess import PIPE, check_output
+from subprocess import PIPE, CalledProcessError, check_output
 from typing import Dict, List
 
 import yaml
@@ -19,6 +21,8 @@ from literals import ADMIN_SERVER_PORT
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 PEER = "cluster"
+
+logger = logging.getLogger(__name__)
 
 
 def application_active(ops_test: OpsTest, expected_units: int) -> bool:
@@ -39,12 +43,12 @@ async def get_password(ops_test) -> str:
     return secret_data.get("super-password")
 
 
-async def get_secret_by_label(ops_test, label: str) -> Dict[str, str]:
+async def get_secret_by_label(ops_test, label: str, owner: str = APP_NAME) -> Dict[str, str]:
     secrets_meta_raw = await ops_test.juju("list-secrets", "--format", "json")
     secrets_meta = json.loads(secrets_meta_raw[1])
 
     for secret_id in secrets_meta:
-        if secrets_meta[secret_id]["label"] == label:
+        if secrets_meta[secret_id]["label"] == label and secrets_meta[secret_id]["owner"] == owner:
             break
 
     secret_data_raw = await ops_test.juju("show-secret", "--format", "json", "--reveal", secret_id)
@@ -285,3 +289,54 @@ def count_lines_with(model_full_name: str, unit: str, file: str, pattern: str) -
     )
 
     return int(result)
+
+
+def sign_manual_certs(ops_test: OpsTest, manual_app: str = "manual-tls-certificates") -> None:
+    delim = "-----BEGIN CERTIFICATE REQUEST-----"
+
+    csrs_cmd = f"JUJU_MODEL={ops_test.model_full_name} juju run {manual_app}/0 get-outstanding-certificate-requests --format=json | jq -r '.[\"{manual_app}/0\"].results.result' | jq '.[].csr' | sed 's/\\\\n/\\n/g' | sed 's/\\\"//g'"
+    csrs = check_output(csrs_cmd, stderr=PIPE, universal_newlines=True, shell=True).split(delim)
+
+    for i, csr in enumerate(csrs):
+        if not csr:
+            continue
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            csr_file = tmp_dir / f"csr{i}"
+            csr_file.write_text(delim + csr)
+
+            cert_file = tmp_dir / f"{i}.crt"
+
+            try:
+                sign_cmd = f"openssl x509 -req -in {csr_file} -CAkey tests/integration/data/inter.key -CA tests/integration/data/inter.crt -days 100 -CAcreateserial -out {cert_file} -copy_extensions copyall --passin pass:password"
+                provide_cmd = f'JUJU_MODEL={ops_test.model_full_name} juju run {manual_app}/0 provide-certificate ca-certificate="$(base64 -w0 tests/integration/data/inter.crt)" ca-chain="$(base64 -w0 tests/integration/data/chain)" certificate="$(base64 -w0 {cert_file})" certificate-signing-request="$(base64 -w0 {csr_file})"'
+
+                check_output(sign_cmd, stderr=PIPE, universal_newlines=True, shell=True)
+                check_output(provide_cmd, stderr=PIPE, universal_newlines=True, shell=True)
+            except CalledProcessError as e:
+                logger.error(f"{e.stdout=}, {e.stderr=}, {e.output=}")
+                raise e
+
+
+async def list_truststore_aliases(ops_test: OpsTest, unit: str = f"{APP_NAME}/0") -> list[str]:
+    secret_data = await get_secret_by_label(
+        ops_test=ops_test, label=f"{PEER}.{APP_NAME}.unit", owner=unit
+    )
+    truststore_password = secret_data.get("truststore-password")
+
+    result = check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju ssh {unit} sudo -i 'charmed-zookeeper.keytool -list -keystore /var/snap/charmed-zookeeper/current/etc/zookeeper/truststore.jks -storepass {truststore_password}'",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    trusted_aliases = []
+    for line in result.splitlines():
+        if "trustedCertEntry" not in line:
+            continue
+
+        trusted_aliases.append(line.split(",")[0])
+
+    return trusted_aliases

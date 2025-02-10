@@ -72,12 +72,13 @@ class ZKWorkload(WorkloadBase):
         shutil.chown(path, user="snap_daemon", group="root")
 
     @override
-    def exec(self, command: list[str], working_dir: str | None = None) -> str:
+    def exec(self, command: list[str] | str, working_dir: str | None = None) -> str:
         return subprocess.check_output(
             command,
             stderr=subprocess.PIPE,
             universal_newlines=True,
             cwd=working_dir,
+            shell=isinstance(command, str),
         )
 
     @property

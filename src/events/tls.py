@@ -4,14 +4,15 @@
 
 """Event handler for related applications on the `certificates` relation interface."""
 import base64
+import json
 import logging
 import os
 import re
 from typing import TYPE_CHECKING
 
-from charms.tls_certificates_interface.v1.tls_certificates import (
+from charms.tls_certificates_interface.v3.tls_certificates import (
     CertificateAvailableEvent,
-    TLSCertificatesRequiresV1,
+    TLSCertificatesRequiresV3,
     generate_csr,
     generate_private_key,
 )
@@ -32,7 +33,7 @@ class TLSEvents(Object):
     def __init__(self, charm):
         super().__init__(charm, "tls")
         self.charm: "ZooKeeperCharm" = charm
-        self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
+        self.certificates = TLSCertificatesRequiresV3(self.charm, "certificates")
 
         self.framework.observe(
             getattr(self.charm.on, "certificates_relation_created"), self._on_certificates_created
@@ -118,12 +119,19 @@ class TLSEvents(Object):
             return
 
         self.charm.state.unit_server.update(
-            {"certificate": event.certificate, "ca-cert": event.ca, "ca": ""}
+            {
+                "certificate": event.certificate,
+                "ca-cert": event.ca,
+                "ca": "",
+                "chain": json.dumps(event.chain),
+            }
         )
 
         self.charm.tls_manager.set_private_key()
         self.charm.tls_manager.set_ca()
+        self.charm.tls_manager.set_chain()
         self.charm.tls_manager.set_certificate()
+        self.charm.tls_manager.set_bundle()
         self.charm.tls_manager.set_truststore()
         self.charm.tls_manager.set_p12_keystore()
         self.charm.on.config_changed.emit()
@@ -156,7 +164,7 @@ class TLSEvents(Object):
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
         self.charm.state.unit_server.update(
-            {"csr": "", "certificate": "", "ca-cert": "", "ca": ""}
+            {"csr": "", "certificate": "", "ca-cert": "", "ca": "", "chain": ""}
         )
 
         # remove all existing keystores from the unit so we don't preserve certs
