@@ -19,7 +19,8 @@ This documents explains the processes and practices recommended for contributing
 
 To build the charm locally, you will need to install [Charmcraft](https://juju.is/docs/sdk/install-charmcraft).
 
-To run the charm locally with Juju, it is recommended to use [LXD](https://linuxcontainers.org/lxd/introduction/) as your virtual machine manager. Instructions for running Juju on LXD can be found [here](https://juju.is/docs/olm/lxd).
+To run the charm locally with Juju, it is recommended to use [LXD](https://linuxcontainers.org/lxd/introduction/) as your virtual machine manager. 
+Instructions for running Juju on LXD can be found [here](https://juju.is/docs/olm/lxd).
 
 ## Developing
 
