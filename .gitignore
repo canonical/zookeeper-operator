@@ -8,3 +8,6 @@ __pycache__/
 .vscode
 .idea
 *.srl
+*.doctree
+/docs/_build
+/docs/.sphinx/.doctrees
