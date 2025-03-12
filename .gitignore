@@ -11,3 +11,6 @@ __pycache__/
 *.doctree
 /docs/_build
 /docs/.sphinx/.doctrees
+/docs/.sphinx/styles
+docs/.sphinx/vale.ini
+docs/.sphinx/warnings.txt

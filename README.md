@@ -106,24 +106,18 @@ Supported [relations](https://juju.is/docs/olm/relations):
 
 ### TLS Certificates interface
 
-The `tls-certificates` interface is used with the `tls-certificates-operator` charm.
+The `tls-certificates` interface is used with TLS certificate provider charms, e.g. `self-signed-certificates` operator.
 
-Deploy the TLS charm:
-
-```shell
-juju deploy tls-certificates-operator --channel=edge
-```
-
-Add the necessary configurations for TLS:
+Deploy the TLS provider charm:
 
 ```shell
-juju config tls-certificates-operator generate-self-signed-certificates="true" ca-common-name="Test CA" 
+juju deploy self-signed-certificates
 ```
 
 To enable TLS, relate the application:
 
 ```shell
-juju relate tls-certificates-operator zookeeper
+juju relate self-signed-certificates zookeeper
 ```
 
 Updates to private keys for certificate signing requests (CSR) can be made via the `set-tls-private-key` action.
@@ -152,15 +146,14 @@ juju run-action zookeeper/1 set-tls-private-key "internal-key=$(base64 -w0 inter
 juju run-action zookeeper/2 set-tls-private-key "internal-key=$(base64 -w0 internal-key.pem)"  --wait
 ```
 
-To disable TLS remove the relation
+To disable TLS remove the relation:
 
 ```shell
-juju remove-relation zookeeper tls-certificates-operator
+juju remove-relation zookeeper self-signed-certificates
 ```
 
 Note: The TLS settings here are for self-signed-certificates which are not recommended for production clusters, 
-the `tls-certificates-operator` charm offers a variety of configurations, read more on the TLS charm 
-[here](https://charmhub.io/tls-certificates-operator)
+the `self-signed-certificates` charm offers a variety of configurations, read more on the [Charmhub page](https://charmhub.io/self-signed-certificates).
 
 ## Security
 
