@@ -7,7 +7,7 @@ This is the part of the Apache ZooKeeper charmed operator tutorial about using A
 Deploy Apache Kafka charm to the same model:
 
 ```
-juju deploy kafka -n 3 --trust
+juju deploy kafka --channel 3/stable -n 3 --trust
 ```
 
 Make sure Apache Kafka cluster is deployed by checking its status:

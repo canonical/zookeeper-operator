@@ -34,10 +34,10 @@ See command reference: [juju status](https://canonical-juju.readthedocs-hosted.c
 Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy a sufficient number of units.
 ```
 
-You can change the number of units in the Apache ZooKeeper cluster. For example, to specify the desired number of units for the Apache ZooKeeper application deployed earlier:
+You can add or remove units in the Apache ZooKeeper cluster by using `juju add-unit` or `juju remove-unit` commands. For example, to reduce the number of units for the Apache ZooKeeper application deployed earlierm let's remove two units:
 
 ```
-juju scale-application zookeeper 3
+juju remove-unit zookeeper/4 zookeeper/3
 ```
 
 ```{note}
@@ -46,7 +46,7 @@ See also: [juju scale-application](https://canonical-juju.readthedocs-hosted.com
 
 ## Configure Apache ZooKeeper
 
-Configure the Apache ZooKeeper cluster by setting the `tick-time` configuration option via the `juju config` command:
+Change the Apache ZooKeeper cluster configuration options by using the `juju config` command, for example:
 
 To configure these settings, use the following command:
 

@@ -17,7 +17,7 @@ While this tutorial intends to teach you to use Apache ZooKeeper charmed operato
 
 Before we start, make sure your machine meets the following requirements:
 
-* Ubuntu 20.04 (Focal) or later.
+* Ubuntu 22.04 (Focal) or later.
 * 8 GB of RAM.
 * 2 CPU threads.
 * At least 20 GB of available storage.

@@ -38,10 +38,8 @@ You can list all LXD containers by entering the command `lxc list` into the comm
 [Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper. We need to install it locally yo be able to use CLI commands. As with LXD, Juju is installed from a snap package:
 
 ```bash
-sudo snap install juju --channel 3.1/stable
+sudo snap install juju --channel 3.5/stable
 ```
-
-<!-- Do we need version restrictions? Can't we just go with default? -->
 
 Juju already has built-in knowledge of LXD and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Charmed Apache ZooKeeper. All we need to do is run the following command to bootstrap a Juju controller named ‘overlord’ to LXD. This bootstrapping process can take several minutes depending on how provisioned (RAM, CPU, etc.) your machine is:
 
