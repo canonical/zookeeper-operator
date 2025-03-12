@@ -122,7 +122,7 @@ juju relate self-signed-certificates zookeeper
 
 Updates to private keys for certificate signing requests (CSR) can be made via the `set-tls-private-key` action.
 
-Updates can be done with auto-generated keys with:
+Updates can be done using auto-generated keys with:
 
 ```shell
 juju run-action zookeeper/0 set-tls-private-key --wait
