@@ -30,7 +30,11 @@ See command reference: [juju status](https://canonical-juju.readthedocs-hosted.c
 
 ## Scale the cluster
 
-You can adjust the number of units in the Apache ZooKeeper cluster. For example, to set the desired number of units for the Apache ZooKeeper application deployed earlier:
+```{warning}
+Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy a sufficient number of units.
+```
+
+You can change the number of units in the Apache ZooKeeper cluster. For example, to specify the desired number of units for the Apache ZooKeeper application deployed earlier:
 
 ```
 juju scale-application zookeeper 3
@@ -39,8 +43,6 @@ juju scale-application zookeeper 3
 ```{note}
 See also: [juju scale-application](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/scale-application/), [juju add-unit](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/add-unit/), [juju remove-unit](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/remove-unit/).
 ```
-
-Apache ZooKeeper requires an odd number of nodes for quorum, so ensure you deploy a sufficient number of units.
 
 ## Configure Apache ZooKeeper
 

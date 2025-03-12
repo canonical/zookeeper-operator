@@ -59,23 +59,19 @@ juju run-action zookeeper/leader get-super-password --wait
 
 ### Replication
 
-#### Scaling up
+For Apache ZooKeeper cluster horizontal scaling (scale in/out), see examples below or [How to manage units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/) guide in Juju documentation.
 
-The charm can be scaled up using `juju add-unit` command.
+#### Scaling out
 
-```shell
-juju add-unit zookeeper
-```
-
-To add a specific number of servers, an extra argument is needed:
+The charm can be scaled out using `juju add-unit` command:
 
 ```shell
 juju add-unit zookeeper -n <num_servers_to_add>
 ```
 
-#### Scaling down
+#### Scaling in
 
-To scale down the charm, use `juju remove-unit` command:
+To scale in the charm, use `juju remove-unit` command:
 
 ```shell
 juju remove-unit <unit_name>
