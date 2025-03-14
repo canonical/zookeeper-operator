@@ -18,7 +18,7 @@ For Apache ZooKeeper charmed operator the number of servers in a cluster can be 
 
 A minimum of three servers/units are required in a cluster for high availability (HA). A cluster with just two servers is inherently less stable than a single server, because there are two single points of failure. If one of them fails, there are not enough machines to form a majority quorum.
 
-We recommend using at least five servers/units of Apache ZooKeeper for production environments. That way, one of the servers/units can be taken down for maintenance without loosing HA.
+We recommend using at least five servers/units of Apache ZooKeeper for production environments. That way, one of the servers/units can be taken down for maintenance without losing HA.
 
 Always use an odd number of servers in an Apache ZooKeeper cluster/ensemble for optimal performance and HA.
 
