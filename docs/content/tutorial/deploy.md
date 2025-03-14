@@ -34,7 +34,7 @@ See command reference: [juju status](https://canonical-juju.readthedocs-hosted.c
 Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy a sufficient number of units.
 ```
 
-You can add or remove units in the Apache ZooKeeper cluster by using `juju add-unit` or `juju remove-unit` commands. For example, to reduce the number of units for the Apache ZooKeeper application deployed earlierm let's remove two units:
+You can add or remove units in the Apache ZooKeeper cluster by using `juju add-unit` or `juju remove-unit` commands. For example, to reduce the number of units for the Apache ZooKeeper application deployed earlier, let's remove two units:
 
 ```
 juju remove-unit zookeeper/4 zookeeper/3

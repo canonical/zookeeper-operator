@@ -3,7 +3,7 @@
 Apache ZooKeeper is replicated over a set of hosts called an ensemble.
 
 Ensemble
-: the full set of peer servers in a ZooKeeper cluster
+: the full set of peer servers in a Apache ZooKeeper cluster
 
 Quorum
 : the minimum number of servers available in a cluster for it to serve requests. By default, it's a simple majority (more than a half) of all servers in ensemble.
@@ -24,6 +24,6 @@ Always use an odd number of servers in an Apache ZooKeeper cluster/ensemble for 
 
 ## Availability zones
 
-For best high availability, use at least three availability zones (AZ) to deploy Apache ZooKeper servers/units.
+For best high availability, use at least three availability zones (AZ) to deploy an Apache ZooKeeper cluster.
 
-With only two AZ, if the availability zone with the majority number of ZooKeeper nodes fails, ZooKeeper cluster will not have a quorum and will not be available.
+With only two AZ, if the availability zone with the majority number of Apache ZooKeeper servers/units fails, cluster will not have a quorum and will not be available.
