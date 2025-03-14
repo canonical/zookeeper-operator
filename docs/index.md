@@ -19,7 +19,7 @@ The charm is useful for DevOps teams, platform engineers, and organisations runn
 | | |
 |--|--|
 |  [Tutorial](content/tutorial/index.md) </br>  Get started - a hands-on introduction to Apache ZooKeeper charmed operator for new users </br> |  [How-to guides](content/how-to/index.md) </br> Step-by-step guides covering key operations and common tasks |
-|  Explanation </br> Concepts - discussion and clarification of key topics, architecture | [Reference](content/reference/index.md) </br> Technical information and reference materials | 
+|  [Explanation](content/explanation/index.md) </br> Concepts - discussion and clarification of key topics, architecture | [Reference](content/reference/index.md) </br> Technical information and reference materials | 
 
 ## Project and community
 
@@ -39,4 +39,5 @@ Overview<self>
 Tutorial <content/tutorial/index.md>
 How To guides <content/how-to/index.md>
 Reference <content/reference/index.md>
+Explanation <content/explanation/index.md>
 ```
