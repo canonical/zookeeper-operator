@@ -48,7 +48,7 @@ Deploy the Apache ZooKeeper charmed operator:
 juju deploy zookeeper -n <units>
 ```
 
-Where <units> is the number of units to deploy (minimum: `3`, recommended: `5` or more).
+Where <units> is the number of units to deploy (recommended values are `3` or `5`).
 
 ```{note}
 See also: [High availability](../explanation/ha.md) and quorum explanation.
