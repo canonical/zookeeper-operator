@@ -17,12 +17,12 @@ For Apache ZooKeeper implementation details, see the [official documentation](ht
 For Apache ZooKeeper charmed operator the number of servers in a cluster can be easily adjusted by [adding](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#add-a-unit) or [removing](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#remove-a-unit) Juju [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/) from the application.
 
 ```{important}
-Always use an odd number of servers in an Apache ZooKeeper cluster/ensemble for optimal performance and HA.
+Always use an odd number of servers in an Apache ZooKeeper cluster for optimal performance and high availability (HA).
 ```
 
-Adding one unit up to an even number does not provide any additional fail tolerance due to quorum majority math, for example, both five and six units tolerate only two machines.
+Adding a unit to create an even number does not improve fault tolerance due to quorum rules. For example, both five- and six-node clusters can tolerate only two failures.
 
-A minimum of three servers/units are required in a cluster for high availability (HA). A cluster with just two servers is inherently less stable than a single server, because there are two single points of failure. If one of them fails, there are not enough machines to form a majority quorum.
+A minimum of three servers/units are required in a cluster for HA. A cluster with just two servers is inherently less stable than a single server, because there are two single points of failure. If one of them fails, there are not enough machines to form a majority quorum.
 
 ```{note}
 We recommend deploying Apache ZooKeeper charmed operator with either three or five units for high availability (HA) in production environments.
@@ -38,6 +38,6 @@ The Apache ZooKeeper charmed operator includes every active unit in the quorum. 
 
 ## Availability zones
 
-For optimal high availability, deploy an Apache ZooKeeper cluster across at least three availability zones (AZs).
+For optimal high availability, deploy an Apache ZooKeeper cluster across at least three availability zones (AZ).
 
-With only two AZs, if the zone hosting the majority of ZooKeeper nodes fails, the cluster will lose quorum and become unavailable.
+With only two AZ, if the zone hosting the majority of ZooKeeper nodes fails, the cluster will lose quorum and become unavailable.
