@@ -29,6 +29,6 @@ Before we start, make sure your machine meets the following requirements:
 
 setup
 deploy
-use
+integrate
 cleanup
 ```
