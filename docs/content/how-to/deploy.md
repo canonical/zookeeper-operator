@@ -11,7 +11,7 @@ Ensure you have a Juju environment set up and running, including:
 * Juju controller
 * Juju client
 
-For guidance on how to set up Juju environment, see [Juju tutorial](https://canonical-juju.readthedocs-hosted.com/en/latest/user/tutorial/) or a shorter [Give it a try](https://github.com/juju/juju?tab=readme-ov-file#give-it-a-try) section of the readme file.
+For guidance on how to set up Juju environment, see [Juju tutorial](https://canonical-juju.readthedocs-hosted.com/en/latest/user/tutorial/) or a shorter [Give it a try](https://github.com/juju/juju?tab=readme-ov-file#give-it-a-try) section of the README file.
 
 ## Set up a model
 
