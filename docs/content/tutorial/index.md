@@ -27,7 +27,7 @@ Before we start, make sure your machine meets the following requirements:
 ```{toctree}
 :hidden:
 
-setup
+Setup<setup>
 deploy
 integrate
 cleanup

@@ -14,7 +14,7 @@ juju deploy zookeeper -n 5
 See command reference: [juju deploy](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/deploy/).
 ```
 
-This will deploy three [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/#unit) of Apache ZooKeeper charm.
+This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/#unit) of Apache ZooKeeper charm.
 
 Check the status of the deployment:
 
@@ -31,7 +31,7 @@ See command reference: [juju status](https://canonical-juju.readthedocs-hosted.c
 ## Scale the cluster
 
 ```{warning}
-Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy a sufficient number of units.
+Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy a sufficient number of units. See [explanation](../explanation/ha.md).
 ```
 
 You can add or remove units of the Apache ZooKeeper application by using `juju add-unit` or `juju remove-unit` commands. For example, to reduce the number of units for the Apache ZooKeeper application deployed earlier, let's remove two units:
