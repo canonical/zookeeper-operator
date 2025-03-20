@@ -104,7 +104,7 @@ juju run-action zookeeper/leader set-password --wait
 
 Supported [relations](https://juju.is/docs/olm/relations):
 
-### TLS Certificates interface
+### The `tls-certificates` interface
 
 The `tls-certificates` interface is used with TLS certificate provider charms, e.g. `self-signed-certificates` operator.
 
@@ -138,7 +138,7 @@ Generate shared internal key:
 openssl genrsa -out internal-key.pem 3072
 ```
 
-Apply keys on each unit:
+Set keys on each unit:
 
 ```shell
 juju run-action zookeeper/0 set-tls-private-key "internal-key=$(base64 -w0 internal-key.pem)"  --wait
