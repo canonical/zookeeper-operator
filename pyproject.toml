@@ -23,6 +23,9 @@ extend-exclude = "tests/integration/app-charm/lib"
 [tool.isort]
 profile = "black"
 
+[tool.codespell]
+ignore-words-list = "AKS,aks,EKS,eks"
+
 [tool.poetry]
 package-mode = false
 requires-poetry = ">=2.0.0"
