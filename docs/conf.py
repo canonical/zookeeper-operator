@@ -150,6 +150,9 @@ html_context = {
 
     # Required for feedback button    
     'github_issues': 'enabled',
+
+    # Required for the Edit the page button
+    "top_of_page_buttons": ["edit"],
 }
 
 # Project slug; see https://meta.discourse.org/t/what-is-category-slug/87897
