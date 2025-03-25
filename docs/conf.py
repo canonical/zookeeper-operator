@@ -23,7 +23,7 @@ import ast
 #
 # TODO: Update with the official name of your project or product
 
-project = "Apache ZooKeeper charmed operator"
+project = "Apache ZooKeeper charm"
 author = "Canonical Ltd."
 
 
@@ -33,7 +33,7 @@ author = "Canonical Ltd."
 #
 # TODO: To disable the title, set to an empty string.
 
-html_title = project + " documentation"
+html_title = "Apache ZooKeeper charmed operator documentation"
 
 
 # Copyright string; shown at the bottom of the page
@@ -69,7 +69,7 @@ copyright = "%s CC-BY-SA, %s" % (datetime.date.today().year, author)
 # NOTE: The Open Graph Protocol (OGP) enhances page display in a social graph
 #       and is used by social media platforms; see https://ogp.me/
 
-ogp_site_url = "https://canonical-apache-zookeeper.readthedocs-hosted.com/"
+ogp_site_url = "https://canonical-zookeeper.readthedocs-hosted.com/"
 
 
 # Preview name of the documentation website
@@ -150,6 +150,9 @@ html_context = {
 
     # Required for feedback button    
     'github_issues': 'enabled',
+
+    # Required for the Edit the page button
+    "top_of_page_buttons": ["edit"],
 }
 
 # Project slug; see https://meta.discourse.org/t/what-is-category-slug/87897
