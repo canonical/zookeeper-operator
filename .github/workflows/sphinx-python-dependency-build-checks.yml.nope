@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         set -ex
-        sudo apt update
+        sudo apt-get --fix-missing update
         sudo apt -y install \
           cargo \
           libpython3-dev \
