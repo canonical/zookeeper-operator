@@ -212,7 +212,7 @@ def test_client_relation_broken_removes_passwords(ctx: Context, base_state: Stat
         patch(
             "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock", autospec=True
         ),
-        ctx(ctx.on.relation_broken(client_relation), state_out) as manager,
+        ctx(ctx.on.relation_broken(state_out.get_relation(client_relation.id)), state_out) as manager,
     ):
         charm = cast(ZooKeeperCharm, manager.charm)
         state_out = manager.run()
