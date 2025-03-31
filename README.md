@@ -42,9 +42,7 @@ juju config zookeeper <config_option_1>=<value> [<config_option_2>=<value>]
 
 ## Usage
 
-### Basic usage
-
-The Apache ZooKeeper operator may be deployed using the Juju command line as follows:
+The Apache ZooKeeper charmed operator may be deployed using the Juju command line as follows:
 
 ```shell
 juju deploy zookeeper -n 5
@@ -78,8 +76,6 @@ juju remove-unit <unit_name>
 ```
 
 ### Password rotation
-
-#### Internal users
 
 The Charmed Apache ZooKeeper Operator has two internal users:
 
