@@ -1,14 +1,14 @@
-# Apache ZooKeeper charmed operator tutorial
+# Apache ZooKeeper charm tutorial
 
-The Apache ZooKeeper charmed operator simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment. 
+The Apache ZooKeeper charm simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment. 
 
 In this tutorial, we will:
 
 * Set up your environment using LXD and Juju.
-* Deploy Apache ZooKeeper using charmed operator.
+* Deploy Apache ZooKeeper using charm.
 * Integrate Apache ZooKeeper and Apache Kafka charms.
 
-While this tutorial intends to teach you to use Apache ZooKeeper charmed operator, it will be most beneficial if you already have a familiarity with:
+While this tutorial intends to teach you to use Apache ZooKeeper charm, it will be most beneficial if you already have a familiarity with:
 
 * Basic terminal commands
 * [Apache Zookeeper](https://zookeeper.apache.org/) concepts

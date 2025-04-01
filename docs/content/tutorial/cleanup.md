@@ -1,6 +1,6 @@
 # Clean up
 
-This is the last part of the Apache ZooKeeper charmed operator tutorial about clean up of used resources. Make sure to complete instruction from the [Integrate](integrate) page before reading further.
+This is the last part of the Apache ZooKeeper charm tutorial about clean up of used resources. Make sure to complete instruction from the [Integrate](integrate) page before reading further.
 
 ## Destroy the Apache ZooKeeper application
 
@@ -33,4 +33,4 @@ Finally, make sure that deletion is complete with `juju status` and remove the J
 juju destroy-model tutorial
 ```
 
-That concludes the clean up process and the Apache ZooKeeper charmed operator tutorial.
+That concludes the clean up process and the Apache ZooKeeper charm tutorial.
