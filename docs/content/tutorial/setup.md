@@ -8,9 +8,9 @@ For this tutorial, we’ll set up a Multipass VM with two key components:
 ## Multipass
 
 Multipass is a quick and easy way to launch virtual machines running Ubuntu.
-It uses “cloud-init” standard to install and configure all the necessary parts automatically.
+It uses the cloud-init standard to install and configure all the necessary parts automatically.
 
-Let’s install Multipass from a snap and launch a new VM using “charm-dev” cloud-init configuration:
+Let’s install Multipass from a snap and launch a new VM using the `charm-dev` cloud-init configuration:
 
 ```bash
 sudo snap install multipass && \
