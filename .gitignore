@@ -14,3 +14,4 @@ __pycache__/
 /docs/.sphinx/styles
 docs/.sphinx/vale.ini
 docs/.sphinx/warnings.txt
+/docs/.sphinx
