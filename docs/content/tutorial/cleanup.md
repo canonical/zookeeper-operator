@@ -12,4 +12,4 @@ multipass stop zk-vm
 multipass delete --purge zk-vm
 ```
 
-That concludes the clean up process and the Apache ZooKeeper charm tutorial.
+This concludes the clean up process and the Apache ZooKeeper charm tutorial.
