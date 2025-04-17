@@ -14,7 +14,7 @@ juju deploy zookeeper -n 5
 See also: `juju deploy` command [reference](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/deploy/).
 ```
 
-This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/#unit) of Apache ZooKeeper charm.
+This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit) of Apache ZooKeeper charm.
 
 Check the status of the deployment:
 
