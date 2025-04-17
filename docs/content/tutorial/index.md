@@ -1,10 +1,10 @@
 # Apache ZooKeeper charm tutorial
 
-The Apache ZooKeeper charm simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment. 
+The Apache ZooKeeper charm simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment.
 
 In this tutorial, we will:
 
-* Set up your environment using LXD and Juju.
+* Set up your environment using Multipass, LXD and Juju.
 * Deploy Apache ZooKeeper using charm.
 * Integrate Apache ZooKeeper and Apache Kafka charms.
 
@@ -19,10 +19,11 @@ Before we start, make sure your machine meets the following requirements:
 
 * Ubuntu 22.04 (Focal) or later.
 * 8 GB of RAM.
-* 2 CPU threads.
-* At least 20 GB of available storage.
+* 4 CPU cores.
+* At least 50 GB of available storage.
 * Access to the internet for downloading the required snaps and charms.
 
+<!-- We can't go below 50 GB, as that's the minimum for `charm-dev` -->
 
 ```{toctree}
 :hidden:

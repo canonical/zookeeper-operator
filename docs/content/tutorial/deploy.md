@@ -6,19 +6,19 @@ This is the part of the Apache ZooKeeper charm tutorial about deployment and con
 
 Apache ZooKeeper charm can be deployed as any other charm via `juju deploy` command:
 
-```
+```bash
 juju deploy zookeeper -n 5
 ```
 
 ```{note}
-See command reference: [juju deploy](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/deploy/).
+See also: `juju deploy` command [reference](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/deploy/).
 ```
 
-This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/#unit) of Apache ZooKeeper charm.
+This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit) of Apache ZooKeeper charm.
 
 Check the status of the deployment:
 
-```
+```bash
 juju status --watch 1s
 ```
 
@@ -36,7 +36,7 @@ Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy
 
 You can add or remove units of the Apache ZooKeeper application by using `juju add-unit` or `juju remove-unit` commands. For example, to reduce the number of units for the Apache ZooKeeper application deployed earlier, let's remove two units:
 
-```
+```bash
 juju remove-unit zookeeper/4 zookeeper/3
 ```
 
@@ -50,7 +50,7 @@ Change the Apache ZooKeeper cluster configuration options by using the `juju con
 
 To configure these settings, use the following command:
 
-```
+```bash
 juju config zookeeper tick-time=2000
 ```
 
