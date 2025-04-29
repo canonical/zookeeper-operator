@@ -98,6 +98,11 @@ class QuorumManager:
 
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0)
+
+        # use the network interface we're bound to.
+        if dev := self.state.network_interface:
+            s.setsockopt(socket.SOL_SOCKET, 25, dev.encode("utf-8"))
+
         s.connect(("10.10.10.10", 1))
         ip = s.getsockname()[0]
         s.close()

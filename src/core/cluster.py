@@ -15,7 +15,7 @@ from charms.data_platform_libs.v0.data_interfaces import (
 )
 from lightkube.core.exceptions import ApiError as LightKubeApiError
 from ops.framework import Object
-from ops.model import Relation, Unit
+from ops.model import ModelError, Relation, Unit
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
@@ -223,6 +223,22 @@ class ClusterState(Object):
                 ]
             )
         )
+
+    @property
+    def network_interface(self) -> str:
+        """The network interface name from the network bindings."""
+        if not self.peer_relation:
+            return ""
+
+        try:
+            if binding := self.model.get_binding(self.peer_relation):
+                if interfaces := binding.network.interfaces:
+                    return interfaces[0].name
+        except ModelError as e:
+            logger.error(f"Can't retrieve network binding data: {e}")
+            pass
+
+        return ""
 
     @property
     def started_servers(self) -> set[ZKServer]:
