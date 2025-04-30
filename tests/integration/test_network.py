@@ -120,7 +120,7 @@ async def test_endpoints_are_set_based_on_network_binds(ops_test: OpsTest) -> No
         assert ip.startswith(DEFAULT_NETWORK_CIDR.split(".")[0])
 
     # now bind to the new space
-    await ops_test.juju("bind", APP_NAME, OTHER_SPACE)
+    await ops_test.juju("bind", "--force", APP_NAME, OTHER_SPACE)
 
     async with ops_test.fast_forward():
         await ops_test.model.wait_for_idle(
