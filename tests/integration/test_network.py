@@ -6,6 +6,7 @@ import json
 import logging
 import secrets
 import subprocess
+from typing import Generator
 
 import pytest
 from pytest_operator.plugin import OpsTest
@@ -25,7 +26,7 @@ OTHER_ETH_DEVICE = "eth1"
 
 
 @pytest.fixture(scope="module")
-def other_network() -> str:
+def other_network() -> Generator[str, None, None]:
     """Creates and/or returns a LXD network with `OTHER_NETWORK_CIDR` range of IPv4 addresses."""
     raw = subprocess.check_output(
         "lxc network list --format json", shell=True, stderr=subprocess.PIPE
@@ -37,7 +38,8 @@ def other_network() -> str:
             logger.info(
                 f'Exisiting network {network["name"]} found with CIDR: {OTHER_NETWORK_CIDR}'
             )
-            return network["name"]
+            yield network["name"]
+            return
 
     name = f"net-{secrets.token_hex(4)}"
 
@@ -46,7 +48,18 @@ def other_network() -> str:
         shell=True,
         stderr=subprocess.PIPE,
     )
-    return name
+    yield name
+
+    logger.info(f"Cleaning up {name} network...")
+    try:
+        subprocess.check_output(
+            f"lxc network delete --force-local {name}",
+            shell=True,
+            stderr=subprocess.PIPE,
+        )
+    except Exception as e:
+        logger.error(f"Network cleanup failed, details: {e}")
+        logger.info(f"Try deleting the network manually using `lxc network delete {name}`")
 
 
 @pytest.mark.abort_on_fail
@@ -70,11 +83,6 @@ async def test_deploy_active(ops_test: OpsTest, zk_charm) -> None:
 @pytest.mark.abort_on_fail
 async def test_add_space(ops_test: OpsTest, other_network: str) -> None:
     """Adds `OTHER_SPACE` juju space and attaches the current units to the new network."""
-    # reload subnets and move `OTHER_NETWORK_CIDR` subnet to the `OTHER_SPACE`
-    await ops_test.juju("reload-spaces")
-    await ops_test.juju("add-space", OTHER_SPACE)
-    await ops_test.juju("move-to-space", OTHER_SPACE, OTHER_NETWORK_CIDR)
-
     for machine in ops_test.model.machines.values():
         # attach the other network to the lxd machines.
         logging.info(f"Attaching {other_network} to {machine.hostname}...")
@@ -82,6 +90,11 @@ async def test_add_space(ops_test: OpsTest, other_network: str) -> None:
             "lxc", "network", "attach", other_network, f"{machine.hostname}"
         )
         assert not ret
+
+    # reload subnets and move `OTHER_NETWORK_CIDR` subnet to the `OTHER_SPACE`
+    await ops_test.juju("reload-spaces")
+    await ops_test.juju("add-space", OTHER_SPACE)
+    await ops_test.juju("move-to-space", OTHER_SPACE, OTHER_NETWORK_CIDR)
 
     for unit in ops_test.model.applications[APP_NAME].units:
         # set up the network interface on the machine.
