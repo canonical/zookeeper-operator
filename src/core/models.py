@@ -497,3 +497,7 @@ class ZKServer(RelationState):
         K8s-only.
         """
         return self.k8s.get_loadbalancer()
+
+    def get_relation_ip(self, relation: Relation) -> str:
+        """Returns the IP address for a specific relation taking network binds into account."""
+        return self.relation_data.get(f"ip-{relation.id}") or self.internal_address
