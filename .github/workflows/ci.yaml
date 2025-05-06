@@ -68,6 +68,7 @@ jobs:
           - integration-upgrade
           - integration-backup
           - integration-replication
+          - integration-network
     name: ${{ matrix.tox-environments }}
     needs:
       - lint

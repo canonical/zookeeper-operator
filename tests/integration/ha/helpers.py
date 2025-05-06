@@ -301,7 +301,7 @@ async def reuse_storage(ops_test, unit_storage_id: str, app_name: str = APP_NAME
 
     Args:
         ops_test: OpsTest
-        unit_storage_id: the Juju storage id to be re-used
+        unit_storage_id: the Juju storage id to be reused
         app_name: the Juju application ZooKeeper belongs to
             Defaults to `zookeeper`
     """

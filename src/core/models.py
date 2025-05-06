@@ -389,7 +389,7 @@ class ZKServer(RelationState):
     @property
     def server_string(self) -> str:
         """The server string for the ZooKeeper server."""
-        return f"server.{self.server_id}={self.internal_address}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
+        return f"server.{self.server_id}={self.fqdn}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
 
     # -- TLS --
 
@@ -497,3 +497,7 @@ class ZKServer(RelationState):
         K8s-only.
         """
         return self.k8s.get_loadbalancer()
+
+    def get_relation_ip(self, relation: Relation) -> str:
+        """Returns the IP address for a specific relation taking network binds into account."""
+        return self.relation_data.get(f"ip-{relation.id}") or self.internal_address

@@ -205,6 +205,7 @@ def test_client_relation_broken_removes_passwords(ctx: Context, base_state: Stat
         # Then
         assert charm.state.cluster.client_passwords
 
+    client_relation_out = state_out.get_relation(client_relation.id)
     # When
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
@@ -212,7 +213,7 @@ def test_client_relation_broken_removes_passwords(ctx: Context, base_state: Stat
         patch(
             "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock", autospec=True
         ),
-        ctx(ctx.on.relation_broken(client_relation), state_out) as manager,
+        ctx(ctx.on.relation_broken(client_relation_out), state_out) as manager,
     ):
         charm = cast(ZooKeeperCharm, manager.charm)
         state_out = manager.run()

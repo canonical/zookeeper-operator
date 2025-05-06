@@ -8,7 +8,7 @@ import re
 import tempfile
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, check_output
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 import yaml
 from kazoo.client import KazooClient
@@ -262,12 +262,17 @@ def get_relation_id(model_full_name: str, unit: str, app_name: str):
     raise Exception("No relation found!")
 
 
-def get_relation_data(model_full_name: str, unit: str, endpoint: str):
+def get_relation_data(
+    model_full_name: str,
+    unit: str,
+    endpoint: str,
+    key: Literal["application-data", "local-unit"] = "application-data",
+):
     show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
     d_relations = show_unit[unit]["relation-info"]
     for relation in d_relations:
         if relation["endpoint"] == endpoint:
-            return relation["application-data"]
+            return relation[key]
     raise Exception("No relation found!")
 
 
