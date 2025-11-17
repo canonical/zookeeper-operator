@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
+
 import json
 import logging
 import socket
@@ -386,7 +387,7 @@ class ZKServer(RelationState):
         host = ""
         if self.substrate == "vm":
             if self.dns:
-                return self.internal_dns_address
+                return self.relation_data.get("hostname", "")
             for key in ["ip", "hostname", "private-address"]:
                 if host := self.relation_data.get(key, ""):
                     break
