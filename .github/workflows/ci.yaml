@@ -83,8 +83,8 @@ jobs:
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
-          juju-channel: 3.4/stable
-          bootstrap-options: "--agent-version 3.4.2"
+          juju-channel: 3.6/stable
+          bootstrap-options: "--agent-version 3.6.10"
       - name: Download packed charm(s)
         uses: actions/download-artifact@v4
         with:
@@ -127,8 +127,8 @@ jobs:
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
-          juju-channel: 3.4/stable
-          bootstrap-options: "--agent-version 3.4.2"
+          juju-channel: 3.6/stable
+          bootstrap-options: "--agent-version 3.6.10"
       - name: Download packed charm(s)
         uses: actions/download-artifact@v4
         with:
@@ -172,8 +172,8 @@ jobs:
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
-          juju-channel: 3.4/stable
-          bootstrap-options: "--agent-version 3.4.2"
+          juju-channel: 3.6/stable
+          bootstrap-options: "--agent-version 3.6.10"
           lxd-channel: 5.21/stable
       - name: Download packed charm(s)
         uses: actions/download-artifact@v4
