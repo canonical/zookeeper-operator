@@ -584,7 +584,7 @@ def test_sans_external_access(
         # Then
         assert built_sans == SANs(
             sans_ip=["treebeard"],
-            sans_dns=[f"{CHARM_KEY}/0", sock_dns],
+            sans_dns=[sock_dns],
         )
 
     # When

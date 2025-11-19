@@ -50,7 +50,7 @@ class TLSManager:
                 sans_ip=[self.state.unit_server.internal_address]
                 if self.config.certificate_include_ip_sans
                 else [],
-                sans_dns=[self.state.unit_server.unit.name, socket.getfqdn()],
+                sans_dns=[socket.getfqdn()],
             )
         else:
             sans_ip = [str(self.state.bind_address)]
