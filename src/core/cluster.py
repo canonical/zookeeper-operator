@@ -73,6 +73,7 @@ class ClusterState(Object):
             data_interface=self.peer_unit_interface,
             component=self.model.unit,
             substrate=self.substrate,
+            dns=not self.config.certificate_include_ip_sans,
         )
 
     @property
@@ -116,6 +117,7 @@ class ClusterState(Object):
                     data_interface=data_interface,
                     component=unit,
                     substrate=self.substrate,
+                    dns=not self.config.certificate_include_ip_sans,
                 )
             )
         servers.add(self.unit_server)
@@ -466,15 +468,16 @@ class ClusterState(Object):
                 logger.debug(e)
                 return ""
 
-        return ",".join(
-            sorted(
-                [
-                    (
-                        f"{server.internal_address}:{self.client_port}"
-                        if self.substrate == "k8s"
-                        else f"{server.get_relation_ip(relation=relation)}:{self.client_port}"
+        endpoints = []
+        for server in self.servers:
+            if self.substrate == "k8s":
+                endpoints.append(f"{server.internal_address}:{self.client_port}")
+            else:
+                if not self.config.certificate_include_ip_sans:
+                    endpoints.append(f"{server.internal_address}:{self.client_port}")
+                else:
+                    endpoints.append(
+                        f"{server.get_relation_ip(relation=relation)}:{self.client_port}"
                     )
-                    for server in self.servers
-                ]
-            )
-        )
+
+        return ",".join(sorted(endpoints))

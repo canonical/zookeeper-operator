@@ -85,7 +85,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
 
         self.quorum_manager = QuorumManager(state=self.state)
         self.tls_manager = TLSManager(
-            state=self.state, workload=self.workload, substrate=SUBSTRATE
+            state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
         )
         self.config_manager = ConfigManager(
             state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
