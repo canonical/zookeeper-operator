@@ -47,7 +47,11 @@ class BackupManager:
             aws_secret_access_key=s3_parameters["secret-key"],
             region_name=s3_parameters["region"] if s3_parameters["region"] else None,
             endpoint_url=self._construct_endpoint(s3_parameters),
-            config=config.Config(retries={"mode": "standard", "max_attempts": 3}),
+            config=config.Config(
+                retries={"mode": "standard", "max_attempts": 3},
+                request_checksum_calculation='WHEN_REQUIRED',
+                response_checksum_validation='WHEN_REQUIRED'
+            ),
         )
         return s3.Bucket(s3_parameters["bucket"])
 
