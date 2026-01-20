@@ -387,7 +387,7 @@ class ZKServer(RelationState):
         host = ""
         if self.substrate == "vm":
             if self.dns:
-                return self.relation_data.get("hostname", "")
+                return self.relation_data.get("fqdn", "")
             for key in ["ip", "hostname", "private-address"]:
                 if host := self.relation_data.get(key, ""):
                     break
