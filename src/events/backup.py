@@ -76,8 +76,6 @@ class BackupEvents(Object):
             self.charm._set_status(Status.MISSING_S3_CONFIG)
             return
 
-        s3_parameters = self.s3_requirer.get_s3_connection_info()
-
         s3_parameters.setdefault("endpoint", "https://s3.amazonaws.com")
         s3_parameters.setdefault("region", "")
         s3_parameters.setdefault("path", S3_BACKUPS_PATH)
