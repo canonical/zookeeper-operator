@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install tox
         run: pipx install tox
       - name: Run linters
@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install tox
         run: pipx install tox
       - name: Run tests
@@ -75,7 +75,7 @@ jobs:
       - lint
       - unit-test
       - build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, AMD64, X64, medium, noble]
     timeout-minutes: 120
     steps:
       - name: (GitHub hosted) Free up disk space
@@ -84,20 +84,19 @@ jobs:
           printf '\nDisk usage before cleanup\n'
           df --human-readable
           # Based on https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
-          rm -r /usr/share/dotnet
-          rm -r /opt/hostedtoolcache/
+          rm -rf /usr/share/dotnet
+          rm -rf /opt/hostedtoolcache/
           printf '\nDisk usage after cleanup\n'
           df --human-readable
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup operator environment
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
           juju-channel: 3.6/stable
-          bootstrap-options: "--agent-version 3.6.10"
       - name: Download packed charm(s)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: ${{ needs.build.outputs.artifact-prefix }}-*
           merge-multiple: True
@@ -133,15 +132,14 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup operator environment
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
           juju-channel: 3.6/stable
-          bootstrap-options: "--agent-version 3.6.10"
       - name: Download packed charm(s)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: ${{ needs.build.outputs.artifact-prefix }}-*
           merge-multiple: true
@@ -178,16 +176,15 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup operator environment
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
           juju-channel: 3.6/stable
-          bootstrap-options: "--agent-version 3.6.10"
           lxd-channel: 5.21/stable
       - name: Download packed charm(s)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: ${{ needs.build.outputs.artifact-prefix }}-*
           merge-multiple: true
