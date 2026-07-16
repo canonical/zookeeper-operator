@@ -22,6 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 from core.cluster import ClusterState
+from core.logging import RedactionFilter
 from core.stubs import BackupMetadata, S3ConnectionInfo
 from literals import ADMIN_SERVER_PORT, PATHS, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH, USER
 from workload import ZKWorkload
@@ -35,6 +36,9 @@ class BackupManager:
     def __init__(self, state: ClusterState) -> None:
         self.state = state
         self.backups_path = S3_BACKUPS_PATH
+        redaction_filter = RedactionFilter(self.state)
+        for handler in logger.handlers:
+            handler.addFilter(redaction_filter)
 
     @property
     def bucket(self) -> Bucket:

@@ -26,6 +26,7 @@ from ops import (
 )
 
 from core.cluster import ClusterState
+from core.logging import RedactionFilter
 from core.structured_config import CharmConfig
 from events.backup import BackupEvents
 from events.password_actions import PasswordActionEvents
@@ -66,6 +67,9 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         self.name = CHARM_KEY
         self.state = ClusterState(self, substrate=SUBSTRATE)
         self.workload = ZKWorkload()
+        redaction_filter = RedactionFilter(self.state)
+        for handler in logger.handlers:
+            handler.addFilter(redaction_filter)
 
         # --- CHARM EVENT HANDLERS ---
 
