@@ -34,7 +34,9 @@ class QuorumManager:
 
     def __init__(self, state: ClusterState):
         self.state = state
+
         redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
         for handler in logger.handlers:
             handler.addFilter(redaction_filter)
 

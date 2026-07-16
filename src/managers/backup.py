@@ -36,7 +36,9 @@ class BackupManager:
     def __init__(self, state: ClusterState) -> None:
         self.state = state
         self.backups_path = S3_BACKUPS_PATH
+
         redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
         for handler in logger.handlers:
             handler.addFilter(redaction_filter)
 

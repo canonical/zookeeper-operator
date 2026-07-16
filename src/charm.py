@@ -67,7 +67,11 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         self.name = CHARM_KEY
         self.state = ClusterState(self, substrate=SUBSTRATE)
         self.workload = ZKWorkload()
+
+        # --- LOGGING CONFIGURATION ---
+
         redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
         for handler in logger.handlers:
             handler.addFilter(redaction_filter)
 

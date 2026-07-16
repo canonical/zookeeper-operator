@@ -63,7 +63,9 @@ class ConfigManager:
         self.workload = workload
         self.substrate = substrate
         self.config = config
+
         redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
         for handler in logger.handlers:
             handler.addFilter(redaction_filter)
 
