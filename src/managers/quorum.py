@@ -22,6 +22,7 @@ from kazoo.security import make_acl, make_digest_acl_credential
 from ops.charm import RelationEvent
 
 from core.cluster import ClusterState
+from core.logging import RedactionFilter
 from core.models import ZKServer
 from literals import CLIENT_PORT
 
@@ -33,6 +34,11 @@ class QuorumManager:
 
     def __init__(self, state: ClusterState):
         self.state = state
+
+        redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
+        for handler in logger.handlers:
+            handler.addFilter(redaction_filter)
 
     @cached_property
     def client(self) -> ZooKeeperManager:

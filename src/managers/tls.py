@@ -14,6 +14,7 @@ from lightkube.core.exceptions import ApiError as LightKubeApiError
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.cluster import SUBSTRATES, ClusterState
+from core.logging import RedactionFilter
 from core.structured_config import CharmConfig
 from core.stubs import SANs
 from core.workload import WorkloadBase
@@ -36,6 +37,11 @@ class TLSManager:
         self.workload = workload
         self.substrate = substrate
         self.config = config
+
+        redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
+        for handler in logger.handlers:
+            handler.addFilter(redaction_filter)
 
     @retry(
         wait=wait_fixed(5),

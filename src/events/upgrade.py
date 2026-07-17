@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Event handler for handling ZooKeeper in-place upgrades."""
-import logging
 import time
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -23,8 +22,6 @@ from literals import CLIENT_PORT
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
-
-logger = logging.getLogger(__name__)
 
 
 class ZooKeeperDependencyModel(BaseModel):
@@ -87,7 +84,7 @@ class ZKUpgradeEvents(DataUpgrade):
 
     @override
     def log_rollback_instructions(self) -> None:
-        logger.critical(
+        self.charm.logger.critical(
             "\n".join(
                 [
                     "Unit failed to upgrade and requires manual rollback to previous stable version.",
@@ -103,31 +100,31 @@ class ZKUpgradeEvents(DataUpgrade):
         self.charm.workload.stop()
 
         if not self.charm.workload.install():
-            logger.error("Unable to install ZooKeeper...")
+            self.charm.logger.error("Unable to install ZooKeeper...")
             self.set_unit_failed()
             return
 
         self.apply_backwards_compatibility_fixes()
 
-        logger.info(f"{self.charm.unit.name} upgrading workload...")
+        self.charm.logger.info(f"{self.charm.unit.name} upgrading workload...")
         self.charm.workload.restart()
 
         time.sleep(5.0)
 
         try:
-            logger.debug("Running post-upgrade check...")
+            self.charm.logger.debug("Running post-upgrade check...")
             self.post_upgrade_check()
 
-            logger.debug("Marking unit completed...")
+            self.charm.logger.debug("Marking unit completed...")
             self.set_unit_completed()
 
             # ensures leader gets it's own relation-changed when it upgrades
             if self.charm.unit.is_leader():
-                logger.debug("Re-emitting upgrade-changed on leader...")
+                self.charm.logger.debug("Re-emitting upgrade-changed on leader...")
                 self.on_upgrade_changed(event)
 
         except ClusterNotReadyError as e:
-            logger.error(e.cause)
+            self.charm.logger.error(e.cause)
             self.set_unit_failed()
 
     def apply_backwards_compatibility_fixes(self) -> None:

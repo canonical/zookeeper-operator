@@ -18,7 +18,9 @@ from lightkube.core.exceptions import ApiError as LightKubeApiError
 from ops.framework import Object
 from ops.model import ModelError, Relation, Unit
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
+from typing_extensions import override
 
+from core.logging import WithSensitiveValues
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
 from core.stubs import ExposeExternal
 from literals import (
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ClusterState(Object):
+class ClusterState(Object, WithSensitiveValues):
     """Collection of global cluster state for Framework/Object."""
 
     def __init__(self, charm: "ZooKeeperCharm", substrate: SUBSTRATES):
@@ -326,6 +328,28 @@ class ClusterState(Object):
             return False
 
         return True
+
+    @property
+    @override
+    def sensitive_values(self) -> list[str]:
+        return list(
+            {
+                v
+                for v in [
+                    *[client.password for client in self.clients],
+                    *self.cluster.internal_user_credentials.values(),
+                    *self.cluster.client_passwords.values(),
+                    self.cluster.s3_credentials.get("access-key", ""),
+                    self.cluster.s3_credentials.get("secrety-key", ""),
+                    self.unit_server.private_key,
+                    self.unit_server.keystore_password,
+                    self.unit_server.truststore_password,
+                    self.unit_server.certificate,
+                    self.unit_server.ca,
+                ]
+                if v
+            }
+        )
 
     # --- PASSWORD ROTATION --
 

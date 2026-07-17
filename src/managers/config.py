@@ -7,6 +7,7 @@ import logging
 from textwrap import dedent
 
 from core.cluster import SUBSTRATES, ClusterState
+from core.logging import RedactionFilter
 from core.structured_config import CharmConfig
 from core.workload import WorkloadBase
 from literals import JMX_PORT, METRICS_PROVIDER_PORT
@@ -62,6 +63,11 @@ class ConfigManager:
         self.workload = workload
         self.substrate = substrate
         self.config = config
+
+        redaction_filter = RedactionFilter(self.state)
+        logger.addFilter(redaction_filter)
+        for handler in logger.handlers:
+            handler.addFilter(redaction_filter)
 
     @property
     def log_level(self) -> str:
