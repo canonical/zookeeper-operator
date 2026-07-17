@@ -33,7 +33,7 @@ class RedactionFilter(logging.Filter):
         message = record.getMessage()
         for secret in self._obj.sensitive_values:
             if secret:
-                message = message.replace(secret, self.REDACTED)
+                message = message.replace(str(secret), self.REDACTED)
 
         record.msg = message
         record.args = ()

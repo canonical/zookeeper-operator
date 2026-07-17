@@ -5,7 +5,6 @@
 """Event handler for related applications on the `certificates` relation interface."""
 import base64
 import json
-import logging
 import re
 from typing import TYPE_CHECKING
 
@@ -22,8 +21,6 @@ from literals import Status
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
-
-logger = logging.getLogger(__name__)
 
 
 class TLSEvents(Object):
@@ -60,7 +57,9 @@ class TLSEvents(Object):
             return
 
         if not self.charm.state.stable == Status.ACTIVE:
-            logger.debug("certificates relation created - quorum not stable - deferring")
+            self.charm.logger.debug(
+                "certificates relation created - quorum not stable - deferring"
+            )
             event.defer()
             return
 
@@ -72,7 +71,7 @@ class TLSEvents(Object):
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
         if not self.charm.state.cluster.tls:
-            logger.debug(
+            self.charm.logger.debug(
                 "certificates relation joined - tls not enabled and not switching encryption - deferring"
             )
             event.defer()
@@ -112,7 +111,7 @@ class TLSEvents(Object):
         """Handler for `certificates_available` event after provider updates signed certs."""
         # avoid setting tls files and restarting
         if event.certificate_signing_request != self.charm.state.unit_server.csr:
-            logger.error("Can't use certificate, found unknown CSR")
+            self.charm.logger.error("Can't use certificate, found unknown CSR")
             return
 
         self.charm.state.unit_server.update(
@@ -136,7 +135,7 @@ class TLSEvents(Object):
     def _on_certificate_expiring(self, _: EventBase) -> None:
         """Handler for `certificates_expiring` event when certs need renewing."""
         if not (self.charm.state.unit_server.private_key or self.charm.state.unit_server.csr):
-            logger.error("Missing unit private key and/or old csr")
+            self.charm.logger.error("Missing unit private key and/or old csr")
             return
 
         subject = self.charm.state.unit_server.internal_address

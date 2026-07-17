@@ -4,7 +4,6 @@
 
 """Event handlers for creating and restoring backups."""
 import json
-import logging
 from typing import TYPE_CHECKING, cast
 
 from charms.data_platform_libs.v0.s3 import (
@@ -25,8 +24,6 @@ from managers.backup import BackupManager
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
-
-logger = logging.getLogger(__name__)
 
 
 class BackupEvents(Object):
@@ -70,7 +67,7 @@ class BackupEvents(Object):
             param for param in required_parameters if param not in s3_parameters
         ]
         if missing_required_parameters:
-            logger.warning(
+            self.charm.logger.warning(
                 f"Missing required S3 parameters in relation with S3 integrator: {missing_required_parameters}"
             )
             self.charm._set_status(Status.MISSING_S3_CONFIG)
@@ -112,7 +109,7 @@ class BackupEvents(Object):
 
         for check, msg in failure_conditions:
             if check:
-                logging.error(msg)
+                self.charm.logger.error(msg)
                 event.set_results({"error": msg})
                 event.fail(msg)
                 return
@@ -135,7 +132,7 @@ class BackupEvents(Object):
 
         for check, msg in failure_conditions:
             if check:
-                logging.error(msg)
+                self.charm.logger.error(msg)
                 event.set_results({"error": msg})
                 event.fail(msg)
                 return
@@ -184,7 +181,7 @@ class BackupEvents(Object):
 
         for check, msg in failure_conditions:
             if check():
-                logging.error(msg)
+                self.charm.logger.error(msg)
                 event.set_results({"error": msg})
                 event.fail(msg)
                 return
@@ -242,19 +239,19 @@ class BackupEvents(Object):
 
     def _stop_workflow(self) -> None:
         self.charm._set_status(Status.ONGOING_RESTORE)
-        logger.info("Restoring - stopping workflow")
+        self.charm.logger.info("Restoring - stopping workflow")
         self.charm.workload.stop()
         self.charm.state.unit_server.update({"restore-progress": RestoreStep.STOP_WORKFLOW.value})
 
     def _download_and_restore(self) -> None:
-        logger.info("Restoring - restore snapshot")
+        self.charm.logger.info("Restoring - restore snapshot")
         self.backup_manager.restore_snapshot(
             self.charm.state.cluster.id_to_restore, self.charm.workload
         )
         self.charm.state.unit_server.update({"restore-progress": RestoreStep.RESTORE.value})
 
     def _restart_workflow(self) -> None:
-        logger.info("Restoring - restarting workflow")
+        self.charm.logger.info("Restoring - restarting workflow")
         self.charm.workload.restart()
         self.charm.state.unit_server.update({"restore-progress": RestoreStep.RESTART.value})
 
@@ -266,6 +263,6 @@ class BackupEvents(Object):
     def _cleaning(self) -> bool | None:
         if not self.charm.workload.healthy:
             return False
-        logger.info("Restoring - cleaning files")
+        self.charm.logger.info("Restoring - cleaning files")
         self.backup_manager.cleanup_leftover_files(self.charm.workload)
         self.charm.state.unit_server.update({"restore-progress": RestoreStep.CLEAN.value})

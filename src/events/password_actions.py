@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Event handlers for password-related Juju Actions."""
-import logging
 from typing import TYPE_CHECKING
 
 from ops.charm import ActionEvent
@@ -13,8 +12,6 @@ from literals import CHARM_USERS
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
-
-logger = logging.getLogger(__name__)
 
 
 class PasswordActionEvents(Object):
@@ -53,7 +50,7 @@ class PasswordActionEvents(Object):
         """
         if not self.charm.unit.is_leader():
             msg = "Password rotation must be called on leader unit"
-            logger.error(msg)
+            self.charm.logger.error(msg)
             event.fail(msg)
             return
 
@@ -62,14 +59,14 @@ class PasswordActionEvents(Object):
                 "Cannot set password while upgrading "
                 + f"(upgrade_stack: {self.charm.upgrade_events.upgrade_stack})"
             )
-            logger.error(msg)
+            self.charm.logger.error(msg)
             event.fail(msg)
             return
 
         username = event.params.get("username", "super")
         if username not in CHARM_USERS:
             msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."
-            logger.error(msg)
+            self.charm.logger.error(msg)
             event.fail(msg)
             return
 

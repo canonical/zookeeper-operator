@@ -70,6 +70,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
 
         # --- LOGGING CONFIGURATION ---
 
+        self.logger = logger
         redaction_filter = RedactionFilter(self.state)
         logger.addFilter(redaction_filter)
         for handler in logger.handlers:

@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Event handler for related applications on the `zookeeper` relation interface."""
-import logging
 from typing import TYPE_CHECKING
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseProviderEventHandlers
@@ -20,8 +19,6 @@ from literals import REL_NAME
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
-
-logger = logging.getLogger(__name__)
 
 
 class ProviderEvents(Object):
@@ -73,7 +70,7 @@ class ProviderEvents(Object):
             QuorumLeaderNotFoundError,
             KazooTimeoutError,
         ) as e:
-            logger.warning(str(e))
+            self.charm.logger.warning(str(e))
             event.defer()
             return
 
